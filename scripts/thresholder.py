@@ -110,16 +110,15 @@ try:
     # Main loop
     while True:
         reply = conn.receive()
-        if 'message' in reply:
-            # TODO: Add schema validation
-            message = panmsg.Message(reply["message"])
-            if message.get_version() != 2:
-                continue
+        # TODO: Add schema validation
+        message = panmsg.Message(reply)
+        if message.get_version() != 2:
+            continue
 
-            states = get_states(message)
-            state = get_state(message)
-            message.get_event().set_state(state, states[0], states[1])
-            conn.submit(message.message)
+        states = get_states(message)
+        state = get_state(message)
+        message.get_event().set_state(state, states[0], states[1])
+        conn.submit(message.message)
 
 except streem.Streem.ProtocolError as e:
     print "Streem returned status %s." % e.args

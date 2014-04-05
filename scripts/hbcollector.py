@@ -74,20 +74,18 @@ try:
 
     # Main loop
     while True:
-        reply = conn.receive()
-        if 'message' in reply:
-            # TODO: Add schema validation
-            message = reply["message"]
-            if message["v"] != 2:
-                continue
+        message = conn.receive()
+        # TODO: Add schema validation
+        if message["v"] != 2:
+            continue
 
-            key = get_message_key(message)
-            if not db.has_key(key):
-                state_message = create_state_message(message, "up")
-                conn.submit(state_message)
+        key = get_message_key(message)
+        if not db.has_key(key):
+            state_message = create_state_message(message, "up")
+            conn.submit(state_message)
 
-            db[key] = str(message["time"])
-            db.sync()
+        db[key] = str(message["time"])
+        db.sync()
 
 except streem.sjcp.ProtocolError as e:
     print "Streem returned status %s." % e.args
