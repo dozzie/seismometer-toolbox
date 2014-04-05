@@ -120,7 +120,7 @@ try:
         message.get_event().set_state(state, states[0], states[1])
         conn.submit(message.message)
 
-except streem.Streem.ProtocolError as e:
+except streem.ProtocolError as e:
     print "Streem returned status %s." % e.args
 except KeyboardInterrupt:
     pass

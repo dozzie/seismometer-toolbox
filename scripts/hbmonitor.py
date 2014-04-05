@@ -80,7 +80,7 @@ try:
                 db.sync()
         time.sleep(args.interval)
 
-except streem.sjcp.ProtocolError as e:
+except streem.ProtocolError as e:
     print "Streem returned status %s." % e.args
 except KeyboardInterrupt:
     pass
