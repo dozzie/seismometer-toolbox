@@ -97,27 +97,19 @@ def get_state(message):
 
 #-----------------------------------------------------------------------------
 
+# Parse arguments
 parser = create_parser()
 args = parser.parse_args()
 
-#-----------------------------------------------------------------------------
-
-host = args.host
-port = args.port
-srcchannel = args.srcchannel
-dstchannel = args.dstchannel
-
-#-----------------------------------------------------------------------------
-
 try:
     # Streem initialization
-    streem = streem.Streem(host, port)
-    streem.register(dstchannel)
-    streem.subscribe(srcchannel)
+    conn = streem.Streem(args.host, args.port)
+    conn.register(args.dstchannel)
+    conn.subscribe(args.srcchannel)
 
     # Main loop
     while True:
-        reply = streem.receive()
+        reply = conn.receive()
         if 'message' in reply:
             # TODO: Add schema validation
             message = panmsg.Message(reply["message"])
@@ -127,9 +119,9 @@ try:
             states = get_states(message)
             state = get_state(message)
             message.get_event().set_state(state, states[0], states[1])
-            streem.submit(message.message)
+            conn.submit(message.message)
 
-except sjcp.ProtocolError as e:
+except streem.Streem.ProtocolError as e:
     print "Streem returned status %s." % e.args
 except KeyboardInterrupt:
     pass
