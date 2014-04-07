@@ -9,7 +9,7 @@ import sys
 import socket
 import json
 import argparse
-import panmsg
+import panopticon.message
 import streem
 
 #-----------------------------------------------------------------------------
@@ -111,7 +111,7 @@ try:
     while True:
         reply = conn.receive()
         # TODO: Add schema validation
-        message = panmsg.Message(reply)
+        message = panopticon.message.Message(reply)
         if message.get_version() != 2:
             continue
 

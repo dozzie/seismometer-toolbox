@@ -10,7 +10,7 @@ import argparse
 import time
 import json
 import bsddb
-import panmsg
+import panopticon.message
 import streem
 
 #-----------------------------------------------------------------------------
