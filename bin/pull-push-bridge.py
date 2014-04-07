@@ -16,8 +16,8 @@ import imp
 # load plugin
 
 def load_plugin(plugin_name):
-  plugin = __import__('panopticon.bridge.%s' % (plugin_name,))
-  plugin = plugin.bridge.__dict__[plugin_name]
+  plugin = __import__('panopticon.pull_push_bridge.%s' % (plugin_name,))
+  plugin = plugin.pull_push_bridge.__dict__[plugin_name]
   return plugin
 
 #-----------------------------------------------------------------------------
