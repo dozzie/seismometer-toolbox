@@ -3,6 +3,8 @@
 import socket
 import re
 
+#-----------------------------------------------------------------------------
+
 class PullPushBridge:
   NON_WORD = re.compile(r'[^a-zA-Z0-9_.]')
 

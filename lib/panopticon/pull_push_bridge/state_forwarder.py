@@ -6,6 +6,8 @@
 
 import streem
 
+#-----------------------------------------------------------------------------
+
 class PullPushBridge:
   def __init__(self, options):
     (self.host, self.port, self.channel) = options.destination.split(":", 2)
