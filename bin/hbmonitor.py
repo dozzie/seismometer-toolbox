@@ -11,7 +11,7 @@ import time
 import argparse
 import json
 import bsddb
-import panmsg
+import panopticon.message
 import streem
 
 #-----------------------------------------------------------------------------
