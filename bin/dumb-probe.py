@@ -21,7 +21,7 @@ def load_checks(filename):
 # parse command line options
 
 parser = optparse.OptionParser(
-  usage = "%prog --checks=PYFILE [--to=stdout | --to=host:port:channel]",
+  usage = "%prog --checks=PYFILE [--destination=stdout | --destination=host:port:channel]",
 )
 
 parser.add_option(
@@ -29,7 +29,7 @@ parser.add_option(
   help = "load checks from *.py file", metavar = "PYFILE",
 )
 parser.add_option(
-  "--to", dest = "to", default = "stdout",
+  "--destination", dest = "destination", default = "stdout",
   help = "where to submit messages to (host:port:channel or stdout;"
          " stdout is the default)",
   metavar = "TARGET",
@@ -46,11 +46,11 @@ if options.checks is None:
 
 checks = load_checks(options.checks)
 
-if options.to == "stdout":
+if options.destination == "stdout":
   def submit(data):
     print data
 else:
-  (host, port, channel) = options.to.split(":", 2)
+  (host, port, channel) = options.destination.split(":", 2)
   s = streem.Streem(host, int(port))
   s.register(channel)
   def submit(data):
