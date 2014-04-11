@@ -72,15 +72,17 @@ if options.user is not None or options.group is not None:
 
 if options.background:
   daemonshepherd.detach("/")
-  pid_file.update()
+  if pid_file is not None:
+    pid_file.update()
 
-pid_file.claim() # remove on close
+if pid_file is not None:
+  pid_file.claim() # remove on close
 
 # }}}
 #-----------------------------------------------------------------------------
 # create controller thread {{{
 
-controller = daemonshepherd.Controller(options.daemons, self.control_socket)
+controller = daemonshepherd.Controller(options.daemons, options.control_socket)
 
 # }}}
 #-----------------------------------------------------------------------------

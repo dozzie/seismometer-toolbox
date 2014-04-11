@@ -72,11 +72,10 @@ class Controller:
     # TODO: create socket (TCP/UNIX)
 
   def __del__(self):
-    self.thread.actor_ref.stop()
+    self.shutdown()
 
-  def shutdown():
-    # TODO: implement me
-    pass
+  def shutdown(self):
+    self.thread.actor_ref.stop()
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker
