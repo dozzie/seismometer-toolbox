@@ -1,142 +1,163 @@
 #!/usr/bin/python
 
 import os
-import subprocess
-import pykka
+import sys
 import time
 import re
 
 #-----------------------------------------------------------------------------
 
-class DaemonSupervisor(pykka.ThreadingActor):
+class Command:
+  DEVNULL = object()
+  PIPE = object()
+
   SHELL_META = re.compile('[]\'"$&*()`{}\\\\;<>?[]')
   SPACE = re.compile('[ \t\r\n]+')
 
-  def __init__(self, command, environment, cwd, stdout, backoff):
-    super(DaemonSupervisor, self).__init__()
-    if DaemonSupervisor.SHELL_META.search(command):
-      self.command = command
-    else:
-      self.command = DaemonSupervisor.SPACE.split(command)
+  def __init__(self, command, environment = None, cwd = None, stdout = None):
     self.environment = environment
     self.cwd = cwd
     self.stdout = stdout
-    if backoff is None:
-      self.backoff = [1, 15, 15, 60, 300]
+    if Command.SHELL_META.search(command):
+      self.args = ["/bin/sh", "-c", command]
+      self.command = "/bin/sh"
     else:
-      self.backoff = backoff
-    self.backoff_position = 0
-    self.backoff_time = time.time()
-    self.child = None
-    self.stop = False
+      self.args = Command.SPACE.split(command)
+      self.command = self.args[0]
 
-  def start_child(self):
-    self.stop = False
-    # TODO: read STDOUT/STDERR and convert it to log or a message
-    if isinstance(self.command, list):
-      self.child = subprocess.Popen(
-        self.command,
-        stdin  = open("/dev/null"),
-        stdout = open("/dev/null", "w"),
-        stderr = subprocess.STDOUT,
-      )
+  def run(self):
+    if self.stdout is Command.PIPE:
+      (read_end, write_end) = os.pipe()
+    elif self.stdout is Command.DEVNULL:
+      read_end = None
+      write_end = os.open('/dev/null', os.O_WRONLY)
     else:
-      self.child = subprocess.Popen(
-        self.command, shell = True,
-        stdin  = open("/dev/null"),
-        stdout = open("/dev/null", "w"),
-        stderr = subprocess.STDOUT,
-      )
+      read_end  = None
+      write_end = None
 
-    # XXX: enter child monitoring loop
-    self.actor_ref.ask({"monitor": True}, block = False)
+    # try spawn child
+    pid = os.fork()
+    if pid != 0:
+      # in parent: close writing end of pipe (if any), make reading end a file
+      # handle (if any), return PID + read file handle
+      if read_end is None:
+        return (pid, None)
+      else:
+        read_end = os.fdopen(read_end, 'r')
+        os.close(write_end)
+        return (pid, read_end)
 
-  def stop_child(self, command):
-    self.stop = True
-    if self.child is None:
-      return
+    # XXX: child process
 
-    os.system(command)
-    while self.child.poll() is None:
-      # TODO: don't wait for infinity
-      time.sleep(0.1)
-    self.child = None
+    # set the child a group leader (^C in shell should not kill the process,
+    # it's a parent's job)
+    os.setpgrp()
 
-  def kill_child(self, signal):
-    self.stop = True
-    if self.child is None:
-      return
+    # close reading end of pipe, if any
+    if read_end is not None:
+      os.close(read_end)
 
-    # TODO: send signal to child
-    os.kill(self.child.pid, signal)
-    while self.child.poll() is None:
-      # TODO: don't wait for infinity
-      time.sleep(0.1)
-    self.child = None
+    # redirect STDIN
+    devnull = open('/dev/null')
+    os.dup2(devnull.fileno(), 0)
+    devnull.close()
 
-  def sleep_backoff(self):
-    backoff = self.backoff[self.backoff_position]
-    # reset backoff if last backoff sleep was long ago (minimum 10s)
-    if backoff > 10 and time.time() - self.backoff_time > 2 * backoff:
-      self.backoff_position = 0
-      backoff = self.backoff[self.backoff_position]
+    # redirect STDOUT and STDERR to pipe, if any
+    if write_end is not None:
+      os.dup2(write_end, 1)
+      os.dup2(write_end, 2)
+      os.close(write_end)
 
-    time.sleep(backoff)
-    if self.backoff_position < len(self.backoff):
-      self.backoff_position += 1
+    # change working directory if requested
+    if self.cwd is not None:
+      os.chdir(self.cwd)
 
-  def child_ok(self):
-    return self.child is not None and self.child.poll() is None
+    # set environment if requested
+    if self.environment is not None:
+      for e in self.environment:
+        os.environ[e] = self.environment[e]
 
-  def on_receive(self, message):
-    if self.stop:
-      return
-
-    if self.child_ok():
-      # TODO: read something from child's STDOUT (timeout 100ms)
-      time.sleep(1) # TODO: time.sleep(0.1)
-    else:
-      self.sleep_backoff()
-      self.start_child()
-
-    # loop (somewhat indirect)
-    self.actor_ref.ask(message, block = False)
+    # execute command and exit with error if failed
+    os.execvp(self.command, self.args)
+    sys.exit(127)
 
 #-----------------------------------------------------------------------------
 
 class Daemon:
   def __init__(self, start_command, stop_command = None, stop_signal = None,
-               backoff = None, environment = None, cwd = None, stdout = None):
-    if stop_signal is None:
-      stop_signal = 15
-    # TODO: convert stop_signal from name to number
+               backoff = None, environment = None, cwd = None, stdout = None,
+               name = None):
+    self.name = name
+    if stdout is None or stdout == 'stdout':
+      self.start_command = Command(start_command, environment, cwd)
+    elif stdout == '/dev/null':
+      self.start_command = Command(
+        start_command, environment, cwd, Command.DEVNULL
+      )
+    elif stdout == 'pipe':
+      self.start_command = Command(
+        start_command, environment, cwd, Command.PIPE
+      )
 
-    self.start_command = start_command
-    self.stop_command  = stop_command
-    self.stop_signal   = stop_signal
+    if stop_command is not None:
+      self.stop_command = Command(
+        stop_command, environment, cwd, Command.DEVNULL
+      )
+      self.stop_signal = None
+    else:
+      self.stop_command = None
+      if stop_signal is None:
+        self.stop_signal = 15
+      else:
+        # TODO: convert stop_signal from name to number
+        self.stop_signal = stop_signal
 
     self.backoff = backoff
-    self.environment = environment
-    self.cwd = cwd
-    self.stdout = stdout
-
-    self.supervisor = DaemonSupervisor.start(
-      start_command, environment, self.cwd, self.stdout, backoff,
-    ).proxy()
+    self.child_pid = None
+    self.child_stdout = None
 
   def __del__(self):
     self.stop()
 
   def start(self):
-    self.supervisor.start_child().get()
+    if self.child_pid is not None:
+      # TODO: raise an error (child is already running)
+      return
+    (self.child_pid, self.child_stdout) = self.start_command.run()
 
   def stop(self):
-    if self.supervisor.actor_ref.is_alive():
-      if self.stop_command is not None:
-        self.supervisor.stop_child(self.stop_command).get()
-      else:
-        self.supervisor.kill_child(self.stop_signal).get()
-      self.supervisor.actor_ref.stop()
+    if self.child_pid is None:
+      # NOTE: don't raise an error (could be called from __del__() when the
+      # child is not running)
+      return
+
+    # TODO: make this command asynchronous
+    if self.stop_command is not None:
+      (pid, ignore) = self.stop_command.run()
+      os.waitpid(pid, 0) # wait for termination of stop command
+    else:
+      os.kill(self.child_pid, self.stop_signal)
+    self.reap()
+
+  def fileno(self):
+    if self.child_stdout is not None:
+      return self.child_stdout.fileno()
+    else:
+      return None
+
+  def readline(self):
+    if self.child_stdout is not None:
+      return self.child_stdout.readline()
+    else:
+      return None
+
+  def reap(self):
+    # TODO: read self.child_stdout (and discard?)
+    os.waitpid(self.child_pid, 0)
+    self.child_pid = None
+    self.child_stdout = None
+
+  #-------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker
