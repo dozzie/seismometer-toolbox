@@ -58,13 +58,23 @@ class Controller:
     for daemon in self.poll.poll():
       line = daemon.readline()
       if line == '':
-        # XXX: daemon died
+        # EOF, but this doesn't mean that the daemon died yet
         self.poll.remove(daemon)
-        daemon.reap()
-        del self.running[daemon.name]
-        # TODO: add to restart queue
+        daemon.close()
       else:
+        # TODO: process the line (JSON-decode and send to Streem or log using
+        # logging module)
         pass
+
+    for dname in self.running.keys(): # self.running can change in the middle
+      daemon = self.running[dname]
+      if not daemon.is_alive():
+        # close daemon's pipe, in case it was still opened
+        # FIXME: this can loose some of the daemon's output
+        self.poll.remove(daemon)
+        daemon.close()
+        # TODO: schedule the restart
+        del self.running[dname]
 
   def loop(self):
     while True:

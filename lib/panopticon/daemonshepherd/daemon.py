@@ -119,6 +119,9 @@ class Daemon:
   def __del__(self):
     self.stop()
 
+  #-------------------------------------------------------------------
+  # starting and stopping daemon
+
   def start(self):
     if self.child_pid is not None:
       # TODO: raise an error (child is already running)
@@ -139,6 +142,9 @@ class Daemon:
       os.kill(self.child_pid, self.stop_signal)
     self.reap()
 
+  #-------------------------------------------------------------------
+  # filehandle methods
+
   def fileno(self):
     if self.child_stdout is not None:
       return self.child_stdout.fileno()
@@ -151,11 +157,34 @@ class Daemon:
     else:
       return None
 
+  def close(self):
+    if self.child_stdout is not None:
+      self.child_stdout.close()
+      self.child_stdout = None
+
+  #-------------------------------------------------------------------
+  # child process management
+
+  def is_alive(self):
+    if self.child_pid is None:
+      # no child was started
+      return False
+    if os.waitpid(self.child_pid, os.WNOHANG) != (0,0):
+      # child was started, but has just exited
+      self.child_pid = None
+      return False
+
+    # child is still running
+    return True
+
   def reap(self):
-    # TODO: read self.child_stdout (and discard?)
+    if self.child_pid is None:
+      self.close() # in case it was still opened
+      return
+
+    self.close() # TODO: read self.child_stdout (and discard?)
     os.waitpid(self.child_pid, 0)
     self.child_pid = None
-    self.child_stdout = None
 
   #-------------------------------------------------------------------
 
