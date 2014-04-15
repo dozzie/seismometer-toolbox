@@ -85,9 +85,7 @@ class Command:
 
 class Daemon:
   def __init__(self, start_command, stop_command = None, stop_signal = None,
-               backoff = None, environment = None, cwd = None, stdout = None,
-               name = None):
-    self.name = name
+               environment = None, cwd = None, stdout = None):
     if stdout is None or stdout == 'stdout':
       self.start_command = Command(start_command, environment, cwd)
     elif stdout == '/dev/null':
@@ -112,7 +110,6 @@ class Daemon:
         # TODO: convert stop_signal from name to number
         self.stop_signal = stop_signal
 
-    self.backoff = backoff
     self.child_pid = None
     self.child_stdout = None
 
