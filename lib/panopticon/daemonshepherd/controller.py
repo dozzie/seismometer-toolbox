@@ -5,6 +5,7 @@ import daemon
 import time
 import select
 import heapq
+import logging
 
 #-----------------------------------------------------------------------------
 
@@ -60,12 +61,16 @@ class RestartQueue:
   # the daemon has just been started (or is going to be in a second)
   def start(self, daemon_name):
     self.restart_time[daemon_name] = time.time()
+    logger = logging.getLogger("restart_queue")
+    logger.info("daemon %s started", daemon_name)
 
   # the daemon has just been (intentionally) stopped
   def stop(self, daemon_name):
     # NOTE: unused for now, added for API completeness
     self.restart_time[daemon_name] = None
     self.backoff_pos[daemon_name] = 0
+    logger = logging.getLogger("restart_queue")
+    logger.info("daemon %s stopped", daemon_name)
 
   # the daemon has just died
   def die(self, daemon_name):
@@ -79,6 +84,9 @@ class RestartQueue:
       if running_time > 10 and running_time > 2 * restart_backoff:
         self.backoff_pos[daemon_name] = 0
         restart_backoff = self.backoff[daemon_name][0]
+
+    logger = logging.getLogger("restart_queue")
+    logger.warning("daemon %s died, sleeping %d", daemon_name, restart_backoff)
 
     if self.backoff_pos[daemon_name] + 1 < len(self.backoff[daemon_name]):
       # advance to next backoff on next restart
@@ -110,7 +118,9 @@ class Controller:
     self.shutdown()
 
   def shutdown(self):
+    logger = logging.getLogger("controller")
     for daemon in self.running.keys():
+      logger.info('stopping daemon %s', daemon)
       self.running[daemon].stop()
       self.poll.remove(self.running[daemon])
       del self.running[daemon]
