@@ -2,7 +2,7 @@
 
 import sys
 import optparse
-import time
+import logging
 
 from panopticon import daemonshepherd
 
@@ -18,6 +18,10 @@ parser = optparse.OptionParser(
 parser.add_option(
   "-f", "--daemons", dest = "daemons",
   help = "YAML file with daemons to control", metavar = "FILE",
+)
+parser.add_option(
+  "-l", "--logging", dest = "logging",
+  help = "YAML/JSON file with logging configuration", metavar = "FILE",
 )
 parser.add_option(
   "-s", "--control-socket", dest = "control_socket",
@@ -65,6 +69,25 @@ if options.pid_file is not None:
 
 if options.user is not None or options.group is not None:
   daemonshepherd.setguid(options.user, options.group)
+
+# }}}
+#-----------------------------------------------------------------------------
+# configure logging (if applicable) {{{
+
+if options.logging is not None:
+  # JSON is valid YAML, so I can skip loading json module (yaml module is
+  # necessary for daemons spec file anyway)
+  import yaml
+  log_config = yaml.safe_load(open(options.logging))
+
+  import logging.config
+  if hasattr(logging.config, 'dictConfig'):
+    # Python 2.7+
+    logging.config.dictConfig(log_config)
+  else:
+    # older Python, use local copy of dictConfig()
+    import panopticon.logging.logging_config
+    panopticon.logging.logging_config.dictConfig(log_config)
 
 # }}}
 #-----------------------------------------------------------------------------
