@@ -76,9 +76,11 @@ class RestartQueue:
   def die(self, daemon_name):
     backoff_pos = self.backoff_pos[daemon_name]
     restart_backoff = self.backoff[daemon_name][backoff_pos]
+    if restart_backoff < 1: # minimum backoff: 1s
+      restart_backoff = 1
 
     # reset backoff if the command was running long enough (but at least for
-    # 10 seconds, to prevent continuous restarts when backoff == 0)
+    # 10 seconds, to prevent continuous restarts when backoff is small)
     if self.restart_time[daemon_name] is not None:
       running_time = time.time() - self.restart_time[daemon_name]
       if running_time > 10 and running_time > 2 * restart_backoff:
