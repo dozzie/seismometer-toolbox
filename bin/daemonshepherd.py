@@ -96,8 +96,7 @@ if options.background:
 # main loop {{{
 
 try:
-  while True:
-    time.sleep(1)
+  controller.loop()
 except KeyboardInterrupt:
   pass
 

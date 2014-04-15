@@ -3,6 +3,7 @@
 import pykka
 import yaml
 import daemon
+import time
 
 #-----------------------------------------------------------------------------
 
@@ -73,6 +74,10 @@ class Controller:
 
   def __del__(self):
     self.shutdown()
+
+  def loop(self):
+    while True:
+      time.sleep(1)
 
   def shutdown(self):
     self.thread.actor_ref.stop()
