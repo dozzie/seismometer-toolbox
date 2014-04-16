@@ -79,15 +79,26 @@ if options.logging is not None:
   # necessary for daemons spec file anyway)
   import yaml
   log_config = yaml.safe_load(open(options.logging))
+else:
+  log_config = {
+    "version": 1,
+    "root": { "handlers": ["null"] },
+    "handlers": {
+      "null": {
+        "class": "logging.StreamHandler",
+        "stream": open('/dev/null', 'w'),
+      }
+    }
+  }
 
-  import logging.config
-  if hasattr(logging.config, 'dictConfig'):
-    # Python 2.7+
-    logging.config.dictConfig(log_config)
-  else:
-    # older Python, use local copy of dictConfig()
-    import panopticon.logging.logging_config
-    panopticon.logging.logging_config.dictConfig(log_config)
+import logging.config
+if hasattr(logging.config, 'dictConfig'):
+  # Python 2.7+
+  logging.config.dictConfig(log_config)
+else:
+  # older Python, use local copy of dictConfig()
+  import panopticon.logging.logging_config
+  panopticon.logging.logging_config.dictConfig(log_config)
 
 # }}}
 #-----------------------------------------------------------------------------
