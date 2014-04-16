@@ -6,6 +6,7 @@ import time
 import select
 import heapq
 import logging
+import control_socket
 
 #-----------------------------------------------------------------------------
 
@@ -110,10 +111,13 @@ class RestartQueue:
 class Controller:
   def __init__(self, daemon_spec_file, socket_address = None):
     self.daemon_spec_file = daemon_spec_file
-    self.running  = {} # name => daemon.Daemon
-    self.expected = {} # name => daemon.Daemon
     self.restart_queue = RestartQueue()
     self.poll = Poll()
+    if socket_address is not None:
+      self.socket = control_socket.ControlSocket(socket_address)
+      self.poll.add(self.socket)
+    self.running  = {} # name => daemon.Daemon
+    self.expected = {} # name => daemon.Daemon
     self.reload()
 
   def __del__(self):
@@ -128,17 +132,18 @@ class Controller:
       del self.running[daemon]
 
   def check_children(self):
-    # read daemons' outputs
     for daemon in self.poll.poll():
-      line = daemon.readline()
-      if line == '':
-        # EOF, but this doesn't mean that the daemon died yet
-        self.poll.remove(daemon)
-        daemon.close()
-      else:
-        # TODO: process the line (JSON-decode and send to Streem or log using
-        # logging module)
-        pass
+      if isinstance(daemon, control_socket.ControlSocket):
+        client = daemon.accept()
+        self.poll.add(client)
+        continue
+
+      if isinstance(daemon, control_socket.ControlSocketClient):
+        self.handle_command(daemon)
+        continue
+
+      # isinstance(daemon, daemon.Daemon)
+      self.handle_daemon_output(daemon)
 
     # check if all the daemons are still running
     for dname in self.running.keys(): # self.running can change in the middle
@@ -161,6 +166,27 @@ class Controller:
         self.expected[daemon].start()
         self.running[daemon] = self.expected[daemon]
         self.poll.add(self.running[daemon])
+
+  #-------------------------------------------------------------------
+
+  def handle_command(self, client):
+    cmd = client.read()
+    if cmd is None: # EOF
+      self.poll.remove(client)
+      client.close()
+      return
+    # TODO: really handle the command
+    client.send({"error": ["not", "implemented"]})
+
+  def handle_daemon_output(self, daemon):
+    line = daemon.readline()
+    if line == '': # EOF, but this doesn't mean that the daemon died yet
+      self.poll.remove(daemon)
+      daemon.close()
+    else:
+      # TODO: process the line (JSON-decode and send to Streem or log using
+      # logging module)
+      pass
 
   #-------------------------------------------------------------------
 
