@@ -80,7 +80,7 @@ class Command:
 
     # execute command and exit with error if failed
     os.execvp(self.command, self.args)
-    sys.exit(127)
+    os._exit(127)
 
 #-----------------------------------------------------------------------------
 
