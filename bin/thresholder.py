@@ -29,25 +29,28 @@ def create_parser():
     return parser
 
 #-----------------------------------------------------------------------------
+# Get state names from given threshold array
+def get_threshold_states(thresholds):
+    states = []
+    if thresholds is not None:
+        for threshold in thresholds:
+            states.append(threshold.name)
+    return states
+
+#-----------------------------------------------------------------------------
 # Gets state names based on vset properties
 def get_states(message):
     attention_states = []
     expected_states = []
-    vset_keys = message.get_event().get_vset_keys()
-    if vset_keys is not None and vset_keys:
-        for key in vset_keys:
-            vset = message.get_event().get_vset(key)
-            thresholds_low = vset.get_thresholds_low()
-            if thresholds_low is not None:
-                for threshold in thresholds_low:
-                    attention_states.append(threshold.get_name())
-            thresholds_high = vset.get_thresholds_high()
-            if thresholds_high is not None:
-                for threshold in thresholds_high:
-                    attention_states.append(threshold.get_name())
-            threshold_kept = vset.get_threshold_kept()
-            if threshold_kept not in expected_states:
-                expected_states.append(threshold_kept)
+    if message.event.vset is not None:
+        for key, vset in message.event.vset.iteritems():
+            attention_states.extend(
+                get_threshold_states(vset.threshold_low))
+            attention_states.extend(
+                get_threshold_states(vset.threshold_high))
+        if vset.threshold_kept is not None:
+            expected_states.append(
+                vset.threshold_kept)
     return [expected_states, attention_states]
 
 #-----------------------------------------------------------------------------
@@ -55,45 +58,38 @@ def get_states(message):
 def get_threshold_state(vset):
     threshold_low = None
     threshold_high = None
-    value = vset.get_value();
-    if value is not None:
-        thresholds_low = vset.get_thresholds_low()
-        if thresholds_low is not None:
-            for threshold in thresholds_low:
+    if vset.value is not None:
+        if vset.threshold_low is not None:
+            for threshold in vset.threshold_low:
                 if (threshold_low is None \
-                    or threshold.get_value() < threshold_low.get_value()) \
-                    and value > threshold.get_value():
+                    or threshold.value < threshold_low.value) \
+                    and vset.value > threshold.value:
                     threshold_low = threshold
-        thresholds_high = vset.get_thresholds_high()
-        if thresholds_high is not None:
-            for threshold in thresholds_high:
-                if (threshold_high is none \
-                    or threshold.get_value() > threshold_high.get_value()) \
-                    and value < threshold.get_value():
+        if vset.threshold_high is not None:
+            for threshold in vset.threshold_high:
+                if (threshold_high is None \
+                    or threshold.value > threshold_high.value) \
+                    and vset.value < threshold.value:
                     threshold_high = threshold
     if threshold_high is not None:
-        return threshold_high.get_name()
+        return threshold_high.name
+    elif threshold_low is not None:
+        return threshold_low.name
     else:
-        if threshold_low is not None:
-            return threshold_low.get_name()
-        else:
-            return None
-                    
+        return None
+
 #-----------------------------------------------------------------------------
 # Gets aspects state based on all vset data
 def get_state(message):
-    states = []
-    vset_keys = message.get_event().get_vset_keys()
-    if vset_keys is not None and vset_keys:
-        for key in vset_keys:
-            vset = message.get_event().get_vset(key)
+    state = None
+    if message.event.vset is not None:
+        for key, vset in message.event.vset.iteritems():
             state = get_threshold_state(vset)
             if state is not None:
-                states.append(state)
-    if states:
-        return states[0]
-    else:
-        return "ok"
+                break
+    if state is None:
+        state = "ok"
+    return state 
 
 #-----------------------------------------------------------------------------
 
@@ -112,13 +108,21 @@ try:
         reply = conn.receive()
         # TODO: Add schema validation
         message = panopticon.message.Message(reply)
-        if message.get_version() != 2:
+        if message.v != 2:
             continue
 
         states = get_states(message)
-        state = get_state(message)
-        message.get_event().set_state(state, states[0], states[1])
-        conn.submit(message.message)
+        current_state = get_state(message)
+        
+        state = panopticon.message.State(current_state)
+        state.expected = states[0]
+        state.attention = states[1]
+        message.event.state = state
+
+        msg = message.to_dict()
+        print json.dumps(message.to_dict())
+
+        conn.submit(message.to_dict())
 
 except streem.ProtocolError as e:
     print "Streem returned status %s." % e.args
