@@ -7,13 +7,10 @@ defaults:
 
 daemons:
   streem:
-    # NOTE: cwd and environment don't work yet; the four lines below show what
-    # is the target way of specifying this
-    #cwd: ../streem
-    #environment:
-    #  ERL_LIBS: "."
-    #start_command: escript dist/run.erl 10101
-    start_command: "cd ../streem && ERL_LIBS=. exec escript dist/run.erl 10101"
+    cwd: ../streem
+    environment:
+      ERL_LIBS: "."
+    start_command: escript dist/run.erl 10101
     #stop_command: ...
     #stop_signal: TERM | SIGTERM | 15
 
