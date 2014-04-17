@@ -2,6 +2,7 @@
 
 import os
 import sys
+import signal
 import time
 import re
 
@@ -105,9 +106,14 @@ class Daemon:
     else:
       self.stop_command = None
       if stop_signal is None:
-        self.stop_signal = 15
+        self.stop_signal = signal.SIGTERM
+      elif isinstance(stop_signal, (str, unicode)):
+        # convert stop_signal from name to number
+        if stop_signal.startswith('SIG'):
+          self.stop_signal = signal.__dict__[stop_signal]
+        else:
+          self.stop_signal = signal.__dict__['SIG' + stop_signal]
       else:
-        # TODO: convert stop_signal from name to number
         self.stop_signal = stop_signal
 
     self.child_pid = None
