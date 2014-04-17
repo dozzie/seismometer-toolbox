@@ -142,7 +142,7 @@ class Daemon:
       (pid, ignore) = self.stop_command.run()
       os.waitpid(pid, 0) # wait for termination of stop command
     else:
-      os.kill(self.child_pid, self.stop_signal)
+      os.killpg(self.child_pid, self.stop_signal)
     self.reap()
 
   #-------------------------------------------------------------------
