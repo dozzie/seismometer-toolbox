@@ -252,6 +252,9 @@ class Controller:
   #-------------------------------------------------------------------
 
   def reload(self):
+    logger = logging.getLogger("controller")
+    logger.info("reloading configuration from %s", self.daemon_spec_file)
+
     spec = yaml.safe_load(open(self.daemon_spec_file))
     defaults = spec.get('defaults', {})
 
@@ -275,17 +278,33 @@ class Controller:
     self.converge()
 
   def converge(self):
-    # stop excessive, start missing daemons
-    # TODO: restart processes with changed commands
+    logger = logging.getLogger("controller")
+
+    # check for daemons that are running, but have changed commands or
+    # environment
+    for daemon in self.expected:
+      if daemon in self.running and \
+         self.expected[daemon] != self.running[daemon]:
+        # just stop the changed ones, they'll get started just after this loop
+        logger.info("changed config: %s, stopping current instance", daemon)
+        self.running[daemon].stop()
+        self.poll.remove(self.running[daemon])
+        del self.running[daemon]
+
+    # start daemons that are expected to be running but aren't doing so
     for daemon in self.expected:
       if daemon not in self.running:
+        logger.info("starting %s", daemon)
         self.restart_queue.start(daemon)
         self.expected[daemon].start()
         self.running[daemon] = self.expected[daemon]
         self.poll.add(self.running[daemon])
+
+    # stop daemons that are running but are not supposed to
     for daemon in self.running.keys():
       if daemon not in self.expected:
         # shouldn't be present in self.restart_queue
+        logger.info("stopping %s", daemon)
         self.running[daemon].stop()
         self.poll.remove(self.running[daemon])
         del self.running[daemon]

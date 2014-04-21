@@ -26,6 +26,16 @@ class Command:
       self.args = Command.SPACE.split(command)
       self.command = self.args[0]
 
+  def __ne__(self, other):
+    return not (self == other)
+
+  def __eq__(self, other):
+    return self.environment == other.environment and \
+           self.cwd         == other.cwd         and \
+           self.stdout      == other.stdout      and \
+           self.args        == other.args        and \
+           self.command     == other.command
+
   def run(self):
     if self.stdout is Command.PIPE:
       (read_end, write_end) = os.pipe()
@@ -121,6 +131,14 @@ class Daemon:
 
   def __del__(self):
     self.stop()
+
+  def __ne__(self, other):
+    return not (self == other)
+
+  def __eq__(self, other):
+    return self.start_command == other.start_command and \
+           self.stop_command  == other.stop_command  and \
+           self.stop_signal   == other.stop_signal
 
   #-------------------------------------------------------------------
   # starting and stopping daemon
