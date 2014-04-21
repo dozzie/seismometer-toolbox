@@ -55,6 +55,9 @@ class RestartQueue:
     self.backoff_pos = {}
     self.restart_time = {}
 
+  def list(self):
+    return [{"name": d[1], "restart_at": d[0]} for d in self.restart_queue]
+
   def clear(self):
     self.restart_queue = []
     self.backoff = {}
@@ -214,8 +217,13 @@ class Controller:
       logger.warning('unknown command: %s', json.dumps(cmd))
       return
     if cmd["command"] == "ps":
-      client.send({"status": "todo", "message": "command not implemented"})
-      pass
+      # TODO: be more verbose, e.g. include command used to start the child
+      result = {
+        "all": sorted(self.expected.keys()),
+        "running": sorted(self.running.keys()),
+        "awaiting_restart": sorted(self.restart_queue.list()),
+      }
+      client.send({"status": "ok", "result": result})
     elif cmd["command"] == "start":
       client.send({"status": "todo", "message": "command not implemented"})
       pass
@@ -281,6 +289,11 @@ class Controller:
         self.running[daemon].stop()
         self.poll.remove(self.running[daemon])
         del self.running[daemon]
+
+  #-------------------------------------------------------------------
+
+  def list_processes(self):
+    return 
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker
