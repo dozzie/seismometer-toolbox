@@ -9,6 +9,7 @@ import logging
 import control_socket
 import signal
 import errno
+import json
 
 #-----------------------------------------------------------------------------
 
@@ -207,8 +208,28 @@ class Controller:
       self.poll.remove(client)
       client.close()
       return
-    # TODO: really handle the command
-    client.send({"error": ["not", "implemented"]})
+
+    logger = logging.getLogger("controller")
+    if "command" not in cmd:
+      logger.warning('unknown command: %s', json.dumps(cmd))
+      return
+    if cmd["command"] == "ps":
+      client.send({"status": "todo", "message": "command not implemented"})
+      pass
+    elif cmd["command"] == "start":
+      client.send({"status": "todo", "message": "command not implemented"})
+      pass
+    elif cmd["command"] == "stop":
+      client.send({"status": "todo", "message": "command not implemented"})
+      pass
+    elif cmd["command"] == "restart":
+      client.send({"status": "todo", "message": "command not implemented"})
+      pass
+    elif cmd["command"] == "reload":
+      self.reload()
+      client.send({"status": "ok"})
+    else:
+      client.send({"status": "error", "message": "command not implemented"})
 
   def handle_daemon_output(self, daemon):
     line = daemon.readline()
