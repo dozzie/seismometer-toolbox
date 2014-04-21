@@ -7,6 +7,8 @@ import select
 import heapq
 import logging
 import control_socket
+import signal
+import errno
 
 #-----------------------------------------------------------------------------
 
@@ -34,8 +36,14 @@ class Poll:
     self._poll.unregister(handle)
 
   def poll(self, timeout = 100):
-    result = self._poll.poll(timeout)
-    return [self._object_map[r[0]] for r in result]
+    try:
+      result = self._poll.poll(timeout)
+      return [self._object_map[r[0]] for r in result]
+    except select.error, e:
+      if e.args[0] == errno.EINTR: # in case some signal arrives
+        return []
+      else: # other error, rethrow
+        raise e
 
 #-----------------------------------------------------------------------------
 
@@ -118,7 +126,11 @@ class Controller:
       self.poll.add(self.socket)
     self.running  = {} # name => daemon.Daemon
     self.expected = {} # name => daemon.Daemon
+    self.keep_running = True
     self.reload()
+    signal.signal(signal.SIGHUP, self.signal_handler)
+    signal.signal(signal.SIGINT, self.signal_handler)
+    signal.signal(signal.SIGTERM, self.signal_handler)
 
   def __del__(self):
     self.shutdown()
@@ -157,7 +169,7 @@ class Controller:
         self.restart_queue.die(dname)
 
   def loop(self):
-    while True:
+    while self.keep_running:
       self.check_children()
       # start all daemons suitable for restart
       for daemon in self.restart_queue.restart():
@@ -166,6 +178,26 @@ class Controller:
         self.expected[daemon].start()
         self.running[daemon] = self.expected[daemon]
         self.poll.add(self.running[daemon])
+
+  #-------------------------------------------------------------------
+
+  def signal_handler(self, sig, stack_frame):
+    logger = logging.getLogger("controller")
+    signal_names = dict([
+      (signal.__dict__[name], name)
+      for name in signal.__dict__
+      if name.startswith("SIG") and name not in ("SIG_DFL", "SIG_IGN")
+    ])
+    signame = signal_names[sig]
+    if signame in ("SIGTERM", "SIGINT"):
+      logger.info('got signal %s, shutting down', signame)
+      self.keep_running = False # let the loop terminate itself gracefully
+    elif signame == "SIGHUP":
+      logger.info('got signal %s, reloading config', signame)
+      self.reload()
+    else:
+      logger.warning('got unknown signal %d (%s)', signame, sig)
+      pass # or something else?
 
   #-------------------------------------------------------------------
 
