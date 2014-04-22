@@ -216,28 +216,20 @@ class Controller:
     if "command" not in cmd:
       logger.warning('unknown command: %s', json.dumps(cmd))
       return
-    if cmd["command"] == "ps":
-      # TODO: be more verbose, e.g. include command used to start the child
-      result = {
-        "all": sorted(self.expected.keys()),
-        "running": sorted(self.running.keys()),
-        "awaiting_restart": sorted(self.restart_queue.list()),
-      }
-      client.send({"status": "ok", "result": result})
-    elif cmd["command"] == "start":
-      client.send({"status": "todo", "message": "command not implemented"})
-      pass
-    elif cmd["command"] == "stop":
-      client.send({"status": "todo", "message": "command not implemented"})
-      pass
-    elif cmd["command"] == "restart":
-      client.send({"status": "todo", "message": "command not implemented"})
-      pass
-    elif cmd["command"] == "reload":
-      self.reload()
+
+    method_name = "command_%s" % (cmd["command"],)
+    if method_name not in self.__class__.__dict__:
+      logger.warning('command not implemented: %s', cmd["command"])
+      client.send({"status": "error", "message": "command not implemented"})
+      return
+
+    # XXX: self.__class__.__dict__ gives unbound methods -- I need to pass
+    # `self' manually
+    result = self.__class__.__dict__[method_name](self, **cmd)
+    if result is None:
       client.send({"status": "ok"})
     else:
-      client.send({"status": "error", "message": "command not implemented"})
+      client.send({"status": "ok", "result": result})
 
   def handle_daemon_output(self, daemon):
     line = daemon.readline()
@@ -311,8 +303,16 @@ class Controller:
 
   #-------------------------------------------------------------------
 
-  def list_processes(self):
-    return 
+  def command_ps(self, **kwargs):
+    # TODO: be more verbose, e.g. include command used to start the child
+    return {
+      "all": sorted(self.expected.keys()),
+      "running": sorted(self.running.keys()),
+      "awaiting_restart": sorted(self.restart_queue.list()),
+    }
+
+  def command_reload(self, **kwargs):
+    self.reload()
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker
