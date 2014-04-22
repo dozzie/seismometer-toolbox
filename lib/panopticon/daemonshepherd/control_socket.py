@@ -52,7 +52,11 @@ class ControlSocketClient:
     if line == '':
       return None
     try:
-      return json.loads(line)
+      result = json.loads(line)
+      if isinstance(result, dict):
+        return result
+      else:
+        return None
     except:
       return None
 
