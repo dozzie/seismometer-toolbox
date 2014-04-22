@@ -83,8 +83,8 @@ class NagiosPlugin:
 
     if data is None:
       # no perfdata, short circuit
-      return { # ModMon::Event v=1
-        'v': 1,
+      return { # ModMon::Event v=2
+        'v': 2,
         'time': int(time.time()), # no need for subsecond precision
         'location': self.location,
         'event': {
@@ -97,33 +97,28 @@ class NagiosPlugin:
         }
       }
 
-    warnings = dict([
-      (datum['label'], datum['warn'])
-      for datum in data if datum['warn'] is not None
-    ])
-    criticals = dict([
-      (datum['label'], datum['crit'])
-      for datum in data if datum['crit'] is not None
-    ])
-    units = dict([
-      (datum['label'], datum['unit'])
-      for datum in data if datum['unit'] is not None
-    ])
+    value_set = {}
+    has_thresholds = False
 
-    value_set = {
-      'value': dict([ (datum['label'], datum['value']) for datum in data ])
-    }
-    if len(warnings) > 0 or len(criticals) > 0:
-      value_set['threshold_high'] = {}
-    if len(warnings) > 0:
-      value_set['threshold_high']['warning'] = warnings
-    if len(criticals) > 0:
-      value_set['threshold_high']['critical'] = criticals
-    if len(units) > 0:
-      value_set['units'] = units
+    for datum in data:
+      name = datum['label']
+      value_set[name] = {'value': datum['value']}
+      if datum['warn'] is not None or datum['crit'] is not None:
+        value_set[name]['threshold_high'] = []
+        has_thresholds = True
+      if datum['warn'] is not None:
+        value_set[name]['threshold_high'].append(
+          {'name': 'warning', 'value': datum['warn']}
+        )
+      if datum['crit'] is not None:
+        value_set[name]['threshold_high'].append(
+          {'name': 'critical', 'value': datum['crit']}
+        )
+      if datum['unit'] is not None:
+        value_set[name]['unit'] = datum['unit']
 
     event = { # ModMon::Event v=1
-      'v': 1,
+      'v': 2,
       'time': int(time.time()), # no need for subsecond precision
       'location': self.location,
       'event': {
@@ -134,7 +129,7 @@ class NagiosPlugin:
     # if thresholds are set, the status should reflect thresholds being
     # exceeded; if there's no thresholds (either because they're not set for
     # values or there are no values), state is to be passed
-    if len(warnings) == 0 and len(criticals) == 0:
+    if not has_thresholds:
       event['event']['state'] = {
         'value': status,
         'expected':  ['ok'],
