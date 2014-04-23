@@ -24,16 +24,17 @@ class PullPushBridge:
 
   def send(self, message):
     try:
-      # FIXME: hardcoded for ModMon::Event v=1
-      if (message.get('v') == 1) and 'vset' in message['event']:
+      # FIXME: hardcoded for ModMon::Event v=2
+      if (message.get('v') == 2) and 'vset' in message['event']:
+        value_set = message['event']['vset']
         host = message['location']['host']
         time = message['time']
-        for n in sorted(message['event']['vset']['value']):
+        for n in sorted(value_set):
           name = PullPushBridge.encode_location(
             message['location'], message['event']['name'], n
           )
-          if message['event']['vset']['value'][n] is not None:
-            value = message['event']['vset']['value'][n]
+          if value_set[n]['value'] is not None:
+            value = value_set[n]['value']
           else:
             value = 'U'
           self.socket.send(
