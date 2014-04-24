@@ -120,7 +120,13 @@ try:
         if states[0] != []:
             state.expected = states[0]
         state.attention = states[1]
-        message.event.state = state
+        if message.event.state is None:
+            message.event.state = state
+        else:
+            if message.event.state.expected is None:
+                message.event.state.expected = state.expected
+            if message.event.state.attention is None:
+                message.event.state.attention = state.attention
 
         msg = message.to_dict()
         print json.dumps(message.to_dict())
