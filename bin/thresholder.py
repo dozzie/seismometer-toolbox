@@ -18,13 +18,13 @@ def create_parser():
     parser = argparse.ArgumentParser(
         description="Monitors Panopticons probe messages"
     )
-    parser.add_argument('--host', dest='host', type=str,
+    parser.add_argument('--host', '-a', dest='host', type=str,
         required=True, help='Destination streem host')
-    parser.add_argument('--port', dest='port', type=int,
+    parser.add_argument('--port', '-p', dest='port', type=int,
         required=True, help='Destination streem port')
-    parser.add_argument('--src-channel', dest='srcchannel', type=str,
+    parser.add_argument('--src-channel', '-s', dest='srcchannel', type=str,
         default='probes', help='Source streem channel')
-    parser.add_argument('--dst-channel', dest='dstchannel', type=str,
+    parser.add_argument('--dst-channel', '-d', dest='dstchannel', type=str,
         default='states', help='Destination streem channel')
     return parser
 
@@ -51,7 +51,7 @@ def get_states(message):
         if vset.threshold_kept is not None:
             expected_states.append(
                 vset.threshold_kept)
-    return [expected_states, attention_states]
+    return [sorted(set(expected_states)), sorted(set(attention_states))]
 
 #-----------------------------------------------------------------------------
 # Gets aspect state based on thresholds
@@ -63,13 +63,13 @@ def get_threshold_state(vset):
             for threshold in vset.threshold_low:
                 if (threshold_low is None \
                     or threshold.value < threshold_low.value) \
-                    and vset.value > threshold.value:
+                    and vset.value < threshold.value:
                     threshold_low = threshold
         if vset.threshold_high is not None:
             for threshold in vset.threshold_high:
                 if (threshold_high is None \
                     or threshold.value > threshold_high.value) \
-                    and vset.value < threshold.value:
+                    and vset.value > threshold.value:
                     threshold_high = threshold
     if threshold_high is not None:
         return threshold_high.name
@@ -115,8 +115,10 @@ try:
         current_state = get_state(message)
         
         state = panopticon.message.State(current_state)
-        state.expected = states[0]
-        state.attention = states[1]
+        if states[0] != []:
+            state.expected = states[0]
+        if states[1] != []:
+            state.attention = states[1]
         message.event.state = state
 
         msg = message.to_dict()
