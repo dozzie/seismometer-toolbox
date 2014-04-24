@@ -112,13 +112,14 @@ try:
             continue
 
         states = get_states(message)
+        if states[1] == []:
+            continue
         current_state = get_state(message)
         
         state = panopticon.message.State(current_state)
         if states[0] != []:
             state.expected = states[0]
-        if states[1] != []:
-            state.attention = states[1]
+        state.attention = states[1]
         message.event.state = state
 
         msg = message.to_dict()
