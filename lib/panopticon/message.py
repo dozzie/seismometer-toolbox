@@ -161,6 +161,9 @@ class VSetProperty(object):
             t = []
             for threshold in self.threshold_high:
                 t.append(threshold.to_dict())
+            return t
+        else:
+            return None
 
     @property
     def threshold_kept(self):
