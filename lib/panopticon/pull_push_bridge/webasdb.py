@@ -94,8 +94,8 @@ class PullPushBridge:
 
   def send(self, message):
     try:
-      # FIXME: hardcoded for ModMon::Event v=1
-      if (message.get('v') == 1) and 'value' in message['event']['state']:
+      # FIXME: hardcoded for ModMon::Event v=2
+      if (message.get('v') == 2) and 'value' in message['event']['state']:
         status = message['event']['state']['value']
         states_ok   = message['event']['state'].get('expected', ['ok'])
         states_warn = message['event']['state'].get('attention', [])
