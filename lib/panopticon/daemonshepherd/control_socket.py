@@ -39,7 +39,8 @@ class ControlSocket:
     if self.socket is not None:
       self.socket.close()
       self.socket = None
-      os.remove(self.path)
+      if self.path is not None:
+        os.remove(self.path)
 
 #-----------------------------------------------------------------------------
 
