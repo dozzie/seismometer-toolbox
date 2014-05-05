@@ -1,3 +1,6 @@
-**********************************
-This is commandline/daemonshepherd
-**********************************
+**************
+daemonshepherd
+**************
+
+Daemon specifications file
+==========================
