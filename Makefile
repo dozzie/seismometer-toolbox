@@ -1,8 +1,13 @@
 #!/usr/bin/make -f
 
-.PHONY: default tarball egg clean
+.PHONY: default doc html tarball egg clean
 
 default: tarball
+
+doc: html
+
+html:
+	${MAKE} -C doc html
 
 tarball:
 	python setup.py sdist --formats=zip
