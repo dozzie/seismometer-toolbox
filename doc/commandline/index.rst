@@ -1,6 +1,6 @@
-*******************
-This is commandline
-*******************
+******************
+Command line tools
+******************
 
 .. toctree::
    :maxdepth: 2
