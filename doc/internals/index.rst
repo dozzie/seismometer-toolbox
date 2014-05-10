@@ -1,6 +1,6 @@
-*****************
-This is internals
-*****************
+******************************
+Internal programming interface
+******************************
 
 .. toctree::
    :maxdepth: 2
