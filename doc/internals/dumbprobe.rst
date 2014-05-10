@@ -3,8 +3,8 @@ DumbProbe API
 *************
 
 
-Queueing checks
-===============
+Queueing commands
+=================
 
 .. automodule:: panopticon.dumbprobe.service
 

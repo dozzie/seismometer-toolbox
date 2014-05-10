@@ -1,4 +1,19 @@
 #!/usr/bin/python
+'''
+WebASDB forwarder plugin
+------------------------
+
+This plugin forwards messages carrying state to `WebASDB
+<http://dozzie.jarowit.net/trac/wiki/WebASDB>`_.
+
+Options:
+
+   * :option:`--destination` ``<url>``
+
+     Root URL of WebASDB.
+
+'''
+#-----------------------------------------------------------------------------
 
 import httplib
 import urlparse

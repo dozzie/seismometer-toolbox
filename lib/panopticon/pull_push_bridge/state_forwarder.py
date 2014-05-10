@@ -1,8 +1,19 @@
 #!/usr/bin/python
-#
-# instead of having separate hack-state-forwarder.py I could just use this
-# plugin to pull-push-bridge
-#
+'''
+state forwarder plugin
+----------------------
+
+This plugin forwards messages carrying state (see :doc:`/message`) back to
+Streem, to a different channel.
+
+Options:
+
+   * :option:`--destination` ``<host>:<port>:<channel>``
+
+     Streem address.
+
+'''
+#-----------------------------------------------------------------------------
 
 import streem
 
