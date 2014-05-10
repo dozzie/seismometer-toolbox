@@ -8,6 +8,9 @@ import time
 
 class Threshold(object):
     def __init__(self, *args):
+        self.__attributes = ["name", "value", "severity"]
+        self.__required = ["name", "value", "severity"]
+
         if args[0] is not None:
             if isinstance(args[0], Threshold):
                 self.name = threshold.name
@@ -21,6 +24,37 @@ class Threshold(object):
             self.name = args[0]
             self.value = args[1]
             self.severity = args[2]
+
+    def __getitem__(self, n):
+        attr = "_Threshold__" + n
+        return getattr(self, attr)
+
+    def __setitem__(self, n, v):
+        attr = "_Threshold__" + n
+        setattr(self, attr, v)
+
+    def __delitem__(self, n):
+        if n not in self.__required:
+            attr = "_Threshold__" + n
+            delattr(self, attr)
+
+    def __iter__(self):
+        for n in self.__attributes:
+            attr = "_Threshold__" + n
+            if hasattr(self, attr):
+                yield n
+
+    def __contains__(self, n):
+        attr = "_Threshold__" + n
+        return hasattr(self, n)
+
+    def __len__(self):
+        count = 0
+        for n in self.__attributes:
+            attr = "_Threshold__" + n
+            if hasattr(self, attr):
+                count += 1
+        return count
 
     @property
     def name(self):
@@ -57,6 +91,9 @@ class Threshold(object):
 
 class VSetProperty(object):
     def __init__(self, property):
+        self.__attributes = ["value", "unit", "type", "threshold_low", "threshold_high"]
+        self.__required = ["value"]
+
         if isinstance(property, VSetProperty):
             self.value = property.value
             self.unit = property.unit
@@ -79,6 +116,37 @@ class VSetProperty(object):
                     self.threshold_high.append(Threshold(threshold))
         else:
             self.__value = property
+
+    def __getitem__(self, n):
+        attr = "_VSetProperty__" + n
+        return getattr(self, attr, None)
+
+    def __setitem__(self, n, v):
+        attr = "_VSetProperty__" + n
+        setattr(self, attr, n)
+
+    def __delitem__(self, n):
+        if n not in self.__required:
+            attr = "_VSetProperty__" + n
+            delattr(self, attr)
+
+    def __iter__(self):
+        for n in self.__attributes:
+            attr = "_VSetProperty__" + n
+            if hasattr(self, attr):
+                yield n
+
+    def __contains__(self, n):
+        attr = "_VSetProperty__" + n
+        return hasattr(self, attr)
+
+    def __len__(self):
+        count = 0
+        for n in self.__attributes:
+            attr = "_VSetProperty__" + n
+            if hasattr(self, attr):
+                count += 1
+        return count
 
     @property
     def value(self):
@@ -192,6 +260,9 @@ class VSetProperty(object):
 
 class State(object):
     def __init__(self, state):
+        self.__attributes = ["value", "severity"]
+        self.__required = ["value"]
+
         if isinstance(state, State):
             self.value = state.value
             if state.severity is not None:
@@ -202,6 +273,37 @@ class State(object):
                 self.severity = state["severity"]
         else:
             self.__value = state
+
+    def __getitem__(self, n):
+        attr = "_State__" + n
+        return getattr(self, attr, None)
+
+    def __setitem__(self, n, v):
+        attr = "_State__" + n
+        setattr(state, attr, v)
+
+    def __delitem__(self, n):
+        if n not in self.__required:
+            attr = "_State__" + n
+            delattr(self, attr)
+
+    def __iter__(self):
+        for n in self.__attributes:
+            attr = "_State__" + n
+            if hasattr(self, attr):
+                yield n
+
+    def __contains__(self, n):
+        attr = "_State__" + n
+        return hasattr(self, attr)
+
+    def __len__(self):
+        count = 0
+        for n in self.__attributes:
+            attr = "_State__" + n
+            if hasattr(self, attr):
+                count += 1
+        return count
 
     @property
     def value(self):
@@ -239,6 +341,9 @@ class State(object):
 
 class Event(object):
     def __init__(self, event):
+        self.__attributes = ["name", "state", "comment", "interval", "vset", "threshold_kept"]
+        self.__required = ["name"]
+
         if isinstance(event, Event):
             self.name = event.name
             if event.state is not None:
@@ -267,6 +372,37 @@ class Event(object):
                 self.threshold_kept = event["threshold_kept"]
         else:
             self.__name = event
+
+    def __getitem__(self, n):
+        attr = "_Event__" + n
+        return getattr(slef, attr, None)
+
+    def __setitem__(self, n, v):
+        attr = "_Event__" + n
+        setattr(self, attr, v)
+
+    def __delitem__(self, n):
+        if n not in self.__required:
+            attr = "_Event__" + n
+            delattr(self, attr)
+
+    def __iter__(self):
+        for n in self.__attributes:
+            attr = "_Event__" + n
+            if hasattr(self, attr):
+                yield n
+
+    def __contains__(self, n):
+        attr = "_Event__" + n
+        return hasattr(self, attr)
+
+    def __len__(self):
+        count = 0
+        for n in self.__attributes:
+            attr = "_Event__" + n
+            if hasattr(self, attr):
+                count += 1
+        return count
 
     @property
     def name(self):
@@ -384,6 +520,9 @@ class Event(object):
         
 class Message(object):
     def __init__(self, *args):
+        self.__attributes = ["v", "time", "location", "event"]
+        self.__required = ["v", "time", "location", "event"]
+
         if isinstance(args[0], Message):
             self.time = args[0].time
             self.location = args[0].location
@@ -396,6 +535,37 @@ class Message(object):
             self.time = args[0]
             self.location = args[1]
             self.event = args[2]
+
+    def __getitem__(self, n):
+        attr = "_Message__" + n
+        return getattr(self, attr)
+
+    def __setitem__(self, n, v):
+        attr = "_Message__" + n
+        setattr(self, attr, v)
+
+    def __delitem__(self, n):
+        if n not in self.__required:
+            attr = "_Message__" + n
+            delattr(self, attr)
+
+    def __iter__(self):
+        for n in self.__attributes:
+            attr = "_Message__" + n
+            if hasattr(self, attr):
+                yield n
+
+    def __contains__(self, n):
+        attr = "_Message__" + n
+        return hasattr(self, attr)
+
+    def __len__(self):
+        count = 0
+        for n in self.__attributes:
+            attr = "_Message__" + n
+            if hasattr(self, attr):
+                count += 1
+        return count
 
     @property
     def v(self):
