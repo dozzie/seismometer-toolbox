@@ -31,6 +31,8 @@ Command line options
 
 .. cmdoption:: --destination <host>:<port>:<channel>
 
+   Streem to submit data to.
+
 .. _config-file:
 
 Configuration file
@@ -43,10 +45,31 @@ supposed to wait until the check needs to be run, run the check and return
 JSON-serializable object (typically a dictionary). This object will be
 submitted to Streem.
 
+Example configuration file
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+   from panopticon.dumbprobe import Checks
+
+   checks = Checks()
+   checks.add(
+     # this one is run with shell
+     command = "/usr/lib/nagios/plugins/check_users -w 3 -c 5",
+     type = 'nagios',
+     host = "wolfram.example.net", aspect = "wtmp", service = "users",
+     schedule = 35, # every 35s
+   )
+   checks.add(
+     # this one is run without shell
+     command = ["/usr/lib/nagios/plugins/check_load", "-w", "0.25", "-c", "0.5"],
+     type = 'nagios',
+     host = "wolfram.example.net", aspect = "load average", service = "load",
+     schedule = 10, # every 10s
+   )
+
 API
 ===
 
-.. autoclass:: panopticon.dumbprobe.Checks
-   :members:
-   :undoc-members:
+.. automodule:: panopticon.dumbprobe
 

@@ -1,4 +1,15 @@
 #!/usr/bin/python
+'''
+Helper module for running external commands.
+
+.. autoclass:: NagiosPlugin
+   :members:
+
+.. autoclass:: ShellCommand
+   :members:
+
+'''
+#-----------------------------------------------------------------------------
 
 import subprocess
 import time
@@ -7,6 +18,10 @@ import re
 #-----------------------------------------------------------------------------
 
 class NagiosPlugin:
+  '''
+  Nagios plugin executor.
+  '''
+
   PERFDATA = re.compile(
     "(?P<label>[^ '=]+|'(?:[^']|'')*')=" \
     "(?P<value>[0-9.]+)"                 \
@@ -22,6 +37,12 @@ class NagiosPlugin:
 
   @staticmethod
   def perfdata(output):
+    '''
+    :param output: full output from plugin
+    :type output: string
+
+    Extract performance data from output collected from plugin.
+    '''
     lines = output.split('\n')[0].split('|', 1)
     if len(lines) > 1:
       return lines[1].strip()
@@ -30,6 +51,25 @@ class NagiosPlugin:
 
   @staticmethod
   def nagiosplugins(perfdata):
+    '''
+    :param perfdata: performance data portion from plugin's output
+    :type perfdata: string
+    :return: list of metrics
+    :rtype: list of dicts or ``None``
+
+    Extract metrics, value ranges and thresholds from performance data.
+
+    Each metric is a dict with following keys:
+
+       * *label* -- mandatory; string
+       * *value* -- mandatory; integer, float or None
+       * *min*, *max* -- optional; integer or float
+       * *warn*, *crit* -- optional; integer or float
+
+    Example returned data::
+
+       [{"label": "uptime", "value": 17143.36, "min": 0}, ...]
+    '''
     groups = []
 
     while perfdata != '' and perfdata is not None:
@@ -59,6 +99,18 @@ class NagiosPlugin:
       return groups
 
   def __init__(self, location, aspect, command, schedule, thresholds):
+    '''
+    :param location: location to report for this instance
+    :type location: dict, mapping string => string
+    :param aspect: aspect name to report for this instance
+    :type aspect: string
+    :param command: command to run
+    :type command: string or array
+    :param schedule: interval between consequent runs
+    :type schedule: number of seconds
+    :param thresholds: ignored for now
+    :type thresholds: tuple (warning, critical)
+    '''
     self.command = ShellCommand(command)
     self.location = location
     self.aspect   = aspect
@@ -67,6 +119,11 @@ class NagiosPlugin:
     self.last_run = 0
 
   def run(self):
+    '''
+    :return: dictionary representing :doc:`/message`
+
+    Execute the plugin and return message to submit to Streem.
+    '''
     codes = {
       0: 'ok',
       1: 'warning',
@@ -138,15 +195,36 @@ class NagiosPlugin:
     return event
 
   def when(self):
+    '''
+    Calculate when the plugin should be executed.
+    '''
     return self.last_run + self.schedule
 
 #-----------------------------------------------------------------------------
 
 class ShellCommand:
+  '''
+  Wrapper class for running shell commands.
+  '''
   def __init__(self, command):
+    '''
+    :param command: command to run
+    :type command: string or list
+
+    If :obj:`command` is a string, it will be run using shell (so it can be
+    a shell script). A list will be run without shell.
+    '''
     self.command = command
 
   def run(self):
+    '''
+    :return: exit code and command's output
+    :rtype: tuple (integer, string)
+
+    Execute the command.
+
+    When exit code is negative, it denotes signal the command died on.
+    '''
     if isinstance(self.command, list):
       proc = subprocess.Popen(
         self.command,
