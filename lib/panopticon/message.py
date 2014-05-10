@@ -12,12 +12,15 @@ class Threshold(object):
             if isinstance(args[0], Threshold):
                 self.name = threshold.name
                 self.value = threshold.value
+                self.severity = threshold.severity
             else: #isinstance(threshold, dict):
                 self.name = args[0]["name"]
                 self.value = args[0]["value"]
+                self.severity = args[0]["severity"]
         else: #name is not None:
             self.name = args[0]
             self.value = args[1]
+            self.severity = args[2]
 
     @property
     def name(self):
@@ -35,10 +38,19 @@ class Threshold(object):
     def value(self, value):
         self.__value = value
 
+    @property
+    def severity(self):
+        return self.__severity
+
+    @severity.setter
+    def severity(self, severity):
+        self.__severity = severity
+
     def to_dict(self):
         return {
             "name": self.name,
-            "value": self.value
+            "value": self.value,
+            "severity": self.severity
         }
 
 #-----------------------------------------------------------------------------
@@ -51,7 +63,6 @@ class VSetProperty(object):
             self.type = property.type
             self.threshold_low = property.threshold_low
             self.threshold_high = property.threshold_high
-            self.threshold_kept = property.threshold_kept
         elif isinstance(property, dict):
             self.value = property["value"]
             if property.has_key("unit"):
@@ -66,10 +77,8 @@ class VSetProperty(object):
                 self.threshold_high = []
                 for threshold in property["threshold_high"]:
                     self.threshold_high.append(Threshold(threshold))
-            if property.has_key("threshold_kept"):
-                self.threshold_kept = property["threshold_kept"]
         else:
-            self.__value = threshold
+            self.__value = property
 
     @property
     def value(self):
@@ -165,22 +174,6 @@ class VSetProperty(object):
         else:
             return None
 
-    @property
-    def threshold_kept(self):
-        if hasattr(self, "_VSetProperty__threshold_kept"):
-            return self.__threshold_kept
-        else:
-            return None
-
-    @threshold_kept.setter
-    def threshold_kept(self, state):
-        if state is not None:
-            self.__threshold_kept = state
-
-    @threshold_kept.deleter
-    def threshold_kept(self):
-        del self.__threshold_kept
-
     def to_dict(self):
         vset = {
              "value": self.value
@@ -193,8 +186,6 @@ class VSetProperty(object):
             vset["threshold_low"] = self.threshold_low_dict
         if self.threshold_high is not None:
             vset["threshold_high"] = self.threshold_high_dict
-        if self.threshold_kept is not None:
-            vset["threshold_kept"] = self.threshold_kept
         return vset
 
 #-----------------------------------------------------------------------------
@@ -203,16 +194,12 @@ class State(object):
     def __init__(self, state):
         if isinstance(state, State):
             self.value = state.value
-            if self.expected is not None:
-                self.expected = state.expected
-            if self.attention is not None:
-                self.attention = state.attention
+            if state.severity is not None:
+                self.severity = state.severity
         elif isinstance(state, dict):
             self.value = state["value"]
-            if state.has_key("expected"):
-                self.expected = state["expected"]
-            if state.has_key("attention"):
-                self.attention = state["attention"]
+            if state.has_key("severity"):
+                self.severity = state["severity"]
         else:
             self.__value = state
 
@@ -225,45 +212,27 @@ class State(object):
         self.__value = value
 
     @property
-    def expected(self):
-        if hasattr(self, "_State__expected"):
-            return self.__expected
+    def severity(self):
+        if hasattr(self, "_State__severity"):
+            return self.__severity
         else:
             return None
 
-    @expected.setter
-    def expected(self, expected):
-        if expected is not None:
-            self.__expected = expected
+    @severity.setter
+    def severity(self, severity):
+        self.__severity = severity
 
-    @expected.deleter
-    def expected(self):
-        del self.__expected
-
-    @property
-    def attention(self):
-        if hasattr(self, "_State__attention"):
-            return self.__attention
-        else:
-            return None
-
-    @attention.setter
-    def attention(self, attention):
-        if attention is not None:
-            self.__attention = attention
-
-    @attention.deleter
-    def attention(self):
-        del self.__attention
+    @severity.deleter
+    def severity(self):
+        del self.__severity
 
     def to_dict(self):
         state = {
             "value": self.value
         }
-        if self.expected is not None:
-            state["expected"] = self.expected
-        if self.attention is not None:
-            state["attention"] = self.attention
+        if self.severity is not None:
+            state["severity"] = self.severity
+
         return state
 
 #-----------------------------------------------------------------------------
@@ -276,18 +245,26 @@ class Event(object):
                 self.state = event.state
             if event.comment is not None:
                 self.comment = event.comment
+            if event.interval is not None:
+                self.interval = event.interval
             if event.vset is not None:
                 self.vset = event.vset
+            if event.threshold_kept is not None:
+                self.threshold_kept = event.threshold_kept
         elif isinstance(event, dict):
             self.name = event["name"]
             if event.has_key("state"):
                 self.state = State(event["state"])
             if event.has_key("comment"):
                 self.state = event["comment"]
+            if event.has_key("interval"):
+                self.interval = event["interval"]
             if event.has_key("vset"):
                 self.vset = {}
                 for key in event["vset"]:
                     self.vset[key] = VSetProperty(event["vset"][key])
+            if event.has_key("threshold_kept"):
+                self.threshold_kept = event["threshold_kept"]
         else:
             self.__name = event
 
@@ -332,6 +309,21 @@ class Event(object):
         del self.__comment
 
     @property
+    def interval(self):
+        if hasattr(self, "_Event__interval"):
+            return self.__interval
+        else:
+            return None
+
+    @interval.setter
+    def interval(self, interval):
+        self.__interval = interval
+
+    @interval.deleter
+    def interval(self):
+        del self.__interval
+
+    @property
     def vset(self):
         if hasattr(self, "_Event__vset"):
             return self.__vset
@@ -357,6 +349,21 @@ class Event(object):
         else:
             return None
 
+    @property
+    def threshold_kept(self):
+        if hasattr(self, "_Event__threshold_kept"):
+            return self.__threshold_kept
+        else:
+            return None
+
+    @threshold_kept.setter
+    def threshold_kept(self, threshold_kept):
+        self.__threshold_kept = threshold_kept
+
+    @threshold_kept.deleter
+    def threshold_kept(self):
+        del self.__threshold_kept
+
     def to_dict(self):
         event = {
             "name": self.name
@@ -365,9 +372,12 @@ class Event(object):
             event["state"] = self.state.to_dict()
         if self.comment is not None:
             event["comment"] = self.comment
+        if self.interval is not None:
+            event["interval"] = self.interval
         if self.vset is not None:
             event["vset"] = self.vset_dict
-
+        if self.threshold_kept is not None:
+            event["threshold_kept"] = self.threshold_kept
         return event
 
 #-----------------------------------------------------------------------------
@@ -389,7 +399,7 @@ class Message(object):
 
     @property
     def v(self):
-        return 2
+        return 3
 
     @property
     def time(self):
