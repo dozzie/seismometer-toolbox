@@ -537,12 +537,16 @@ class Message(object):
             self.event = args[2]
 
     def __getitem__(self, n):
-        attr = "_Message__" + n
-        return getattr(self, attr)
+        if n == "v":
+            return self.v
+        else:
+            attr = "_Message__" + n
+            return getattr(self, attr)
 
     def __setitem__(self, n, v):
-        attr = "_Message__" + n
-        setattr(self, attr, v)
+        if n != "v":
+            attr = "_Message__" + n
+            setattr(self, attr, v)
 
     def __delitem__(self, n):
         if n not in self.__required:
