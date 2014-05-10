@@ -1,0 +1,26 @@
+#
+# The only requirement for the configuration is to have "checks" object, which
+# in turn has run_next() method. The method should wait long enough and run
+# next check, returning hash that is a message to submit to Panopticon.
+# The method will be called successively.
+#
+
+from panopticon.dumbprobe import Checks
+
+checks = Checks()
+checks.add(
+  # this one is run with shell
+  command = "/usr/lib/nagios/plugins/check_users -w 3 -c 5",
+  type = 'nagios',
+  host = "wolfram.jarowit.net", aspect = "wtmp", service = "users",
+  schedule = 35, # every 35s
+)
+checks.add(
+  # this one is run without shell
+  command = ["/usr/lib/nagios/plugins/check_load", "-w", "0.25", "-c", "0.5"],
+  type = 'nagios',
+  host = "wolfram.jarowit.net", aspect = "load average", service = "load",
+  schedule = 10, # every 10s
+)
+
+# vim:ft=python

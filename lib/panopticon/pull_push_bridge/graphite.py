@@ -1,17 +1,13 @@
 #!/usr/bin/python
 
-import json
-import sys
+import socket
+import re
 
 #-----------------------------------------------------------------------------
 
-class PullPushBridge:
-  def __init__(self, options):
-    pass
-
-  def send(self, message):
-    sys.stdout.write(json.dumps(message, sort_keys = True) + '\n')
-    sys.stdout.flush()
+# TODO: implement me
+# class PullPushBridge:
+#   ...
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker
