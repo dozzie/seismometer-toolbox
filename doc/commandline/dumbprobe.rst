@@ -11,7 +11,9 @@ The checks can be defined as calls to `Monitoring Plugins
 Usage
 =====
 
-Usage is pretty straightforward: one just needs to run::
+Usage is pretty straightforward: one just needs to run:
+
+.. code-block:: none
 
    dumb-probe.py --checks=./checks.py --destination=host:port:channel
 
@@ -70,6 +72,10 @@ Example configuration file
 
 API
 ===
+
+**NOTE**: User doesn't need to use these classes/functions if they happen to
+not suit the needs. They are merely a proposal, but the authors they should at
+least help somewhat in deployment.
 
 .. automodule:: panopticon.dumbprobe
 
