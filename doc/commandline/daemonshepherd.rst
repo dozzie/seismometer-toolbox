@@ -67,12 +67,33 @@ Signals
 Command channel
 ===============
 
-**TODO**
+Command channel is a UNIX socket, with which operator can issue commands and
+control behaviour of *daemonshepherd*.
 
 Protocol
 --------
 
-**TODO**
+Protocol is a synchronous exchange of JSON documents, each in its own line.
+
+Command name is specified as ``command`` key and arguments, if any, are passed
+as keys along with ``command``.
+
+Response is a document ``{"status": "ok"}`` or
+``{"status": "ok", "result": ...}``, depending on the command called. Errors
+are signaled with ``{"status": "error", "reason": "..."}``.
+
+Available commands
+------------------
+
+   * ``{"command": "ps"}``
+
+      * response result:
+        ``{"result": {"all": [...], "running": [...], "awaiting_restart": [...]}, "status": "ok"}``;
+      * elements in lists are daemon names
+
+   * ``{"command": "reload"}``
+
+      * no data returned, just ``{"status": "ok"}``
 
 
 .. _specfile:

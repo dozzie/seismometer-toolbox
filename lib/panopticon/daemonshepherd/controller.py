@@ -389,6 +389,7 @@ class Controller:
       client.send({"status": "error", "message": "command not implemented"})
       return
 
+    # TODO: signal errors: {"status": "error", "reason": "..."}
     # XXX: self.__class__.__dict__ gives unbound methods -- I need to pass
     # `self' manually
     result = self.__class__.__dict__[method_name](self, **cmd)
