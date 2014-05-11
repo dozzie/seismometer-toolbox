@@ -9,6 +9,7 @@ Contents:
    message
    commandline/index
    internals/index
+   logging
 
 Indices and tables
 ==================
