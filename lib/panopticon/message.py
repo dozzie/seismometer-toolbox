@@ -8,16 +8,53 @@ import time
 
 class Threshold(object):
     def __init__(self, *args):
+        self.__attributes = ["name", "value", "severity"]
+        self.__required = ["name", "value", "severity"]
+
         if args[0] is not None:
             if isinstance(args[0], Threshold):
                 self.name = threshold.name
                 self.value = threshold.value
+                self.severity = threshold.severity
             else: #isinstance(threshold, dict):
                 self.name = args[0]["name"]
                 self.value = args[0]["value"]
+                self.severity = args[0]["severity"]
         else: #name is not None:
             self.name = args[0]
             self.value = args[1]
+            self.severity = args[2]
+
+    def __getitem__(self, n):
+        attr = "_Threshold__" + n
+        return getattr(self, attr)
+
+    def __setitem__(self, n, v):
+        attr = "_Threshold__" + n
+        setattr(self, attr, v)
+
+    def __delitem__(self, n):
+        if n not in self.__required:
+            attr = "_Threshold__" + n
+            delattr(self, attr)
+
+    def __iter__(self):
+        for n in self.__attributes:
+            attr = "_Threshold__" + n
+            if hasattr(self, attr):
+                yield n
+
+    def __contains__(self, n):
+        attr = "_Threshold__" + n
+        return hasattr(self, n)
+
+    def __len__(self):
+        count = 0
+        for n in self.__attributes:
+            attr = "_Threshold__" + n
+            if hasattr(self, attr):
+                count += 1
+        return count
 
     @property
     def name(self):
@@ -35,23 +72,34 @@ class Threshold(object):
     def value(self, value):
         self.__value = value
 
+    @property
+    def severity(self):
+        return self.__severity
+
+    @severity.setter
+    def severity(self, severity):
+        self.__severity = severity
+
     def to_dict(self):
         return {
             "name": self.name,
-            "value": self.value
+            "value": self.value,
+            "severity": self.severity
         }
 
 #-----------------------------------------------------------------------------
 
 class VSetProperty(object):
     def __init__(self, property):
+        self.__attributes = ["value", "unit", "type", "threshold_low", "threshold_high"]
+        self.__required = ["value"]
+
         if isinstance(property, VSetProperty):
             self.value = property.value
             self.unit = property.unit
             self.type = property.type
             self.threshold_low = property.threshold_low
             self.threshold_high = property.threshold_high
-            self.threshold_kept = property.threshold_kept
         elif isinstance(property, dict):
             self.value = property["value"]
             if property.has_key("unit"):
@@ -66,10 +114,39 @@ class VSetProperty(object):
                 self.threshold_high = []
                 for threshold in property["threshold_high"]:
                     self.threshold_high.append(Threshold(threshold))
-            if property.has_key("threshold_kept"):
-                self.threshold_kept = property["threshold_kept"]
         else:
-            self.__value = threshold
+            self.__value = property
+
+    def __getitem__(self, n):
+        attr = "_VSetProperty__" + n
+        return getattr(self, attr, None)
+
+    def __setitem__(self, n, v):
+        attr = "_VSetProperty__" + n
+        setattr(self, attr, n)
+
+    def __delitem__(self, n):
+        if n not in self.__required:
+            attr = "_VSetProperty__" + n
+            delattr(self, attr)
+
+    def __iter__(self):
+        for n in self.__attributes:
+            attr = "_VSetProperty__" + n
+            if hasattr(self, attr):
+                yield n
+
+    def __contains__(self, n):
+        attr = "_VSetProperty__" + n
+        return hasattr(self, attr)
+
+    def __len__(self):
+        count = 0
+        for n in self.__attributes:
+            attr = "_VSetProperty__" + n
+            if hasattr(self, attr):
+                count += 1
+        return count
 
     @property
     def value(self):
@@ -165,22 +242,6 @@ class VSetProperty(object):
         else:
             return None
 
-    @property
-    def threshold_kept(self):
-        if hasattr(self, "_VSetProperty__threshold_kept"):
-            return self.__threshold_kept
-        else:
-            return None
-
-    @threshold_kept.setter
-    def threshold_kept(self, state):
-        if state is not None:
-            self.__threshold_kept = state
-
-    @threshold_kept.deleter
-    def threshold_kept(self):
-        del self.__threshold_kept
-
     def to_dict(self):
         vset = {
              "value": self.value
@@ -193,28 +254,56 @@ class VSetProperty(object):
             vset["threshold_low"] = self.threshold_low_dict
         if self.threshold_high is not None:
             vset["threshold_high"] = self.threshold_high_dict
-        if self.threshold_kept is not None:
-            vset["threshold_kept"] = self.threshold_kept
         return vset
 
 #-----------------------------------------------------------------------------
 
 class State(object):
     def __init__(self, state):
+        self.__attributes = ["value", "severity"]
+        self.__required = ["value"]
+
         if isinstance(state, State):
             self.value = state.value
-            if self.expected is not None:
-                self.expected = state.expected
-            if self.attention is not None:
-                self.attention = state.attention
+            if state.severity is not None:
+                self.severity = state.severity
         elif isinstance(state, dict):
             self.value = state["value"]
-            if state.has_key("expected"):
-                self.expected = state["expected"]
-            if state.has_key("attention"):
-                self.attention = state["attention"]
+            if state.has_key("severity"):
+                self.severity = state["severity"]
         else:
             self.__value = state
+
+    def __getitem__(self, n):
+        attr = "_State__" + n
+        return getattr(self, attr, None)
+
+    def __setitem__(self, n, v):
+        attr = "_State__" + n
+        setattr(state, attr, v)
+
+    def __delitem__(self, n):
+        if n not in self.__required:
+            attr = "_State__" + n
+            delattr(self, attr)
+
+    def __iter__(self):
+        for n in self.__attributes:
+            attr = "_State__" + n
+            if hasattr(self, attr):
+                yield n
+
+    def __contains__(self, n):
+        attr = "_State__" + n
+        return hasattr(self, attr)
+
+    def __len__(self):
+        count = 0
+        for n in self.__attributes:
+            attr = "_State__" + n
+            if hasattr(self, attr):
+                count += 1
+        return count
 
     @property
     def value(self):
@@ -225,71 +314,95 @@ class State(object):
         self.__value = value
 
     @property
-    def expected(self):
-        if hasattr(self, "_State__expected"):
-            return self.__expected
+    def severity(self):
+        if hasattr(self, "_State__severity"):
+            return self.__severity
         else:
             return None
 
-    @expected.setter
-    def expected(self, expected):
-        if expected is not None:
-            self.__expected = expected
+    @severity.setter
+    def severity(self, severity):
+        self.__severity = severity
 
-    @expected.deleter
-    def expected(self):
-        del self.__expected
-
-    @property
-    def attention(self):
-        if hasattr(self, "_State__attention"):
-            return self.__attention
-        else:
-            return None
-
-    @attention.setter
-    def attention(self, attention):
-        if attention is not None:
-            self.__attention = attention
-
-    @attention.deleter
-    def attention(self):
-        del self.__attention
+    @severity.deleter
+    def severity(self):
+        del self.__severity
 
     def to_dict(self):
         state = {
             "value": self.value
         }
-        if self.expected is not None:
-            state["expected"] = self.expected
-        if self.attention is not None:
-            state["attention"] = self.attention
+        if self.severity is not None:
+            state["severity"] = self.severity
+
         return state
 
 #-----------------------------------------------------------------------------
 
 class Event(object):
     def __init__(self, event):
+        self.__attributes = ["name", "state", "comment", "interval", "vset", "threshold_kept"]
+        self.__required = ["name"]
+
         if isinstance(event, Event):
             self.name = event.name
             if event.state is not None:
                 self.state = event.state
             if event.comment is not None:
                 self.comment = event.comment
+            if event.interval is not None:
+                self.interval = event.interval
             if event.vset is not None:
                 self.vset = event.vset
+            if event.threshold_kept is not None:
+                self.threshold_kept = event.threshold_kept
         elif isinstance(event, dict):
             self.name = event["name"]
             if event.has_key("state"):
                 self.state = State(event["state"])
             if event.has_key("comment"):
                 self.state = event["comment"]
+            if event.has_key("interval"):
+                self.interval = event["interval"]
             if event.has_key("vset"):
                 self.vset = {}
                 for key in event["vset"]:
                     self.vset[key] = VSetProperty(event["vset"][key])
+            if event.has_key("threshold_kept"):
+                self.threshold_kept = event["threshold_kept"]
         else:
             self.__name = event
+
+    def __getitem__(self, n):
+        attr = "_Event__" + n
+        return getattr(slef, attr, None)
+
+    def __setitem__(self, n, v):
+        attr = "_Event__" + n
+        setattr(self, attr, v)
+
+    def __delitem__(self, n):
+        if n not in self.__required:
+            attr = "_Event__" + n
+            delattr(self, attr)
+
+    def __iter__(self):
+        for n in self.__attributes:
+            attr = "_Event__" + n
+            if hasattr(self, attr):
+                yield n
+
+    def __contains__(self, n):
+        attr = "_Event__" + n
+        return hasattr(self, attr)
+
+    def __len__(self):
+        count = 0
+        for n in self.__attributes:
+            attr = "_Event__" + n
+            if hasattr(self, attr):
+                count += 1
+        return count
 
     @property
     def name(self):
@@ -332,6 +445,21 @@ class Event(object):
         del self.__comment
 
     @property
+    def interval(self):
+        if hasattr(self, "_Event__interval"):
+            return self.__interval
+        else:
+            return None
+
+    @interval.setter
+    def interval(self, interval):
+        self.__interval = interval
+
+    @interval.deleter
+    def interval(self):
+        del self.__interval
+
+    @property
     def vset(self):
         if hasattr(self, "_Event__vset"):
             return self.__vset
@@ -357,6 +485,21 @@ class Event(object):
         else:
             return None
 
+    @property
+    def threshold_kept(self):
+        if hasattr(self, "_Event__threshold_kept"):
+            return self.__threshold_kept
+        else:
+            return None
+
+    @threshold_kept.setter
+    def threshold_kept(self, threshold_kept):
+        self.__threshold_kept = threshold_kept
+
+    @threshold_kept.deleter
+    def threshold_kept(self):
+        del self.__threshold_kept
+
     def to_dict(self):
         event = {
             "name": self.name
@@ -365,15 +508,21 @@ class Event(object):
             event["state"] = self.state.to_dict()
         if self.comment is not None:
             event["comment"] = self.comment
+        if self.interval is not None:
+            event["interval"] = self.interval
         if self.vset is not None:
             event["vset"] = self.vset_dict
-
+        if self.threshold_kept is not None:
+            event["threshold_kept"] = self.threshold_kept
         return event
 
 #-----------------------------------------------------------------------------
         
 class Message(object):
     def __init__(self, *args):
+        self.__attributes = ["v", "time", "location", "event"]
+        self.__required = ["v", "time", "location", "event"]
+
         if isinstance(args[0], Message):
             self.time = args[0].time
             self.location = args[0].location
@@ -387,9 +536,44 @@ class Message(object):
             self.location = args[1]
             self.event = args[2]
 
+    def __getitem__(self, n):
+        if n == "v":
+            return self.v
+        else:
+            attr = "_Message__" + n
+            return getattr(self, attr)
+
+    def __setitem__(self, n, v):
+        if n != "v":
+            attr = "_Message__" + n
+            setattr(self, attr, v)
+
+    def __delitem__(self, n):
+        if n not in self.__required:
+            attr = "_Message__" + n
+            delattr(self, attr)
+
+    def __iter__(self):
+        for n in self.__attributes:
+            attr = "_Message__" + n
+            if hasattr(self, attr):
+                yield n
+
+    def __contains__(self, n):
+        attr = "_Message__" + n
+        return hasattr(self, attr)
+
+    def __len__(self):
+        count = 0
+        for n in self.__attributes:
+            attr = "_Message__" + n
+            if hasattr(self, attr):
+                count += 1
+        return count
+
     @property
     def v(self):
-        return 2
+        return 3
 
     @property
     def time(self):
