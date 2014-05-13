@@ -1,4 +1,25 @@
 #!/usr/bin/python
+'''
+collectd forwarder plugin
+-------------------------
+
+This plugin forwards metrics to `collectd <http://collectd.org/>`_.
+
+Metric name is composed of ``location.service``, aspect name and value name.
+Metrics coming from a host have following pattern:
+
+.. code-block:: none
+
+   <hostname>/panopticon/gauge-<service>+<aspect>+<value>
+
+Options:
+
+   * :option:`--destination` ``<socket_path>``
+
+     Path to socket (collectd's plugin :manpage:`collectd-unixsock(5)`).
+
+'''
+#-----------------------------------------------------------------------------
 
 import socket
 import re

@@ -1,4 +1,16 @@
 #!/usr/bin/python
+'''
+Running external program as daemon
+----------------------------------
+
+.. autoclass:: Daemon
+   :members:
+
+.. autoclass:: Command
+   :members:
+
+'''
+#-----------------------------------------------------------------------------
 
 import os
 import sys
@@ -9,13 +21,40 @@ import re
 #-----------------------------------------------------------------------------
 
 class Command:
+  '''
+  Class for doing :func:`fork` + :func:`exec` in repeatable manner.
+
+  Class has defined operators ``==`` and ``!=``, so objects are compared
+  according to command line and its run environment (variables, *CWD*,
+  *STDOUT*).
+  '''
+
   DEVNULL = object()
+  '''
+  Constant for directing command's output to :file:`/dev/null`.
+  '''
+
   PIPE = object()
+  '''
+  Constant for directing command's output through a pipe.
+  '''
 
   SHELL_META = re.compile('[]\'"$&*()`{}\\\\;<>?[]')
   SPACE = re.compile('[ \t\r\n]+')
 
   def __init__(self, command, environment = None, cwd = None, stdout = None):
+    '''
+    :param command: command to be run (could be a shell snippet)
+    :param environment: environment variables to be added/replaced in current
+      environment
+    :type environment: dict with string:string mapping
+    :param cwd: directory to run command in
+    :param stdout: where to direct output from the command
+
+    Command's output could be sent as it is for parent process (:obj:`stdout`
+    set to ``None``), silenced out (:const:`DEVNULL`) or intercepted
+    (:const:`PIPE`).
+    '''
     self.environment = environment
     self.cwd = cwd
     self.stdout = stdout
@@ -37,6 +76,17 @@ class Command:
            self.command     == other.command
 
   def run(self):
+    '''
+    :return: ``(pid, read_end)`` or ``(pid, None)``
+
+    Run the command within its environment. Child process starts its own
+    process group, so if it's a shell command, it's easier to kill whole set
+    of processes. *STDIN* of the child process is always redirected to
+    :file:`/dev/null`.
+
+    If :obj:`stdout` parameter to constructor was :const:`PIPE`, read end of
+    the pipe (``file`` object) is returned in the tuple.
+    '''
     if self.stdout is Command.PIPE:
       (read_end, write_end) = os.pipe()
     elif self.stdout is Command.DEVNULL:
@@ -95,8 +145,28 @@ class Command:
 #-----------------------------------------------------------------------------
 
 class Daemon:
+  '''
+  Class representing single daemon, which can be started or stopped.
+  '''
+
   def __init__(self, start_command, stop_command = None, stop_signal = None,
                environment = None, cwd = None, stdout = None):
+    '''
+    :param start_command: command used to start the daemon
+    :param stop_command: command used to stop the daemon instead of signal
+    :param stop_signal: signal used to stop the daemon
+    :param environment: environment variables to be added/replaced when
+      running commands (start and stop)
+    :type environment: dict with string:string mapping
+    :param cwd: directory to run commands in (both start and stop)
+    :param stdout: where to direct output from the command
+    :type stdout: ``"stdout"`` (or ``None``), ``"/dev/null"`` or ``"pipe"``
+
+    For stopping the daemon, command has the precedence over signal.
+    If both :obj:`stop_command` and :obj:`stop_signal` are ``None``,
+    ``SIGTERM`` is used.
+    '''
+
     if stdout is None or stdout == 'stdout':
       self.start_command = Command(start_command, environment, cwd)
     elif stdout == '/dev/null':
@@ -144,12 +214,18 @@ class Daemon:
   # starting and stopping daemon
 
   def start(self):
+    '''
+    Start the daemon.
+    '''
     if self.child_pid is not None:
       # TODO: raise an error (child is already running)
       return
     (self.child_pid, self.child_stdout) = self.start_command.run()
 
   def stop(self):
+    '''
+    Stop the daemon.
+    '''
     if self.child_pid is None:
       # NOTE: don't raise an error (could be called from __del__() when the
       # child is not running)
@@ -167,18 +243,31 @@ class Daemon:
   # filehandle methods
 
   def fileno(self):
+    '''
+    Return file descriptor for the daemon's pipe (``None`` if daemon's output
+    is not intercepted).
+
+    Method intended for :func:`select.poll`.
+    '''
     if self.child_stdout is not None:
       return self.child_stdout.fileno()
     else:
       return None
 
   def readline(self):
+    '''
+    Read a single line from daemon's output (``None`` if daemon's output is
+    not intercepted).
+    '''
     if self.child_stdout is not None:
       return self.child_stdout.readline()
     else:
       return None
 
   def close(self):
+    '''
+    Close read end (this process' end) of daemon's output.
+    '''
     if self.child_stdout is not None:
       self.child_stdout.close()
       self.child_stdout = None
@@ -187,6 +276,9 @@ class Daemon:
   # child process management
 
   def is_alive(self):
+    '''
+    Check if the daemon is still alive.
+    '''
     if self.child_pid is None:
       # no child was started
       return False
@@ -199,6 +291,9 @@ class Daemon:
     return True
 
   def reap(self):
+    '''
+    Close our end of daemon's *STDOUT* and wait for daemon's termination.
+    '''
     if self.child_pid is None:
       self.close() # in case it was still opened
       return
