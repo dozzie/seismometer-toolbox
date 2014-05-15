@@ -224,6 +224,12 @@ class Value(object):
         self._threshold_low[name] = (value, severity)
         return self
 
+    def has_thresholds(self):
+        '''
+        Check if the value has any thresholds.
+        '''
+        return (len(self._threshold_high) + len(self._threshold_low) > 0)
+
     def thresholds(self):
         '''
         :return: list of thresholds: ``(name, low, high)``
