@@ -14,6 +14,7 @@ Helper module for running external commands.
 import subprocess
 import time
 import re
+from panopticon.message import Message
 
 #-----------------------------------------------------------------------------
 
@@ -125,74 +126,52 @@ class NagiosPlugin:
     Execute the plugin and return message to submit to Streem.
     '''
     codes = {
-      0: 'ok',
-      1: 'warning',
-      2: 'critical',
-      #3: 'unknown', # will be handled by codes.get()
+      0: ('ok', 'expected'),
+      1: ('warning', 'warning'),
+      2: ('critical', 'error'),
+      #3: ('unknown', 'error'), # will be handled by codes.get()
     }
 
     (exit_code, output) = self.command.run()
     perfdata = NagiosPlugin.perfdata(output)
     data = NagiosPlugin.nagiosplugins(perfdata)
-    status = codes.get(exit_code, 'unknown')
+    (state, severity) = codes.get(exit_code, ('unknown', 'error'))
 
     self.last_run = time.time()
 
-    if data is None:
-      # no perfdata, short circuit
-      return { # ModMon::Event v=2
-        'v': 2,
-        'time': int(time.time()), # no need for subsecond precision
-        'location': self.location,
-        'event': {
-          'name': self.aspect,
-          'state': {
-            'value': status,
-            'expected':  ['ok'],
-            'attention': ['warning'],
-          }
-        }
-      }
-
-    value_set = {}
     has_thresholds = False
 
-    for datum in data:
-      name = datum['label']
-      value_set[name] = {'value': datum['value']}
-      if datum['warn'] is not None or datum['crit'] is not None:
-        value_set[name]['threshold_high'] = []
-        has_thresholds = True
-      if datum['warn'] is not None:
-        value_set[name]['threshold_high'].append(
-          {'name': 'warning', 'value': datum['warn']}
-        )
-      if datum['crit'] is not None:
-        value_set[name]['threshold_high'].append(
-          {'name': 'critical', 'value': datum['crit']}
-        )
-      if datum['unit'] is not None:
-        value_set[name]['unit'] = datum['unit']
+    event = Message(
+      aspect = self.aspect,
+      location = self.location,
+      state = state,
+      severity = severity,
+      interval = self.schedule,
+    )
 
-    event = { # ModMon::Event v=1
-      'v': 2,
-      'time': int(time.time()), # no need for subsecond precision
-      'location': self.location,
-      'event': {
-        'name': self.aspect,
-        'vset': value_set,
-      }
-    }
-    # if thresholds are set, the status should reflect thresholds being
-    # exceeded; if there's no thresholds (either because they're not set for
-    # values or there are no values), state is to be passed
-    if not has_thresholds:
-      event['event']['state'] = {
-        'value': status,
-        'expected':  ['ok'],
-        'attention': ['warning'],
-      }
-    return event
+    if data is not None:
+      for datum in data:
+        name = datum['label']
+        event[name] = datum['value']
+
+        if datum['warn'] is not None:
+          event[name].set_above(datum['warn'], 'warning', 'warning')
+          has_thresholds = True
+        if datum['crit'] is not None:
+          event[name].set_above(datum['crit'], 'critical', 'error')
+          has_thresholds = True
+
+        if datum['unit'] is not None:
+          event[name].unit = datum['unit']
+
+    # if there are values with thresholds, the status should reflect
+    # thresholds being exceeded; if there's no thresholds (either because
+    # they're not set for values or there are no values), state is to be
+    # passed
+    if has_thresholds:
+      del event.state
+
+    return event.to_dict()
 
   def when(self):
     '''
