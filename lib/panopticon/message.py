@@ -833,10 +833,9 @@ class Message(object):
 
         # fill in state
         if self.state is not None:
-            event["state"] = {
-                "value": self.state,
-                "severity": self.severity,
-            }
+            event["state"] = { "value": self.state }
+            if self.severity is not None:
+                event["state"]["severity"] = self.severity
 
         if self.comment is not None:
             event["comment"] = self.comment
