@@ -427,7 +427,13 @@ class Location(object):
 
     def copy(self):
         '''
-        Duplicate the instance.
+        Duplicate the instance as a dict.
+        '''
+        return self._location.copy()
+
+    def to_dict(self):
+        '''
+        Convert the instance to dict.
         '''
         return self._location.copy()
 
@@ -843,7 +849,7 @@ class Message(object):
             "v": self.v,
             "time": self.time,
             # this must be present even if empty
-            "location": self.location.copy(),
+            "location": self.location.to_dict(),
             "event": event
         }
 
