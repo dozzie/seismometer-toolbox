@@ -33,22 +33,6 @@ def create_parser():
     return parser
 
 #-----------------------------------------------------------------------------
-# Creates message with probes sate
-def create_state_message(message, state):
-    state_message = {
-        "v": 2,
-        "time": round(time.time()),
-        "location": message["location"],
-        "event": {
-            "name": message["event"]["name"],
-            "state": state,
-            "expected": ["up"],
-            "attention": ["down"]
-        }
-    }
-    return message
-
-#-----------------------------------------------------------------------------
 # Checks if given timestamp has timed out
 def timeout_exceeded(value, timeout):
     timestamp = time.time()
@@ -74,8 +58,14 @@ try:
     while True:
         for key in db.keys():
             if timeout_exceeded(int(db[key]), args.timeout):
-                message = create_state_message(json.loads(key), "down")
-                conn.submit(message)
+                json_message = json.loads(key)
+                message = panopticon.message.Message(
+                    aspect = json_message["event"]["name"],
+                    location = json_message["location"],
+                    state = "down",
+                    severity = "error",
+                )
+                conn.submit(message.to_dict())
                 del db[key]
                 db.sync()
         time.sleep(args.interval)

@@ -1,611 +1,861 @@
 #!/usr/bin/python
-#
-# Class set for handling panopticon messages
-#
+'''
+Panopticon message handling.
+
+Messages are expected to conform to `message schema
+<http://panopticon.cf/message-schema/v3>`_.
+
+.. autodata:: SCHEMA_VERSION
+
+.. autoclass:: Message
+   :members:
+   :member-order: groupwise
+
+.. autoclass:: Value
+   :members:
+   :member-order: groupwise
+
+.. autoclass:: Location
+   :members:
+
+'''
 #-----------------------------------------------------------------------------
 
-import time
+from time import time as now
 
-class Threshold(object):
-    def __init__(self, *args):
-        self.__attributes = ["name", "value", "severity"]
-        self.__required = ["name", "value", "severity"]
+#-----------------------------------------------------------------------------
 
-        if args[0] is not None:
-            if isinstance(args[0], Threshold):
-                self.name = threshold.name
-                self.value = threshold.value
-                self.severity = threshold.severity
-            else: #isinstance(threshold, dict):
-                self.name = args[0]["name"]
-                self.value = args[0]["value"]
-                self.severity = args[0]["severity"]
-        else: #name is not None:
-            self.name = args[0]
-            self.value = args[1]
-            self.severity = args[2]
+SCHEMA_VERSION = 3
+'''
+Version of schema this module supports. Equals to ``3``, meaning the module
+supports  `message schema v3 <http://panopticon.cf/message-schema/v3>`_.
+'''
 
-    def __getitem__(self, n):
-        attr = "_Threshold__" + n
-        return getattr(self, attr)
+#-----------------------------------------------------------------------------
 
-    def __setitem__(self, n, v):
-        attr = "_Threshold__" + n
-        setattr(self, attr, v)
+class Value(object):
+    '''
+    Value representation for Panopticon message.
 
-    def __delitem__(self, n):
-        if n not in self.__required:
-            attr = "_Threshold__" + n
-            delattr(self, attr)
+    :class:`Value` instance is convertible to integer and float
+    (``int(v)``) if it doesn't represent ``None``.
 
-    def __iter__(self):
-        for n in self.__attributes:
-            attr = "_Threshold__" + n
-            if hasattr(self, attr):
-                yield n
+    :class:`Value` instance is comparable (e.g. ``<=`` or ``==``) with
+    numerics, other :class:`Value` instances and with ``None``. ``None`` is
+    always smaller than any numeric.
+    '''
+    def __init__(self, value, name = None, unit = None, type = None):
+        '''
+        :param value: value
+        :param name: name of the value
+        :type value: integer, float or ``None``
+        :param unit: unit of measurement
+        :param type: type of change of the value
+        :type type: ``"direct"``, ``"accumulative"`` or ``"differential"``
+        '''
+        self._name = name
+        self.value = value
+        self.unit = unit
+        self.type = type
+        self._threshold_low = {}
+        self._threshold_high = {}
 
-    def __contains__(self, n):
-        attr = "_Threshold__" + n
-        return hasattr(self, n)
+    def copy(self):
+        '''
+        Deep copy of the instance.
+        '''
+        result = Value(
+            self.name,
+            self.value,
+            self.unit,
+            self.type,
+        )
+        result._threshold_low  = self._threshold_low.copy()
+        result._threshold_high = self._threshold_high.copy()
+        return result
 
-    def __len__(self):
-        count = 0
-        for n in self.__attributes:
-            attr = "_Threshold__" + n
-            if hasattr(self, attr):
-                count += 1
-        return count
+    def __repr__(self):
+        return "<Value %s=%s>" % (self.name, self.value)
+
+    def to_dict(self):
+        '''
+        Dictionary representing the value.
+        '''
+        result = {
+            "value": self.value,
+        }
+        if self.unit is not None:
+            result["unit"] = self.unit
+        if self.type is not None:
+            result["type"] = self.type
+        if len(self._threshold_low) > 0:
+            result["threshold_low"] = [
+                {"name": n, "value": v, "severity": s}
+                for (n, (v, s)) in self._threshold_low.iteritems()
+            ]
+        if len(self._threshold_high) > 0:
+            result["threshold_high"] = [
+                {"name": n, "value": v, "severity": s}
+                for (n, (v, s)) in self._threshold_high.iteritems()
+            ]
+        return result
+
+    #-----------------------------------------------------------------
 
     @property
     def name(self):
-        return self.__name
+        '''
+        Name of the value (read-only).
+        '''
+        return self._name
 
-    @name.setter
-    def name(self, name):
-        self.__name = name
+    def _set_name(self, name):
+        # private setter
+        self._name = name
+
+    #-----------------------------------------------------------------
 
     @property
     def value(self):
-        return self.__value
+        '''
+        Value (read-write).
+        '''
+        return self._value
 
     @value.setter
     def value(self, value):
-        self.__value = value
-
-    @property
-    def severity(self):
-        return self.__severity
-
-    @severity.setter
-    def severity(self, severity):
-        self.__severity = severity
-
-    def to_dict(self):
-        return {
-            "name": self.name,
-            "value": self.value,
-            "severity": self.severity
-        }
-
-#-----------------------------------------------------------------------------
-
-class VSetProperty(object):
-    def __init__(self, property):
-        self.__attributes = ["value", "unit", "type", "threshold_low", "threshold_high"]
-        self.__required = ["value"]
-
-        if isinstance(property, VSetProperty):
-            self.value = property.value
-            self.unit = property.unit
-            self.type = property.type
-            self.threshold_low = property.threshold_low
-            self.threshold_high = property.threshold_high
-        elif isinstance(property, dict):
-            self.value = property["value"]
-            if property.has_key("unit"):
-                self.unit = property["unit"]
-            if property.has_key("type"):
-                self.type = property["type"]
-            if property.has_key("threshold_low"):
-                self.threshold_low = []
-                for threshold in property["threshold_low"]:
-                    self.threshold_low.append(Threshold(threshold))
-            if property.has_key("threshold_high"):
-                self.threshold_high = []
-                for threshold in property["threshold_high"]:
-                    self.threshold_high.append(Threshold(threshold))
+        if value is None:
+            self._value = None
+        elif isinstance(value, (int, float)):
+            self._value = value
         else:
-            self.__value = property
+            raise ValueError(
+                "invalid type of value %s: %s" % (self._name, type(value))
+            )
 
-    def __getitem__(self, n):
-        attr = "_VSetProperty__" + n
-        return getattr(self, attr, None)
+    def __int__(self):
+        return int(self._value)
 
-    def __setitem__(self, n, v):
-        attr = "_VSetProperty__" + n
-        setattr(self, attr, n)
+    def __float__(self):
+        return float(self._value)
 
-    def __delitem__(self, n):
-        if n not in self.__required:
-            attr = "_VSetProperty__" + n
-            delattr(self, attr)
+    def __eq__(self, other):
+        if other is None:
+            return (self._value is None)
+        elif isinstance(other, Value):
+            return self._value == other._value
+        elif isinstance(other, (int, float)):
+            return self._value == other
 
-    def __iter__(self):
-        for n in self.__attributes:
-            attr = "_VSetProperty__" + n
-            if hasattr(self, attr):
-                yield n
+    def __gt__(self, other):
+        if self._value is None:
+            return False
+        if isinstance(other, Value):
+            other = other._value
+        return (other is None or self._value > other)
 
-    def __contains__(self, n):
-        attr = "_VSetProperty__" + n
-        return hasattr(self, attr)
+    def __lt__(self, other):
+        if isinstance(other, Value):
+            other = other._value
+        if other is None:
+            return False
+        return (self._value is None or self._value < other)
 
-    def __len__(self):
-        count = 0
-        for n in self.__attributes:
-            attr = "_VSetProperty__" + n
-            if hasattr(self, attr):
-                count += 1
-        return count
+    def __ge__(self, other):
+        return (not self < other)
 
-    @property
-    def value(self):
-        return self.__value
+    def __le__(self, other):
+        return (not self > other)
 
-    @value.setter
-    def value(self, value):
-        self.__value = value
+    #-----------------------------------------------------------------
+
+    def exceeds(self):
+        '''
+        :return: name and severity of exceeded threshold or ``None``
+        :rtype: tuple (str, str)
+
+        Check which threshold is exceeded (highest from high thresholds or
+        lowest from low).
+        '''
+        name = self.is_above()
+        if name is not None:
+            return name
+        return self.is_below()
+
+    def set_above(self, value, name, severity = 'error'):
+        '''
+        :param value: value of the threshold
+        :param name: name of the threshold
+        :param severity: severity of the threshold
+        :type severity: ``"warning"`` or ``"error"``
+        :return: ``self``
+
+        Add/change high threshold.
+        '''
+        if not isinstance(value, (int, float)):
+            raise ValueError(
+                "invalid type of threshold %s: %s" % (name, type(value))
+            )
+        if severity not in ('warning', 'error'): # 'expected' makes no sense
+            raise ValueError(
+                "invalid severity of threshold %s: %s" % (name, severity)
+            )
+        self._threshold_high[name] = (value, severity)
+        return self
+
+    def set_below(self, value, name, severity = 'error'):
+        '''
+        :param value: value of the threshold
+        :param name: name of the threshold
+        :param severity: severity of the threshold
+        :type severity: ``"warning"`` or ``"error"``
+        :return: ``self``
+
+        Add/change low threshold.
+        '''
+        if not isinstance(value, (int, float)):
+            raise ValueError(
+                "invalid type of threshold %s: %s" % (name, type(value))
+            )
+        if severity not in ('warning', 'error'): # 'expected' makes no sense
+            raise ValueError(
+                "invalid severity of threshold %s: %s" % (name, severity)
+            )
+        self._threshold_low[name] = (value, severity)
+        return self
+
+    def has_thresholds(self):
+        '''
+        Check if the value has any thresholds.
+        '''
+        return (len(self._threshold_high) + len(self._threshold_low) > 0)
+
+    def thresholds(self):
+        '''
+        :return: list of thresholds: ``(name, low, high)``
+        :rtype: list of 3-tuples
+
+        Return all defined thresholds: low and high. If only threshold low or
+        high for a given name is defined, the other is reported as ``None``.
+        '''
+        result = []
+        for thr in set(self._threshold_high).union(self._threshold_low):
+            # just the numbers, not severities
+            thr_hi = self._threshold_high.get(thr)
+            if thr_hi is not None: thr_hi = thr_hi[0]
+            thr_lo = self._threshold_low.get(thr)
+            if thr_lo is not None: thr_lo = thr_lo[0]
+            result.append((thr, thr_lo, thr_hi))
+        return result
+
+    def is_above(self):
+        '''
+        :return: name and severity of exceeded threshold or ``None``
+        :rtype: 2-tuple or ``None``
+
+        Check which high threshold is exceded (value > threshold).
+        '''
+        if self._value is None:
+            return None
+
+        above_name = None
+        above_value = None
+        above_severity = None
+        for (name, (value, severity)) in self._threshold_high.iteritems():
+            # 1. exceeds threshold
+            # 2. old threshold is worse (or not set at all)
+            if self._value > value and \
+               (above_value is None or above_value < value):
+                above_name = name
+                above_value = value
+                above_severity = severity
+        if above_name is None:
+            return None
+        else:
+            return (above_name, above_severity)
+
+    def is_below(self):
+        '''
+        :return: name and severity of exceeded threshold or ``None``
+        :rtype: 2-tuple or ``None``
+
+        Check which low threshold is exceded (value < threshold).
+        '''
+        if self._value is None:
+            return None
+
+        below_name = None
+        below_value = None
+        below_severity = None
+        for (name, (value, severity)) in self._threshold_low.iteritems():
+            # 1. value exceeds threshold
+            # 2. old threshold is worse (or not set at all)
+            if self._value < value and \
+               (below_value is None or below_value > value):
+                below_name = name
+                below_value = value
+                below_severity = severity
+        if below_name is None:
+            return None
+        else:
+            return (below_name, below_severity)
+
+    def remove_threshold(self, name, which = 'both'):
+        '''
+        :param name: name of threshold to remove
+        :param which: which
+        :type which: ``"above"`` (``"high"``), ``"below"`` (``"low"``) or
+            ``"both"``
+
+        Remove threshold (high, low or both).
+        '''
+        if which in ('both', 'above', 'high') and name in self._threshold_high:
+            del self._threshold_high[name]
+        if which in ('both', 'below', 'low') and name in self._threshold_low:
+            del self._threshold_low[name]
+
+    #-----------------------------------------------------------------
 
     @property
     def unit(self):
-        if hasattr(self, "_VSetProperty__unit"):
-            return self.__unit
-        else:
-            return None
+        '''
+        Unit of measurement (read-write-delete).
+        '''
+        return self._unit
 
     @unit.setter
     def unit(self, unit):
-        if unit is not None:
-            self.__unit = unit
+        self._unit = unit
 
     @unit.deleter
     def unit(self):
-        del self.__unit
+        self._unit = None
+
+    #-----------------------------------------------------------------
 
     @property
     def type(self):
-        if hasattr(self, "_VSetProperty__type"):
-            return self.__type
-        else:
-            return None
+        '''
+        Type of change: direct, accumulative (integral of actual value) or
+        differential (read-wite-delete).
+        '''
+        return self._type
 
     @type.setter
     def type(self, type):
-        if type is not None:
-            if type not in ["direct", "accumulative", "differential"]:
-                raise ValueError("Not allowed value for type.")
-            self.__type = type
+        if type not in ("direct", "accumulative", "differential", None):
+            raise ValueError(
+                "invalid change type for value %s: %s" % (self._name, type)
+            )
+        self._type = type
 
     @type.deleter
     def type(self):
-        del self.__type
+        self._type = None
 
-    @property
-    def threshold_low(self):
-        if hasattr(self, "_VSetProperty__threshold_low"):
-            return self.__threshold_low
-        else:
-            return None
-
-    @threshold_low.setter
-    def threshold_low(self, threshold):
-        if threshold is not None:
-            self.__threshold_low = threshold
-
-    @threshold_low.deleter
-    def threshold_low(self):
-        del self.__threshold_low
-
-    @property
-    def threshold_low_dict(self):
-        if self.threshold_low is not None:
-            t = []
-            for threshold in self.threshold_low:
-                t.append(threshold.to_dict())
-            return t
-        else:
-            return None
-
-    @property
-    def threshold_high(self):
-        if hasattr(self, "_VSetProperty__threshold_high"):
-            return self.__threshold_high
-        else:
-            return None
-
-    @threshold_high.setter
-    def threshold_high(self, threshold):
-        if threshold is not None:
-            self.__threshold_high = threshold
-
-    @threshold_high.deleter
-    def threshold_high(self):
-        del self.__threshold_high
-
-    @property
-    def threshold_high_dict(self):
-        if self.threshold_high is not None:
-            t = []
-            for threshold in self.threshold_high:
-                t.append(threshold.to_dict())
-            return t
-        else:
-            return None
-
-    def to_dict(self):
-        vset = {
-             "value": self.value
-        }
-        if self.unit is not None:
-            vset["unit"] = self.unit
-        if self.type is not None:
-            vset["type"] = self.type
-        if self.threshold_low is not None:
-            vset["threshold_low"] = self.threshold_low_dict
-        if self.threshold_high is not None:
-            vset["threshold_high"] = self.threshold_high_dict
-        return vset
+    #-----------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
 
-class State(object):
-    def __init__(self, state):
-        self.__attributes = ["value", "severity"]
-        self.__required = ["value"]
+class Location(object):
+    '''
+    Dictionary-like object that checks if elements have valid names/types for
+    location.
+    '''
+    def __init__(self, location):
+        self._location = {}
+        if location is not None:
+            # shallow copy that triggers all the checks
+            for l in location:
+                self[l] = location[l]
 
-        if isinstance(state, State):
-            self.value = state.value
-            if state.severity is not None:
-                self.severity = state.severity
-        elif isinstance(state, dict):
-            self.value = state["value"]
-            if state.has_key("severity"):
-                self.severity = state["severity"]
-        else:
-            self.__value = state
+    def get(self, name, default = None):
+        '''
+        Return location field without raising an exception on undefined key.
+        '''
+        if name not in self._location:
+            return default
+        return self._location[name]
 
-    def __getitem__(self, n):
-        attr = "_State__" + n
-        return getattr(self, attr, None)
+    def __getitem__(self, name):
+        if name not in self._location:
+            raise KeyError('no such location: %s' % (name,))
+        return self._location[name]
 
-    def __setitem__(self, n, v):
-        attr = "_State__" + n
-        setattr(state, attr, v)
+    def __setitem__(self, name, value):
+        # TODO: check value_name against regexp
+        if not isinstance(value, (str, unicode)):
+            raise ValueError("location must be a string")
+        self._location[name] = value
 
-    def __delitem__(self, n):
-        if n not in self.__required:
-            attr = "_State__" + n
-            delattr(self, attr)
+    def __delitem__(self, name):
+        if name in self._location:
+            del self._location[name]
 
-    def __iter__(self):
-        for n in self.__attributes:
-            attr = "_State__" + n
-            if hasattr(self, attr):
-                yield n
-
-    def __contains__(self, n):
-        attr = "_State__" + n
-        return hasattr(self, attr)
+    def __contains__(self, name):
+        return (name in self._location)
 
     def __len__(self):
-        count = 0
-        for n in self.__attributes:
-            attr = "_State__" + n
-            if hasattr(self, attr):
-                count += 1
-        return count
+        return len(self._location)
 
-    @property
-    def value(self):
-        return self.__value
+    def __iter__(self):
+        return self._location.__iter__()
 
-    @value.setter
-    def value(self, value):
-        self.__value = value
+    def keys(self):
+        '''
+        Retrieve location keys.
+        '''
+        return self._location.keys()
 
-    @property
-    def severity(self):
-        if hasattr(self, "_State__severity"):
-            return self.__severity
-        else:
-            return None
+    def values(self):
+        '''
+        Retrieve location values.
+        '''
+        return self._location.values()
 
-    @severity.setter
-    def severity(self, severity):
-        self.__severity = severity
+    def items(self):
+        '''
+        Retrieve location (key,value) pairs.
+        '''
+        return self._location.items()
 
-    @severity.deleter
-    def severity(self):
-        del self.__severity
+    def iteritems(self):
+        '''
+        Retrieve location (key,value) pairs as an iterator.
+        '''
+        return self._location.iteritems()
+
+    def copy(self):
+        '''
+        Duplicate the instance as a dict.
+        '''
+        return self._location.copy()
 
     def to_dict(self):
-        state = {
-            "value": self.value
-        }
-        if self.severity is not None:
-            state["severity"] = self.severity
+        '''
+        Convert the instance to dict.
+        '''
+        return self._location.copy()
 
-        return state
+    def __repr__(self):
+        if len(self._location) == 0:
+            return "<Location {}>"
+        s = ["%s=%s" % (k,v) for (k,v) in self._location.iteritems()]
+        s.sort()
+        return "<Location {%s}>" % (" ".join(s))
 
 #-----------------------------------------------------------------------------
 
-class Event(object):
-    def __init__(self, event):
-        self.__attributes = ["name", "state", "comment", "interval", "vset", "threshold_kept"]
-        self.__required = ["name"]
+class Message(object):
+    '''
+    Class representing single message suitable for Panopticon.
 
-        if isinstance(event, Event):
-            self.name = event.name
-            if event.state is not None:
-                self.state = event.state
-            if event.comment is not None:
-                self.comment = event.comment
-            if event.interval is not None:
-                self.interval = event.interval
-            if event.vset is not None:
-                self.vset = event.vset
-            if event.threshold_kept is not None:
-                self.threshold_kept = event.threshold_kept
-        elif isinstance(event, dict):
-            self.name = event["name"]
-            if event.has_key("state"):
-                self.state = State(event["state"])
-            if event.has_key("comment"):
-                self.state = event["comment"]
-            if event.has_key("interval"):
-                self.interval = event["interval"]
-            if event.has_key("vset"):
-                self.vset = {}
-                for key in event["vset"]:
-                    self.vset[key] = VSetProperty(event["vset"][key])
-            if event.has_key("threshold_kept"):
-                self.threshold_kept = event["threshold_kept"]
-        else:
-            self.__name = event
+    An instance supports dict-like interface to access values
+    (``event.vset.*``). ``len(instance)`` returns a number of values in value
+    set. Each value is an instance of :class:`Value` class. Setting a value to
+    integer, float or ``None`` results in creating new :class:`Value`. Setting
+    it to :class:`Value` *does not copy* the original value.
 
-    def __getitem__(self, n):
-        attr = "_Event__" + n
-        return getattr(slef, attr, None)
+    If a message does not conform to schema, :exc:`ValueError` is thrown.
+    '''
 
-    def __setitem__(self, n, v):
-        attr = "_Event__" + n
-        setattr(self, attr, v)
+    # TODO: remember other data carried by the message
 
-    def __delitem__(self, n):
-        if n not in self.__required:
-            attr = "_Event__" + n
-            delattr(self, attr)
+    def __init__(self, message = None,
+                 time = None, interval = None, aspect = None, location = None,
+                 state = None, severity = None, comment = None, value = None):
+        '''
+        :param message: message to create representation for
+        :param time: unix timestamp of event; defaults to ``time.time()``
+        :type time: integer
+        :param interval: interval at which event is generated
+        :type interval: number of seconds
+        :param aspect: monitored aspect's name
+        :type aspect: string
+        :param location: where the monitored aspect is located
+        :type location: dictionary(str => str)
+        :param state: state of the monitored aspect
+        :type state: string
+        :param severity: what type is the aspect's state
+        :type severity: ``expected``, ``warning`` or ``error``
+        :param comment: comment on monitored aspect's state
+        :type comment: string
+        :param value: set value named ``"value"`` to this value
+        :type value: float or integer
 
-    def __iter__(self):
-        for n in self.__attributes:
-            attr = "_Event__" + n
-            if hasattr(self, attr):
-                yield n
+        Either :obj:`message` or rest of the parameters should be set.
+        '''
 
-    def __contains__(self, n):
-        attr = "_Event__" + n
-        return hasattr(self, attr)
+        # create representation of an existing message
+        # XXX: don't bother with the case when user provided message and
+        # anything except it -- make it GIGO
+        if message is not None:
+            try:
+                self._fill_message(message)
+            except KeyError:
+                # TODO: pass some more details
+                raise ValueError("message doesn't conform to schema")
+            return
 
-    def __len__(self):
-        count = 0
-        for n in self.__attributes:
-            attr = "_Event__" + n
-            if hasattr(self, attr):
-                count += 1
-        return count
+        # fill the properties
+        self._v = SCHEMA_VERSION
+        self.time = time
+        self.interval = interval
+        self.aspect = aspect
+        self._location = Location(location) # no setter here
+        self.state = state
+        self._severity = None
+        if severity is not None:
+            self.severity = severity
+        self.comment = comment
+        self._vset = {} # no setter here
+        self._threshold_kept = None
+
+        if not isinstance(aspect, (str, unicode)):
+            raise ValueError("aspect name must be string")
+
+        # create fresh message, filling what was provided to constructor
+        # actually, finish the message
+
+        # set value if provided
+        if value is not None:
+            self["value"] = value
+
+    #-----------------------------------------------------------------
+    # constructor helper for existing message
+
+    def _fill_message(self, message):
+        '''
+        Initialize the instance with values read from an incoming message.
+        '''
+        if "v" not in message or "event" not in message:
+            raise ValueError("not a panopticon.message")
+        if message["v"] != 3:
+            raise ValueError("wrong schema version: %s" % (message["v"],))
+
+        event = message["event"] # convenience variable
+
+        self._v = SCHEMA_VERSION
+        self.time = message["time"]
+        self.interval = event.get("interval")
+        self.aspect = event["name"]
+        self._location = Location(message["location"]) # no setter here
+        self._state = None    # initial value
+        self._severity = None # initial value
+        self._comment = None  # initial value
+        self._threshold_kept = None # initial value
+        self._vset = {} # no setter here
+        if "state" in event:
+            self.state = event["state"]["value"]
+            if "severity" in event["state"]:
+                self.severity = event["state"]["severity"]
+        if "comment" in event:
+            self.comment = event["comment"]
+        if "threshold_kept" in event:
+            self.threshold_kept = event["threshold_kept"]
+        if "vset" in event:
+            for (name,value) in event["vset"].iteritems():
+                self[name] = Value(
+                    name = name,
+                    value = value["value"],
+                    unit = value.get("unit"),
+                    type = value.get("type"),
+                )
+                for thr in value.get("threshold_high", ()):
+                    self[name].set_above(
+                        thr["value"], thr["name"], thr["severity"]
+                    )
+                for thr in value.get("threshold_low", ()):
+                    self[name].set_below(
+                        thr["value"], thr["name"], thr["severity"]
+                    )
+
+    #-----------------------------------------------------------------
+    # property accessors
 
     @property
-    def name(self):
-        return self.__name
+    def v(self):
+        '''
+        Base schema version this message conforms to. (read-only)
 
-    @name.setter
-    def name(self, name):
-        self.__name = name
+        Equals to :const:`SCHEMA_VERSION`.
+        '''
+        return self._v
 
-    @property
-    def state(self):
-        if hasattr(self, "_Event__state"):
-            return self.__state
-        else:
-            return None
-
-    @state.setter
-    def state(self, state):
-        if state is not None:
-            self.__state = state
-
-    @state.deleter
-    def state(self):
-        del self.__state
+    #-----------------------------------------------------------------
 
     @property
-    def comment(self):
-        if hasattr(self, "_Event__comment"):
-            return self.__comment
-        else:
-            return None
-    
-    @comment.setter
-    def comment(self, comment):
-        if comment is not None:
-            self.__comment = comment
+    def time(self):
+        '''
+        Unix timestamp at which the event occurred. (read-write-delete)
+        '''
+        return self._time
 
-    @comment.deleter
-    def comment(self):
-        del self.__comment
+    @time.setter
+    def time(self, time):
+        if time is None:
+            time = now()
+        self._time = int(time)
+
+    @time.deleter
+    def time(self):
+        self._time = int(now())
+
+    #-----------------------------------------------------------------
 
     @property
     def interval(self):
-        if hasattr(self, "_Event__interval"):
-            return self.__interval
-        else:
-            return None
+        '''
+        Interval at which the event is generated. ``None`` means the event is
+        not generated on a regular basis. (read-write-delete)
+        '''
+        return self._interval
 
     @interval.setter
     def interval(self, interval):
-        self.__interval = interval
+        self._interval = interval
 
     @interval.deleter
     def interval(self):
-        del self.__interval
+        self._interval = None
+
+    #-----------------------------------------------------------------
 
     @property
-    def vset(self):
-        if hasattr(self, "_Event__vset"):
-            return self.__vset
-        else:
-            return None
+    def aspect(self):
+        '''
+        Name of the monitored aspect this message refers to. (read-write)
+        '''
+        return self._aspect
 
-    @vset.setter
-    def vset(self, vset):
-        if vset is not None:
-            self.__vset = vset
-    
-    @vset.deleter
-    def vset(self):
-        del self.__vset
+    @aspect.setter
+    def aspect(self, aspect):
+        self._aspect = aspect
+
+    # XXX: no deleter
+
+    #-----------------------------------------------------------------
 
     @property
-    def vset_dict(self):
-        if self.vset is not None:
-            v = {}
-            for key in self.vset:
-                v[key] = self.vset[key].to_dict()
-            return v
-        else:
-            return None
+    def location(self):
+        '''
+        Location dictionary(-like). Keys and values are both strings.
+        (read-write)
+
+        Individual keys can be added/deleted as with typical dictionary.
+        To reset location wholly a dictionary can be assigned to this
+        attribute.
+        '''
+        return self._location
+
+    @location.setter
+    def location(self, location):
+        self._location = Location(location)
+
+    #-----------------------------------------------------------------
+
+    @property
+    def state(self):
+        '''
+        State carried by the event. (read-write-delete)
+
+        Deleting the state deletes also :attr:`severity`.
+        '''
+        return self._state
+
+    @state.setter
+    def state(self, state):
+        # TODO: check state against regexp
+        self._state = state
+
+    @state.deleter
+    def state(self):
+        self._state = None
+        self._severity = None # unset also the severity
+
+    #-----------------------------------------------------------------
+
+    @property
+    def severity(self):
+        '''
+        Severity of the :attr:`state`. (read-write-delete)
+
+        Either ``"expected"``, ``"warning"`` or ``"error"``.
+        '''
+        return self._severity
+
+    @severity.setter
+    def severity(self, severity):
+        if severity not in ('expected', 'warning', 'error'):
+            raise ValueError("invalid severity: %s" % (severity,))
+        self._severity = severity
+
+    @severity.deleter
+    def severity(self):
+        self._severity = None
+
+    #-----------------------------------------------------------------
+
+    @property
+    def comment(self):
+        '''
+        Description of the :attr:`state` readable by user. (read-write-delete)
+        '''
+        return self._comment
+
+    @comment.setter
+    def comment(self, comment):
+        self._comment = comment
+
+    @comment.deleter
+    def comment(self):
+        self._comment = None
+
+    #-----------------------------------------------------------------
 
     @property
     def threshold_kept(self):
-        if hasattr(self, "_Event__threshold_kept"):
-            return self.__threshold_kept
-        else:
-            return None
+        '''
+        What :attr:`state` to assume when all thresholds for values are kept.
+
+        Note that setting this attribute doesn't make :attr:`state` magically
+        appear. It's informative only.
+        '''
+        return self._threshold_kept
 
     @threshold_kept.setter
-    def threshold_kept(self, threshold_kept):
-        self.__threshold_kept = threshold_kept
+    def threshold_kept(self, value):
+        self._threshold_kept = value
 
     @threshold_kept.deleter
     def threshold_kept(self):
-        del self.__threshold_kept
+        self._threshold_kept = None
+
+    #-----------------------------------------------------------------
+    # value set
+
+    def __getitem__(self, value_name):
+        if value_name not in self._vset:
+            raise KeyError('no such value: %s' % (value_name,))
+        return self._vset[value_name]
+
+    def __setitem__(self, value_name, value):
+        # TODO: check value_name against regexp
+        if isinstance(value, Value):
+            # instance of Value is expected to be a temporary variable
+            # we'll can claim ownership of the variable
+            self._vset[value_name] = value
+            self._vset[value_name]._set_name(value_name)
+        else:
+            self._vset[value_name] = Value(value, value_name)
+
+    def __delitem__(self, value_name):
+        if value_name in self._vset:
+            del self._vset[value_name]
+
+    def __contains__(self, value_name):
+        return (value_name in self._vset)
+
+    def __len__(self):
+        return len(self._vset)
+
+    def __iter__(self):
+        return self._vset.__iter__()
+
+    def keys(self):
+        '''
+        Retrieve names of the values this message carries.
+        '''
+        return self._vset.keys()
+
+    def values(self):
+        '''
+        Retrieve value instances (:class:`Value`) this message carries.
+        '''
+        return self._vset.values()
+
+    def items(self):
+        '''
+        Retrieve values as (name,instance) pairs.
+        '''
+        return [i for i in self.iteritems()]
+
+    def iteritems(self):
+        '''
+        Retrieve values as (name,instance) pairs (iterator).
+        '''
+        for v in self:
+            yield (v, self[v])
+
+    def exceeds(self):
+        '''
+        :return: tuple (threshold,severity) or ``None``
+
+        Check if any of the values carried exceed its threshold. If more than
+        one value exceeds a threshold, an arbitrary one is returned.
+        '''
+        for value in self:
+            result = self[value].exceeds()
+            if result is not None:
+                return result
+        return None
+
+    #-----------------------------------------------------------------
+
+    def copy(self):
+        '''
+        Return a deep copy of the message instance.
+        '''
+        result = Message(
+            time = self.time, interval = self.interval,
+            aspect = self.aspect, location = self._location._location,
+            state = self.state, severity = self.severity,
+            comment = self.comment
+        )
+        for val in self:
+            result[val] = self[val].copy()
+        return result
 
     def to_dict(self):
-        event = {
-            "name": self.name
-        }
+        '''
+        Create a dictionary representing the message.
+
+        The result shares nothing with the original message, so can be safely
+        modified after creation.
+        '''
+        event = { "name": self.aspect }
+
+        # fill in value set
+        if len(self) > 0:
+            event["vset"] = {}
+            for name in self:
+                event["vset"][name] = self[name].to_dict()
+
+        # fill in state
         if self.state is not None:
-            event["state"] = self.state.to_dict()
+            event["state"] = {
+                "value": self.state,
+                "severity": self.severity,
+            }
+
         if self.comment is not None:
             event["comment"] = self.comment
         if self.interval is not None:
             event["interval"] = self.interval
-        if self.vset is not None:
-            event["vset"] = self.vset_dict
         if self.threshold_kept is not None:
             event["threshold_kept"] = self.threshold_kept
-        return event
 
-#-----------------------------------------------------------------------------
-        
-class Message(object):
-    def __init__(self, *args):
-        self.__attributes = ["v", "time", "location", "event"]
-        self.__required = ["v", "time", "location", "event"]
-
-        if isinstance(args[0], Message):
-            self.time = args[0].time
-            self.location = args[0].location
-            self.event = args[0].location
-        elif isinstance(args[0], dict):
-            self.time = args[0]["time"]
-            self.location = args[0]["location"]
-            self.event = Event(args[0]["event"])
-        else:
-            self.time = args[0]
-            self.location = args[1]
-            self.event = args[2]
-
-    def __getitem__(self, n):
-        if n == "v":
-            return self.v
-        else:
-            attr = "_Message__" + n
-            return getattr(self, attr)
-
-    def __setitem__(self, n, v):
-        if n != "v":
-            attr = "_Message__" + n
-            setattr(self, attr, v)
-
-    def __delitem__(self, n):
-        if n not in self.__required:
-            attr = "_Message__" + n
-            delattr(self, attr)
-
-    def __iter__(self):
-        for n in self.__attributes:
-            attr = "_Message__" + n
-            if hasattr(self, attr):
-                yield n
-
-    def __contains__(self, n):
-        attr = "_Message__" + n
-        return hasattr(self, attr)
-
-    def __len__(self):
-        count = 0
-        for n in self.__attributes:
-            attr = "_Message__" + n
-            if hasattr(self, attr):
-                count += 1
-        return count
-
-    @property
-    def v(self):
-        return 3
-
-    @property
-    def time(self):
-        return self.__time
-
-    @time.setter
-    def time(self, time):
-        self.__time = time
-
-    @property
-    def location(self):
-        return self.__location
-
-    @location.setter
-    def location(self, location):
-        if not isinstance(location, dict):
-            raise TypeError("location must be a dict.")
-        self.__location = location
-
-    @property
-    def event(self):
-        return self.__event
-
-    @event.setter
-    def event(self, event):
-        self.__event = event
-
-    def to_dict(self):
         message = {
             "v": self.v,
             "time": self.time,
-            "location": self.location,
-            "event": self.event.to_dict()
+            # this must be present even if empty
+            "location": self.location.to_dict(),
+            "event": event
         }
+
         return message
+
+    #-----------------------------------------------------------------
+
+#-----------------------------------------------------------------------------
+# vim:ft=python

@@ -29,95 +29,12 @@ def create_parser():
     return parser
 
 #-----------------------------------------------------------------------------
-# Get state names from given threshold array
-#def get_threshold_states(thresholds):
-#    states = []
-#    if thresholds is not None:
-#        for threshold in thresholds:
-#            states.append({"name": threshold.name, "severity": threshold.severity})
-#    return states
-
-#-----------------------------------------------------------------------------
-# Gets state names based on vset properties
-#def get_states(message):
-#    attention_states = []
-#    expected_state = message.event.threshold_kept
-#    if message.event.vset is not None:
-#        for key, vset in message.event.vset.iteritems():
-#            attention_states.extend(
-#                get_threshold_states(vset.threshold_low))
-#            attention_states.extend(
-#                get_threshold_states(vset.threshold_high))
-
-#    return [expected_state, sorted(set(attention_states))]
 
 def has_thresholds(message):
-    if message.event.vset is not None:
-        for key, vset in message.event.vset.iteritems():
-            if vset.threshold_low is not None \
-                and vset.threshold_low != []:
-                return True
-            elif vset.threshold_high is not None \
-                and vset.threshold_high != []:
-                return True
+    for v in message:
+        if message[v].has_thresholds():
+            return True
     return False
-
-#-----------------------------------------------------------------------------
-# Gets most exceeded threshold for given vset (based on severity and value)
-def get_exceeded_threshold(vset):
-    threshold_low = None
-    threshold_high = None
-    if vset.value is not None:
-        if vset.threshold_low is not None:
-            for threshold in vset.threshold_low:
-                if (threshold_low is None \
-                    or threshold.value < threshold_low.value) \
-                    and vset.value < threshold.value:
-                    threshold_low = threshold
-        if vset.threshold_high is not None:
-            for threshold in vset.threshold_high:
-                if (threshold_high is None \
-                    or threshold.value > threshold_high.value) \
-                    and vset.value > threshold.value:
-                    threshold_high = threshold
-    if threshold_high is not None and threshold_high.severity == "error":
-        return threshold_high
-    elif threshold_low is not None and threshold_low.severity == "error":
-        return threshold_low
-    elif threshold_high is not None:
-        return threshold_high
-    elif threshold_low is not None:
-        return threshold_low
-    else:
-        return None
-
-#-----------------------------------------------------------------------------
-# Gets overall most exceeded threshold (based on severity)
-def get_threshold(message):
-    warning = None
-    threshold = None
-    if message.event.vset is not None:
-        for key, vset in message.event.vset.iteritems():
-            threshold = get_exceeded_threshold(vset)
-            if threshold is not None:
-                if threshold.severity == "error":
-                    return threshold
-                elif warning is None:
-                    warning = threshold
-    return warning
-
-#-----------------------------------------------------------------------------
-# Gets aspects state based on all vset data
-def get_state(message):
-    state = None
-    if message.event.vset is not None:
-        for key, vset in message.event.vset.iteritems():
-            state = get_threshold_state(vset)
-            if state is not None:
-                break
-    if state is None:
-        state = "ok"
-    return state 
 
 #-----------------------------------------------------------------------------
 
@@ -134,30 +51,25 @@ try:
     # Main loop
     while True:
         reply = conn.receive()
-        # TODO: Add schema validation
-        message = panopticon.message.Message(reply)
-        if message.v != 3:
+        try:
+            message = panopticon.message.Message(message = reply)
+        except ValueError:
             continue
 
         if not has_thresholds(message):
             continue
 
         # TODO: Get exceeeded threshold
-        threshold = get_threshold(message)
-
-        state = None
-        if threshold is not None:
-            state = panopticon.message.State(threshold.name)
-            state.severity = threshold.severity
-        else:
-            if message.event.threshold_kept is not None:
-                state = panopticon.message.State(message.event.threshold_kept)
-                state.severity = "expected"
+        exceeded = message.exceeds()
+        if exceeded is None:
+            if message.threshold_kept is None:
+                message.state = "ok"
             else:
-                state = panopticon.message.State("ok")
-                state.severity = "expected"
-
-        message.event.state = state
+                message.state = message.threshold_kept
+            message.severity = "expected"
+        else:
+            message.state = exceeded[0]
+            message.severity = exceeded[1]
 
         msg = message.to_dict()
         print json.dumps(message.to_dict())

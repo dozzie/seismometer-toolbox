@@ -196,3 +196,6 @@ latex_documents = [
 
 # Documentation for constructors included in class descriptions.
 autoclass_content = 'both'
+
+# Order of class members: "alphabetical" or "groupwise"
+#autodoc_member_order = 'alphabetical'

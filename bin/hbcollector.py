@@ -35,28 +35,10 @@ def create_parser():
 # Gets data identyfying message
 def get_message_key(message):
     key = {
-        "location": message["location"],
-        "event": {
-            "name": message["event"]["name"]
-        }
+        "location": message.location.to_dict(),
+        "event": { "name": message.aspect }
     }
-    return json.dumps(key)
-
-#-----------------------------------------------------------------------------
-# Creates state message
-def create_state_message(message, state):
-    state_message = {
-        "v": 2,
-        "time": round(time.time()),
-        "location": message["location"],
-        "event": {
-            "name": message["event"]["name"],
-            "state": state,
-            "expected": ["up"],
-            "attention": ["down"]
-        }
-    }
-    return state_message
+    return json.dumps(key, sort_keys = True)
 
 #-----------------------------------------------------------------------------
 # Parse commandline arguments
@@ -74,17 +56,23 @@ try:
 
     # Main loop
     while True:
-        message = conn.receive()
-        # TODO: Add schema validation
-        if message["v"] != 2:
+        json_message = conn.receive()
+        try:
+            message = panopticon.message.Message(message = json_message)
+        except ValueError:
             continue
 
         key = get_message_key(message)
         if not db.has_key(key):
-            state_message = create_state_message(message, "up")
-            conn.submit(state_message)
+            state_message = panopticon.message.Message(
+                aspect = message.aspect,
+                location = message.location,
+                state = "up",
+                severity = "expected",
+            )
+            conn.submit(state_message.to_dict())
 
-        db[key] = str(message["time"])
+        db[key] = str(message.time)
         db.sync()
 
 except streem.ProtocolError as e:
