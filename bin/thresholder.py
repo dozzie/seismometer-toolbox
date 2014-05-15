@@ -51,13 +51,9 @@ try:
     # Main loop
     while True:
         reply = conn.receive()
-        # TODO: Add schema validation
         try:
             message = panopticon.message.Message(message = reply)
         except ValueError:
-            continue
-
-        if message.v != 3:
             continue
 
         if not has_thresholds(message):
