@@ -6,6 +6,10 @@
 passing stream of monitoring messages from one channel to external service or
 to a different channel with some filtering and processing.
 
+*pull-push-bridge* only processes messages consumable by
+:mod:`panopticon.message`, that is, conforming to
+`message schema <http://panopticon.cf/message-schema/v3>`_.
+
 Usage
 =====
 

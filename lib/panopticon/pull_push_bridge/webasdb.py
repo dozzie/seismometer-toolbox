@@ -108,29 +108,26 @@ class PullPushBridge:
     self.webasdb = WebASDBSubmit(self.url)
 
   def send(self, message):
+    if message.state is None:
+      return
+
     try:
-      # FIXME: hardcoded for ModMon::Event v=2
-      if (message.get('v') == 2) and 'value' in message['event']['state']:
-        status = message['event']['state']['value']
-        states_ok   = message['event']['state'].get('expected', ['ok'])
-        states_warn = message['event']['state'].get('attention', [])
-        if status in states_ok:
-          severity = 'ok'
-        elif status in states_warn:
-          severity = 'warning'
-        else:
-          severity = 'error'
+      status = message.state
+      severity = message.severity
+      if severity is None or severity == 'expected':
+        # other severities, "warning" and "error", are as they need to be
+        severity = 'ok'
 
-        resource = message['location'].copy()
-        resource['aspect'] = message['event']['name']
+      resource = message.location.to_dict()
+      resource['aspect'] = message.aspect
 
-        self.webasdb.submit(
-          resource = resource,
-          status   = status,
-          severity = severity,
-          time = message['time'],
-          body = message,
-        )
+      self.webasdb.submit(
+        resource = resource,
+        status   = status,
+        severity = severity,
+        time = message.time,
+        body = message.to_dict(),
+      )
     except KeyError:
       pass
     except WebASDBSubmit.ProtocolError:

@@ -11,6 +11,7 @@ import sys
 import optparse
 import streem
 import imp
+import panopticon.message
 
 #-----------------------------------------------------------------------------
 # load plugin
@@ -65,7 +66,11 @@ channel_out = plugin.PullPushBridge(options)
 try:
   while True:
     m = channel_in.receive()
-    channel_out.send(m)
+    try:
+      msg = panopticon.message.Message(message = m)
+    except ValueError:
+      continue
+    channel_out.send(msg)
 except KeyboardInterrupt:
   pass
 

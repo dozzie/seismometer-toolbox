@@ -44,24 +44,30 @@ class PullPushBridge:
     )
 
   def send(self, message):
+    if len(message) == 0:
+      return
+
     try:
-      # FIXME: hardcoded for ModMon::Event v=2
-      if (message.get('v') == 2) and 'vset' in message['event']:
-        value_set = message['event']['vset']
-        host = message['location']['host']
-        time = message['time']
-        for n in sorted(value_set):
-          name = PullPushBridge.encode_location(
-            message['location'], message['event']['name'], n
-          )
-          if value_set[n]['value'] is not None:
-            value = value_set[n]['value']
-          else:
-            value = 'U'
-          self.socket.send(
-            "PUTVAL %s/panopticon/gauge-%s %d:%s\n" % (host, name, time, value)
-          )
-          self.socket.recv(256) # discard (FIXME: detect submission error)
+      host = message.location['host']
+      time = message.time
+      for n in sorted(message):
+        name = PullPushBridge.encode_location(
+          message.location, message.aspect, n
+        )
+        if message[n] is not None:
+          value = message[n].value
+        else:
+          value = 'U'
+
+        if message.interval is not None:
+          line = "PUTVAL %s/panopticon/gauge-%s interval=%d %d:%s\n" % \
+                 (host, name, message.interval, time, value)
+        else:
+          line = "PUTVAL %s/panopticon/gauge-%s %d:%s\n" % \
+                 (host, name, time, value)
+
+        self.socket.send(line)
+        self.socket.recv(256) # discard (FIXME: detect submission error)
     except KeyError:
       pass # don't die, do nothing
 

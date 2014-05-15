@@ -29,6 +29,7 @@ Plugin API
    .. method:: send(message)
 
       :param message: message received from Streem
+      :type message: :class:`panopticon.message.Message`
 
       This method should consume the message, either by ignoring it or passing
       to appropriate service.

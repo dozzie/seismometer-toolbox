@@ -27,12 +27,8 @@ class PullPushBridge:
     self.conn.register(self.channel)
 
   def send(self, message):
-    try:
-      # FIXME: hardcoded for ModMon::Event v=2
-      if (message.get('v') == 2) and 'value' in message['event']['state']:
-        self.conn.submit(message)
-    except KeyError:
-      pass # it's OK to not find a key in hash
+    if message.state is not None:
+      self.conn.submit(message.to_dict())
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker

@@ -23,7 +23,7 @@ class PullPushBridge:
     pass
 
   def send(self, message):
-    sys.stdout.write(json.dumps(message, sort_keys = True) + '\n')
+    sys.stdout.write(json.dumps(message.to_dict(), sort_keys = True) + '\n')
     sys.stdout.flush()
 
 #-----------------------------------------------------------------------------
