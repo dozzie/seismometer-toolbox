@@ -449,6 +449,8 @@ class Message(object):
     set. Each value is an instance of :class:`Value` class. Setting a value to
     integer, float or ``None`` results in creating new :class:`Value`. Setting
     it to :class:`Value` *does not copy* the original value.
+
+    If a message does not conform to schema, :exc:`ValueError` is thrown.
     '''
 
     # TODO: remember other data carried by the message
@@ -482,7 +484,11 @@ class Message(object):
         # XXX: don't bother with the case when user provided message and
         # anything except it -- make it GIGO
         if message is not None:
-            self._fill_message(message)
+            try:
+                self._fill_message(message)
+            except KeyError:
+                # TODO: pass some more details
+                raise ValueError("message doesn't conform to schema")
             return
 
         # fill the properties
