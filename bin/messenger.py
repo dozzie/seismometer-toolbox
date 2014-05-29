@@ -83,7 +83,7 @@ for a in args:
 
 from panopticon.messenger import net_input
 
-poll = net_input.Poll()
+reader = net_input.Reader()
 for spec in listen_spec:
   if spec['proto'] == 'stdin':
     sock = net_input.ListenSTDIN()
@@ -94,7 +94,7 @@ for spec in listen_spec:
   elif spec['proto'] == 'unix':
     sock = net_input.ListenUNIX(spec['path'])
 
-  poll.add(sock)
+  reader.add(sock)
 
 # TODO:
 #   * signal handlers:
@@ -110,8 +110,8 @@ for spec in listen_spec:
 try:
   pass # TODO
   while True:
-    (host, line) = poll.readline()
-    print "[%s]> %s" % (host, line)
+    message = reader.read()
+    print "> %s" % (message,)
 except KeyboardInterrupt:
   pass
 
