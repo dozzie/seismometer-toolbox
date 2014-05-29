@@ -76,19 +76,15 @@ API
 
 For Python 2.7, :mod:`logging.config` module has a :func:`dictConfig`
 function. For older releases (2.4 through 2.6, possibly even older) Panopticon
-Toolbox provides :mod:`panopticon.logging.logging_config` module with the same
-interface. User can configure logging following way::
+Toolbox provides :func:`panopticon.logging.dictConfig` function that works the
+same way (on Python 2.7 it's actually imported
+:func:`logging.config.dictConfig`). User can configure logging following way,
+regardless of the Python release::
 
-   import logging.config
-   if hasattr(logging.config, 'dictConfig'):
-     # Python 2.7+
-     logging.config.dictConfig(log_config)
-   else:
-     # older Python, use PT's copy of dictConfig()
-     import panopticon.logging.logging_config
-     panopticon.logging.logging_config.dictConfig(log_config)
+   import panopticon.logging
+   panopticon.logging.dictConfig(log_config)
 
-.. function:: panopticon.logging.logging_config.dictConfig(config)
+.. function:: panopticon.logging.dictConfig(config)
 
    :param config: configuration read from a file
 

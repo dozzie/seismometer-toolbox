@@ -91,14 +91,8 @@ else:
     }
   }
 
-import logging.config
-if hasattr(logging.config, 'dictConfig'):
-  # Python 2.7+
-  logging.config.dictConfig(log_config)
-else:
-  # older Python, use local copy of dictConfig()
-  import panopticon.logging.logging_config
-  panopticon.logging.logging_config.dictConfig(log_config)
+import panopticon.logging
+panopticon.logging.dictConfig(log_config)
 
 # }}}
 #-----------------------------------------------------------------------------
