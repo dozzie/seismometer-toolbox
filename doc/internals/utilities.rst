@@ -1,6 +1,13 @@
-******************
-Panopticon logging
-******************
+**********************************
+Panopticon Toolbox utility modules
+**********************************
+
+
+Logging
+=======
+
+Python documentation to read
+----------------------------
 
    * Python :mod:`logging`: `<https://docs.python.org/2/library/logging.html>`_
    * Configuring :mod:`logging`: `<https://docs.python.org/2/library/logging.config.html>`_
@@ -8,20 +15,24 @@ Panopticon logging
      `<https://docs.python.org/2/library/logging.config.html#logging-config-dictschema>`_
 
 
-Logging config file
-===================
+Configuration examples
+------------------------------
 
 YAML logging config (see :ref:`yaml-config` for example) can be used as
 follows::
 
+   import panopticon.logging
    import yaml
    log_config = yaml.safe_load(log_config_file)
-   dictConfig(log_config)
+   panopticon.logging.dictConfig(log_config)
+
+Given that logging configuration is a simple dictionary, config file is not
+restricted to YAML format. See :ref:`python-config` for example.
 
 .. _python-config:
 
 Python dictionary
------------------
+^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
@@ -50,7 +61,7 @@ Python dictionary
 .. _yaml-config:
 
 YAML file
----------
+^^^^^^^^^
 
 .. code-block:: yaml
 
@@ -71,8 +82,8 @@ YAML file
        datefmt: "%Y-%m-%d %H:%M:%S"
 
 
-API
-===
+Programming interface
+---------------------
 
 For Python 2.7, :mod:`logging.config` module has a :func:`dictConfig`
 function. For older releases (2.4 through 2.6, possibly even older) Panopticon
@@ -87,4 +98,9 @@ regardless of the Python release::
 .. function:: panopticon.logging.dictConfig(config)
 
    :param config: configuration read from a file
+
+File handle polling
+===================
+
+.. automodule:: panopticon.poll
 

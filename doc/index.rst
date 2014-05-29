@@ -9,8 +9,6 @@ Contents:
    message
    commandline/index
    internals/index
-   logging
-   poll
 
 Indices and tables
 ==================

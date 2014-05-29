@@ -1,7 +1,7 @@
 #!/usr/bin/python
 '''
-File handle poll
-----------------
+File poll interface
+-------------------
 
 .. autoclass:: Poll
    :members:

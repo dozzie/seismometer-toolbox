@@ -8,3 +8,4 @@ Internal programming interface
    daemonshepherd
    dumbprobe
    pullpushbridge
+   utilities
