@@ -53,33 +53,7 @@ if len(args) == 0:
 
 #-----------------------------------------------------------------------------
 
-# TODO: modules:
-#   * socket aggregator (single poll(), returns one line at time)
-#     * TCP sockets
-#     * UDP sockets
-#     * UNIX sockets (SOCK_DGRAM)
-#     * hostname: for future: DNS cache; for now: IP address
-#   * Graphite tag matcher
-#     * services = foo bar, baz, /.../
-#                  indented further_text
-#     * /regexp/:host.(services):service.*:aspect
-#     * regexps are anchored (^$)
-#     * default: host=$origin, aspect=$tag
-#   * protocol parser
-#     * JSON
-#     * Graphite (tag value timestamp)
-#     * Graphite-like (tag state severity timestamp)
-#     * timestamp == "N" means now
-#     * value == "U" means undefined
-#     * drop non-conforming messages
-#   * message spooler
-#     * works on strings
-#     * in-memory
-#     * on-disk
-#   * message sender
-#     * TCP
-#     * TCP/SJCP
-#     * hides connection errors by spooling messages
+# TODO:
 #   * signal handlers:
 #     * SIGPIPE: SIG_IGN
 #     * SIGHUP: reload tag patterns
