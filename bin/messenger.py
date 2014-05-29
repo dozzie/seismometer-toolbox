@@ -49,9 +49,52 @@ if len(args) == 0:
   parser.print_help()
   sys.exit(1)
 
-# TODO: verify `args'
+#-----------------------------------------------------------------------------
+# verify `args' (listen specifications)
+
+import re
+
+net_re = re.compile(
+  r'^(?P<proto>tcp|udp):(?:(?P<host>[^:]+):)?(?P<port>[0-9]+)$'
+)
+unix_re = re.compile(r'^(?P<proto>unix):(?:(?P<path>.+))$')
+
+listen_spec = []
+for a in args:
+  if a == "-":
+    listen_spec.append({'proto': 'stdin'})
+    continue
+
+  match = net_re.match(a)
+  if match is None:
+    match = unix_re.match(a)
+
+  if match is None:
+    parser.print_help()
+    sys.exit(1)
+
+  spec = match.groupdict()
+  if spec.get('port') is not None:
+    spec['port'] = int(spec['port'])
+
+  listen_spec.append(spec)
 
 #-----------------------------------------------------------------------------
+
+from panopticon.messenger import net_input
+
+poll = net_input.Poll()
+for spec in listen_spec:
+  if spec['proto'] == 'stdin':
+    sock = net_input.ListenSTDIN()
+  elif spec['proto'] == 'tcp':
+    sock = net_input.ListenTCP(spec['host'], int(spec['port']))
+  elif spec['proto'] == 'udp':
+    sock = net_input.ListenUDP(spec['host'], int(spec['port']))
+  elif spec['proto'] == 'unix':
+    sock = net_input.ListenUNIX(spec['path'])
+
+  poll.add(sock)
 
 # TODO:
 #   * signal handlers:
@@ -66,6 +109,9 @@ if len(args) == 0:
 
 try:
   pass # TODO
+  while True:
+    line = poll.readline()
+    print "> " + line
 except KeyboardInterrupt:
   pass
 
