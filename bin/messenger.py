@@ -110,8 +110,8 @@ for spec in listen_spec:
 try:
   pass # TODO
   while True:
-    line = poll.readline()
-    print "> " + line
+    (host, line) = poll.readline()
+    print "[%s]> %s" % (host, line)
 except KeyboardInterrupt:
   pass
 

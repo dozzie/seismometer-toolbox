@@ -31,11 +31,6 @@ import Queue
 
 #-----------------------------------------------------------------------------
 
-#   * socket aggregator (single poll(), returns one line at time)
-#     * TCP sockets
-#     * UDP sockets
-#     * UNIX sockets (SOCK_DGRAM)
-#     * hostname: for future: DNS cache; for now: IP address
 #   * protocol parser
 #     * JSON
 #     * Graphite (tag value timestamp)
@@ -56,9 +51,9 @@ class ListenSTDIN:
   def readline(self):
     line = sys.stdin.readline()
     if line == '':
-      return None
+      return (None, None)
     else:
-      return line.strip()
+      return (None, line.strip())
 
   def fileno(self):
     return sys.stdin.fileno()
@@ -69,8 +64,10 @@ class TCPConnection:
   '''
   TCP connection reader.
   '''
-  def __init__(self, conn):
+  def __init__(self, conn, host):
     self.conn = conn
+    # TODO: resolve hostname (some cache maybe?)
+    self.host = host
 
   def __del__(self):
     self.close()
@@ -83,11 +80,11 @@ class TCPConnection:
   def readline(self):
     line = self.conn.recv(16384)
     if line == '':
-      return None
+      return (None, None)
     else:
       # XXX: assume the line is always transmitted as a whole (maybe more than
       # one line, but they're always complete)
-      return line.strip()
+      return (self.host, line.strip())
 
   def fileno(self):
     return self.conn.fileno()
@@ -117,8 +114,8 @@ class ListenTCP:
 
     Accept a connection.
     '''
-    (client, addr) = self.conn.accept()
-    return TCPConnection(client)
+    (client, (host, port)) = self.conn.accept()
+    return TCPConnection(client, host)
 
   def fileno(self):
     return self.conn.fileno()
@@ -144,8 +141,9 @@ class ListenUDP:
 
   def readline(self):
     # XXX: no EOF is expected here
-    line = self.conn.recv(16384)
-    return line.strip()
+    (line, (host, port)) = self.conn.recvfrom(16384)
+    # TODO: resolve hostname (some cache maybe?)
+    return (host, line.strip())
 
   def fileno(self):
     return self.conn.fileno()
@@ -172,7 +170,7 @@ class ListenUNIX:
   def readline(self):
     # XXX: no EOF is expected here
     line = self.conn.recv(16384)
-    return line.strip()
+    return (None, line.strip())
 
   def fileno(self):
     return self.conn.fileno()
@@ -201,6 +199,9 @@ class Poll:
 
   def readline(self):
     '''
+    :return: originating host and line received
+    :rtype: tuple (string, string)
+
     Read single line from all the sockets from poll list.
     '''
     # XXX: in any given poll there could be just TCP connection attempts and
@@ -213,11 +214,13 @@ class Poll:
           self.add(client)
           continue
 
-        line = sock.readline()
+        (host, line) = sock.readline()
+        if host is None:
+          host = os.uname()[1]
         if line is not None:
           # some data (maybe multiline)
           for l in line.split('\n'):
-            self.queue.put(l)
+            self.queue.put((host, l))
         else:
           # EOF, remove the socket from poll
           self.remove(sock)
