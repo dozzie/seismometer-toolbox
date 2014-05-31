@@ -272,7 +272,7 @@ def parse_line(host, line):
   else:
     value = int(match['value'])
 
-  if host is None:
+  if host in (None, '127.0.0.1', 'localhost', 'localhost.localdomain'):
     host = os.uname()[1]
 
   return (host, tag, value, timestamp)
