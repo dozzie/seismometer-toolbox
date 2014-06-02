@@ -116,6 +116,10 @@ try:
     print "> %s" % (message,)
 except KeyboardInterrupt:
   pass
+except net_input.EOF:
+  # this is somewhat expected: all the input descriptors are closed (e.g. only
+  # "-" was specified)
+  pass
 
 #-----------------------------------------------------------------------------
 # vim:ft=python

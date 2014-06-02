@@ -75,5 +75,17 @@ class Poll:
       else: # other error, rethrow
         raise e
 
+  def count(self):
+    '''
+    Count the descriptors added to the poll.
+    '''
+    return len(self._object_map)
+
+  def empty(self):
+    '''
+    Check if the poll is empty (no descriptors).
+    '''
+    return (len(self._object_map) == 0)
+
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker

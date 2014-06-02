@@ -37,6 +37,14 @@ import time
 
 #-----------------------------------------------------------------------------
 
+class EOF(Exception):
+  '''
+  EOF condition on all the inputs.
+  '''
+  pass
+
+#-----------------------------------------------------------------------------
+
 class ListenSTDIN:
   '''
   Socket-like class for reading from standard input.
@@ -192,6 +200,8 @@ class Poll:
     Remove socket from poll list.
     '''
     self.poll.remove(sock)
+    if self.poll.empty():
+      raise EOF()
 
   def readline(self):
     '''
