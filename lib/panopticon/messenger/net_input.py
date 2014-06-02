@@ -33,7 +33,6 @@ import panopticon.poll
 import panopticon.message
 import Queue
 import json
-import time
 
 #-----------------------------------------------------------------------------
 
@@ -240,7 +239,7 @@ graphite_line = re.compile(
     r'(?P<value>-?[0-9.]+|U)'
     r'|'
     r'(?P<state>[a-zA-Z0-9_]+)[ \t]+(?P<severity>expected|warning|critical)'
-  r')[ \t]+(?P<time>[0-9.]+|N)$'
+  r')[ \t]+(?P<time>[0-9.]+)$'
 )
 
 def parse_line(host, line):
@@ -268,10 +267,7 @@ def parse_line(host, line):
 
   tag = match['tag']
 
-  if match['time'] == 'N':
-    timestamp = int(time.time())
-  else:
-    timestamp = int(match['time'])
+  timestamp = int(match['time'])
 
   if match['value'] is None: # match['state'] + match['severity']
     value = (match['state'], match['severity'])
@@ -300,7 +296,7 @@ class Reader:
 
   Some notes:
     * severity must be equal to ``"expected"``, ``"warning"`` or ``"critical"``
-    * timestamp is an integer (epoch time) or ``"N"`` ("now")
+    * timestamp is an integer (epoch time)
     * value for metric is integer, float in non-scientific notation or ``"U"``
       ("undefined")
   '''
