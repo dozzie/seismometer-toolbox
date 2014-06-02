@@ -121,6 +121,7 @@ try:
   pass # TODO
   while True:
     message = reader.read()
+    # TODO: some schedule for retries and sending pending messages
     destination.send(message)
 except KeyboardInterrupt:
   pass

@@ -10,3 +10,4 @@ Command line tools
    thresholder
    heartbeat
    daemonshepherd
+   messenger

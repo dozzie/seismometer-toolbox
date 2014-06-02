@@ -6,13 +6,13 @@ Architecture
 ============
 
 Operation of *pull-push-bridge* is dumb-easy: it reads messages from a Streem
-channel and sends them through output plugin instance (see :ref:`api`).
-There will be only one instance of output plugin throughout the life of
-*pull-push-bridge*.
+channel and sends them through output plugin instance (see
+:ref:`pullpushbridge-api`). There will be only one instance of output plugin
+throughout the life of *pull-push-bridge*.
 
 Currently plugin is loaded from :mod:`panopticon.pull_push_bridge` module.
 
-.. _api:
+.. _pullpushbridge-api:
 
 Plugin API
 ==========

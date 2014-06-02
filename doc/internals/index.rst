@@ -8,4 +8,5 @@ Internal programming interface
    daemonshepherd
    dumbprobe
    pullpushbridge
+   messenger
    utilities
