@@ -109,11 +109,19 @@ for spec in listen_spec:
 #-----------------------------------------------------------------------------
 # main loop
 
+from panopticon.messenger import net_output
+if options.destination is None:
+  # no spooler
+  destination = net_output.STDOUTSender()
+else:
+  # TODO: add spooler
+  destination = net_output.TCPSender(options.destination)
+
 try:
   pass # TODO
   while True:
     message = reader.read()
-    print "> %s" % (message,)
+    destination.send(message)
 except KeyboardInterrupt:
   pass
 except net_input.EOF:
