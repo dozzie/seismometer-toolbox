@@ -294,8 +294,15 @@ class Reader:
     * value for metric is integer, float in non-scientific notation or ``"U"``
       ("undefined")
   '''
-  def __init__(self):
-    # TODO: tag matcher
+  def __init__(self, tag_matcher = None):
+    '''
+    :param tag_matcher: tag to location+aspect converter
+    '''
+    if tag_matcher is not None:
+      self.tag_matcher = tag_matcher
+    else:
+      import tags
+      self.tag_matcher = tags.TagMatcher()
     self.poll = Poll()
 
   def add(self, sock):
@@ -324,9 +331,9 @@ class Reader:
 
       (host, tag, value, timestamp) = message
 
-      # TODO: tag matcher
-      aspect = tag
-      location = { "host": host }
+      (location, aspect) = self.tag_matcher.match(tag)
+      if "host" not in location:
+        location["host"] = host
 
       if isinstance(value, tuple):
         message = panopticon.message.Message(

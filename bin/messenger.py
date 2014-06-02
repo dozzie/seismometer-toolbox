@@ -81,9 +81,11 @@ for a in args:
 
 #-----------------------------------------------------------------------------
 
-from panopticon.messenger import net_input
+from panopticon.messenger import net_input, tags
 
-reader = net_input.Reader()
+# TODO: custom plugin
+tag_matcher = tags.TagMatcher(options.tag_file)
+reader = net_input.Reader(tag_matcher)
 for spec in listen_spec:
   if spec['proto'] == 'stdin':
     sock = net_input.ListenSTDIN()
