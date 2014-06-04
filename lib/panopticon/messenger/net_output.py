@@ -8,6 +8,10 @@ Network message senders.
 .. autoclass:: TCPSender
    :members:
 
+.. autoclass:: StreemSender
+   :members:
+   :inherited-members:
+
 '''
 #-----------------------------------------------------------------------------
 
@@ -17,9 +21,9 @@ import sys
 import spool
 
 #-----------------------------------------------------------------------------
-
-# TODO: StreemSender
-
+#
+# TODO: extract common code from StreemSender and TCPSender
+#
 #-----------------------------------------------------------------------------
 
 class STDOUTSender:
@@ -41,20 +45,20 @@ class STDOUTSender:
 
 #-----------------------------------------------------------------------------
 
-class TCPSender:
+class TCPSender(object):
   '''
   Sender passing message to another messenger (or anything accepting raw JSON
   lines through TCP).
   '''
-  def __init__(self, address, spooler = None):
+  def __init__(self, host, port, spooler = None):
     '''
-    :param address: address to send data to (``host:port``)
+    :param host: address to send data to
+    :param port: address to send data to
     :param spooler: spooler object (defaults to :class:`spool.MemorySpooler`
       with no limits)
     '''
-    (host, port) = address.split(':')
     self.host = host
-    self.port = int(port)
+    self.port = port
     self.conn = None
     if spooler is None:
       self.spooler = spool.MemorySpooler()
@@ -133,6 +137,84 @@ class TCPSender:
       return True
     except socket.error:
       return False
+
+#-----------------------------------------------------------------------------
+
+class StreemSender(TCPSender):
+  '''
+  Sender passing message to Streem.
+  '''
+  def __init__(self, host, port, channel, spooler = None):
+    '''
+    :param address: address to send data to (``host:port:channel``)
+    :param spooler: spooler object (defaults to :class:`spool.MemorySpooler`
+      with no limits)
+    '''
+    super(StreemSender, self).__init__(host, port, spooler)
+    self.channel = channel
+
+  def write(self, line):
+    '''
+    :return: ``True`` when line was sent successfully, ``False`` when problems
+      occurred
+
+    Write single line to TCP socket.
+    '''
+    # NOTE: `line' is NL-terminated
+    request = '{"submit": %s}\n' % (line[0:-1],)
+    try:
+      self.conn.send(request)
+      if self.read_ack():
+        return True
+      else: # unlikely
+        self.conn.close()
+        self.conn = None
+        return False
+    except socket.error:
+      # lost connection
+      self.conn = None
+      return False
+
+  def repair_connection(self):
+    '''
+    :return: ``True`` if connected successfully, ``False`` otherwise.
+
+    Try connecting to the remote side.
+    '''
+    # first, setup TCP connection
+    if super(StreemSender, self).repair_connection():
+      # then, register the channel
+      if self.register_channel(self.channel):
+        return True
+      else:
+        self.conn.close()
+        self.conn = None
+        return False
+    return False
+
+  def register_channel(self, channel):
+    '''
+    Register channel which this connection will send messages to.
+    '''
+    print "registering channel %s" % (channel,)
+    reg_request = { "register": channel }
+    # FIXME: defend against network problems at this point (they're unlikely,
+    # though)
+    self.conn.send(json.dumps(reg_request) + "\n")
+    return self.read_ack()
+
+  def read_ack(self):
+    '''
+    :return: ``True`` if acknowledgement carried success, ``False`` otherwise
+
+    Read acknowledgement response.
+    '''
+    print "reading ACK"
+    response = self.conn.recv(1024) # assume this will be just one line
+    if response == '':
+      return False
+    response = json.loads(response)
+    return (response.get("status") == "ok")
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker

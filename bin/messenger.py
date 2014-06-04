@@ -114,8 +114,23 @@ if options.destination is None:
   # no spooler
   destination = net_output.STDOUTSender()
 else:
-  # TODO: add spooler
-  destination = net_output.TCPSender(options.destination)
+  destaddr = options.destination.split(":")
+  if len(destaddr) == 2:
+    # TODO: add spooler
+    destination = net_output.TCPSender(
+      host = destaddr[0],
+      port = int(destaddr[1]),
+    )
+  elif len(destaddr) == 3:
+    # TODO: add spooler
+    destination = net_output.StreemSender(
+      host = destaddr[0],
+      port = int(destaddr[1]),
+      channel = destaddr[2],
+    )
+  else: # unknown destination address
+    parser.print_help()
+    sys.exit(1)
 
 try:
   pass # TODO
