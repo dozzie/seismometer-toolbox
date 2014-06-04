@@ -23,6 +23,9 @@ Network (and network-like) input: TCP, UDP, UNIX, stdin.
 .. autoclass:: ListenUNIX
    :members:
 
+.. autoexception:: EOF
+   :members:
+
 '''
 #-----------------------------------------------------------------------------
 
