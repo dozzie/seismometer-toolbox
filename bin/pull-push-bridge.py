@@ -12,14 +12,8 @@ import optparse
 import streem
 import imp
 import panopticon.message
-
-#-----------------------------------------------------------------------------
-# load plugin
-
-def load_plugin(plugin_name):
-  plugin = __import__('panopticon.pull_push_bridge.%s' % (plugin_name,))
-  plugin = plugin.pull_push_bridge.__dict__[plugin_name]
-  return plugin
+import panopticon.plugin
+import panopticon.pull_push_bridge
 
 #-----------------------------------------------------------------------------
 # parse command line options
@@ -60,7 +54,13 @@ if options.source is None or options.destination is None:
 channel_in = streem.Streem(host, int(port))
 channel_in.subscribe(channel)
 
-plugin = load_plugin(options.plugin)
+ploader = panopticon.plugin.PluginLoader()
+if options.plugin in panopticon.pull_push_bridge.PLUGINS:
+  plugin = ploader.load('panopticon.pull_push_bridge.%s' % (options.plugin))
+else:
+  plugin = ploader.load('panopticon.pull_push_bridge._plugin', options.plugin)
+ploader.close()
+
 channel_out = plugin.PullPushBridge(options)
 
 try:

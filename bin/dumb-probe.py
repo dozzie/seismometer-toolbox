@@ -3,19 +3,7 @@
 import sys
 import optparse
 import streem
-
-#-----------------------------------------------------------------------------
-# utility to load checks from specified file
-
-def load_checks(filename):
-  # hack for not write *.pyc file to the location of config file
-  import imp, tempfile, os
-  tmpdir = tempfile.mkdtemp()
-  dummy_filename = os.path.join(tmpdir, 'config.py')
-  plugin = imp.load_source('config', dummy_filename, open(filename))
-  os.remove(dummy_filename + 'c')
-  os.rmdir(tmpdir)
-  return plugin.checks
+import panopticon.plugin
 
 #-----------------------------------------------------------------------------
 # parse command line options
@@ -44,7 +32,10 @@ if options.checks is None:
 #-----------------------------------------------------------------------------
 # prepare run environment: checks object and submit() function
 
-checks = load_checks(options.checks)
+ploader = panopticon.plugin.PluginLoader()
+checks_mod = ploader.load('panopticon.dumbprobe.__config__', options.checks)
+checks = checks_mod.checks
+ploader.close()
 
 if options.destination == "stdout":
   def submit(data):

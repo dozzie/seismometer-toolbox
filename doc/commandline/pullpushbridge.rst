@@ -26,7 +26,9 @@ Command line options
 
 .. cmdoption:: --plugin <name>
 
-   Name of plugin. See :ref:`plugins` for list of available plugins.
+   Name of plugin. See :ref:`plugins` for list of available plugins. It may
+   also be a filename containing :ref:`appropriate Python code
+   <pullpushbridge-api>`.
 
 .. cmdoption:: --destination <address>
 

@@ -10,7 +10,8 @@ channel and sends them through output plugin instance (see
 :ref:`pullpushbridge-api`). There will be only one instance of output plugin
 throughout the life of *pull-push-bridge*.
 
-Currently plugin is loaded from :mod:`panopticon.pull_push_bridge` module.
+By default, plugin is loaded from :mod:`panopticon.pull_push_bridge` package,
+but can be specified as a path to Python file.
 
 .. _pullpushbridge-api:
 
