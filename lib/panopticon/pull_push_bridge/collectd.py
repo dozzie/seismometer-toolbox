@@ -23,11 +23,19 @@ Options:
 
 import socket
 import re
+from optparse import make_option
 
 #-----------------------------------------------------------------------------
 
 class PullPushBridge:
   NON_WORD = re.compile(r'[^a-zA-Z0-9_.]')
+  options = [
+    make_option(
+      "--destination", dest = "destination",
+      help = "UNIX socket where collectd listens",
+      metavar = "PATH",
+    ),
+  ]
 
   def __init__(self, options):
     self.collectd_socket = options.destination

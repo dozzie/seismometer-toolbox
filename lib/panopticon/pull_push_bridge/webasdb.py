@@ -18,6 +18,7 @@ Options:
 import httplib
 import urlparse
 import json
+from optparse import make_option
 
 #-----------------------------------------------------------------------------
 # WebASDB client class {{{
@@ -103,6 +104,14 @@ class WebASDBSubmit:
 #-----------------------------------------------------------------------------
 
 class PullPushBridge:
+  options = [
+    make_option(
+      "--destination", dest = "destination",
+      help = "WebASDB (root) address",
+      metavar = "URL",
+    ),
+  ]
+
   def __init__(self, options):
     self.url = options.destination
     self.webasdb = WebASDBSubmit(self.url)

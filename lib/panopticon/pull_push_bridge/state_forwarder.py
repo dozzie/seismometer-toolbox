@@ -16,10 +16,19 @@ Options:
 #-----------------------------------------------------------------------------
 
 import streem
+from optparse import make_option
 
 #-----------------------------------------------------------------------------
 
 class PullPushBridge:
+  options = [
+    make_option(
+      "--destination", dest = "destination",
+      help = "destination channel of messages (host:port:channel)",
+      metavar = "ADDR",
+    ),
+  ]
+
   def __init__(self, options):
     (self.host, self.port, self.channel) = options.destination.split(":", 2)
     self.port = int(self.port)
