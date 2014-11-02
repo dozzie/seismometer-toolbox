@@ -81,5 +81,8 @@ class UDP:
     line = json.dumps(message) + "\n"
     self.conn.send(line)
 
+  def flush(self):
+    pass
+
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker

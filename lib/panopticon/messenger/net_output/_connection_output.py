@@ -91,5 +91,13 @@ class ConnectionOutput(object):
         return False
     return True
 
+  def flush(self):
+    '''
+    Flush spool.
+    '''
+    if not self.is_connected() and not self.repair_connection():
+      return
+    self.send_pending()
+
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker

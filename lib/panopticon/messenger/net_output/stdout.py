@@ -25,5 +25,8 @@ class STDOUT:
     sys.stdout.write(line)
     sys.stdout.flush()
 
+  def flush(self):
+    pass
+
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker
