@@ -33,6 +33,9 @@ def parse_line(host, line):
   ``value`` in 4-tuple form is a ``(state, severity)`` tuple for state or
   float/int/``None`` for metric.
   '''
+  if line == '':
+    return None
+
   if line[0] == '{': # JSON
     try:
       return json.loads(line)
