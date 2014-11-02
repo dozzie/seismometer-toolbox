@@ -53,6 +53,7 @@ class TCP(ConnectionSocket):
     Accept a connection.
     '''
     (client, (host, port)) = self.conn.accept()
+    client.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
     return TCPConnection(client, host)
 
   def fileno(self):

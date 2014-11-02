@@ -53,6 +53,7 @@ class TCP(ConnectionOutput):
     try:
       conn = socket.socket()
       conn.connect((self.host, self.port))
+      conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
       self.conn = conn
       return True
     except socket.error:
