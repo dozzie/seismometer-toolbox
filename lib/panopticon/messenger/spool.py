@@ -21,9 +21,9 @@ class MemorySpooler:
   '''
   Spooler that keeps data in memory.
   '''
-  def __init__(self, max = None):
+  def __init__(self, max = 20 * 1024 * 1024):
     '''
-    :param max: maximum number of bytes to keep in queue
+    :param max: maximum number of bytes to keep in queue (defaults to 20M)
     '''
     self._queue = collections.deque()
     self._max = max
