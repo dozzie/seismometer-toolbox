@@ -20,10 +20,22 @@ Network input
 
 .. automodule:: panopticon.messenger.net_input
 
+.. automodule:: panopticon.messenger.net_input.stdin
+
+.. automodule:: panopticon.messenger.net_input.inet
+
+.. automodule:: panopticon.messenger.net_input.unix
+
 Network output
 --------------
 
 .. automodule:: panopticon.messenger.net_output
+
+.. automodule:: panopticon.messenger.net_output.stdout
+
+.. automodule:: panopticon.messenger.net_output.inet
+
+.. automodule:: panopticon.messenger.net_output.unix
 
 Tag matcher
 -----------

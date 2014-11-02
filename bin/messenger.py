@@ -2,22 +2,27 @@
 
 import sys
 import optparse
+import panopticon.messenger
+import panopticon.messenger
 
 #-----------------------------------------------------------------------------
-# parse command line options
+# command line options {{{
 
 parser = optparse.OptionParser(
-  usage = "%prog [options] LISTEN_ADDR ...",
-  description = "Listen addresses have a form of tcp:PORT, tcp:BIND_ADDR:PORT,"
-                " udp:PORT, udp:BIND_ADDR:PORT, unix:PATH (datagram socket)"
-                " or \"-\" (STDIN)."
+  usage = "%prog [options]",
+  description = "TODO"
 )
 
 parser.add_option(
-  "--destination", dest = "destination",
-  help = "where to send messages (host:port for simple, line-based JSON"
-         " or host:port:channel for Streem; default is to print messages to"
-         " STDOUT)",
+  "--destination", "--dest", dest = "destination",
+  action = "append", default = [],
+  help = "where to send messages",
+  metavar = "ADDR",
+)
+parser.add_option(
+  "--source", "--src", dest = "source",
+  action = "append", default = [],
+  help = "where to read/expect messages from",
   metavar = "ADDR",
 )
 parser.add_option(
@@ -43,107 +48,125 @@ parser.add_option(
   metavar = "FILE",
 )
 
+# }}}
+#-----------------------------------------------------------------------------
+
 (options, args) = parser.parse_args()
 
-if len(args) == 0:
+if len(args) > 0:
   parser.print_help()
   sys.exit(1)
 
-#-----------------------------------------------------------------------------
-# verify `args' (listen specifications)
+if len(options.source) == 0:
+  options.source = ["stdin"]
 
-import re
-
-net_re = re.compile(
-  r'^(?P<proto>tcp|udp):(?:(?P<host>[^:]+):)?(?P<port>[0-9]+)$'
-)
-unix_re = re.compile(r'^(?P<proto>unix):(?:(?P<path>.+))$')
-
-listen_spec = []
-for a in args:
-  if a == "-":
-    listen_spec.append({'proto': 'stdin'})
-    continue
-
-  match = net_re.match(a)
-  if match is None:
-    match = unix_re.match(a)
-
-  if match is None:
-    parser.print_help()
-    sys.exit(1)
-
-  spec = match.groupdict()
-  if spec.get('port') is not None:
-    spec['port'] = int(spec['port'])
-
-  listen_spec.append(spec)
+if len(options.destination) == 0:
+  options.destination = ["stdout"]
 
 #-----------------------------------------------------------------------------
+# --source options parsing {{{
 
-from panopticon.messenger import net_input, tags
+def parse_source(source):
+  if source == "stdin":
+    import panopticon.messenger.net_input.stdin
+    return panopticon.messenger.net_input.stdin.STDIN()
 
-# TODO: custom plugin
-tag_matcher = tags.TagMatcher(options.tag_file)
-reader = net_input.Reader(tag_matcher)
-for spec in listen_spec:
-  if spec['proto'] == 'stdin':
-    sock = net_input.ListenSTDIN()
-  elif spec['proto'] == 'tcp':
-    sock = net_input.ListenTCP(spec['host'], int(spec['port']))
-  elif spec['proto'] == 'udp':
-    sock = net_input.ListenUDP(spec['host'], int(spec['port']))
-  elif spec['proto'] == 'unix':
-    sock = net_input.ListenUNIX(spec['path'])
+  if source.startswith("tcp:"):
+    if ":" in source[4:]:
+      (host, port) = source[4:].split(":")
+      port = int(port)
+    else:
+      host = None
+      port = int(source[4:])
+    import panopticon.messenger.net_input.inet
+    return panopticon.messenger.net_input.inet.TCP(host, port)
 
-  reader.add(sock)
+  if source.startswith("udp:"):
+    if ":" in source[4:]:
+      (host, port) = source[4:].split(":")
+      port = int(port)
+    else:
+      host = None
+      port = int(source[4:])
+    import panopticon.messenger.net_input.inet
+    return panopticon.messenger.net_input.inet.UDP(host, port)
+
+  if source.startswith("unix:"):
+    path = source[5:]
+    import panopticon.messenger.net_input.unix
+    return panopticon.messenger.net_input.unix.UNIX(path)
+
+  import json
+  params = json.loads(source)
+  import panopticon.messenger.net_input.plugin
+  return panopticon.messenger.net_input.plugin.Plugin(params['class'], params)
+
+# }}}
+#-----------------------------------------------------------------------------
+# --destination options parsing {{{
+
+def parse_destination(destination):
+  if destination == "stdout":
+    import panopticon.messenger.net_output.stdout
+    return panopticon.messenger.net_output.stdout.STDOUT()
+
+  if destination.startswith("tcp:"):
+    (host, port) = destination[4:].split(":")
+    port = int(port)
+    import panopticon.messenger.net_output.inet
+    return panopticon.messenger.net_output.inet.TCP(host, port)
+
+  if destination.startswith("udp:"):
+    (host, port) = destination[4:].split(":")
+    port = int(port)
+    import panopticon.messenger.net_output.inet
+    return panopticon.messenger.net_output.inet.UDP(host, port)
+
+  if destination.startswith("unix:"):
+    path = destination[5:]
+    import panopticon.messenger.net_output.unix
+    return panopticon.messenger.net_output.unix.UNIX(path)
+
+  import json
+  params = json.loads(destination)
+  import panopticon.messenger.net_output.plugin
+  return panopticon.messenger.net_output.plugin.Plugin(params['class'], params)
+
+# }}}
+#-----------------------------------------------------------------------------
+
+sources      = [parse_source(o)      for o in options.source]
+destinations = [parse_destination(o) for o in options.destination]
+
+reader = panopticon.messenger.net_input.Reader()
+writer = panopticon.messenger.net_output.Writer()
+
+for s in sources:
+  reader.add(s)
+for d in destinations:
+  writer.add(d)
+
+#-----------------------------------------------------------------------------
 
 # TODO:
 #   * signal handlers:
 #     * SIGPIPE: SIG_IGN
 #     * SIGHUP: reload tag patterns
 #     * SIGUSR1: reload logging config
-#   * fsync'd STDOUT (use in pipe)
-#   * date +"foo.bar $VALUE %s" | messenger.py -
 
 #-----------------------------------------------------------------------------
 # main loop
 
-from panopticon.messenger import net_output
-if options.destination is None:
-  # no spooler
-  destination = net_output.STDOUTSender()
-else:
-  destaddr = options.destination.split(":")
-  if len(destaddr) == 2:
-    # TODO: add spooler
-    destination = net_output.TCPSender(
-      host = destaddr[0],
-      port = int(destaddr[1]),
-    )
-  elif len(destaddr) == 3:
-    # TODO: add spooler
-    destination = net_output.StreemSender(
-      host = destaddr[0],
-      port = int(destaddr[1]),
-      channel = destaddr[2],
-    )
-  else: # unknown destination address
-    parser.print_help()
-    sys.exit(1)
-
 try:
-  pass # TODO
   while True:
     message = reader.read()
-    # TODO: some schedule for retries and sending pending messages
-    destination.send(message)
+    writer.write(message)
 except KeyboardInterrupt:
   pass
-except net_input.EOF:
+except panopticon.messenger.net_input.EOF:
   # this is somewhat expected: all the input descriptors are closed (e.g. only
-  # "-" was specified)
+  # STDIN was specified)
   pass
 
 #-----------------------------------------------------------------------------
-# vim:ft=python
+# vim:ft=python:foldmethod=marker
