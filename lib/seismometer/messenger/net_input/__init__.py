@@ -71,13 +71,16 @@ class Poll:
           continue
 
         (host, line) = sock.readline()
-        if line is not None:
+        if line is None:
+          # EOF, remove the socket from poll
+          self.remove(sock)
+        elif line == '':
+          # no data read, but not EOF yet (maybe partial line)
+          pass
+        else:
           # some data (maybe multiline)
           for l in line.split('\n'):
             self.queue.put((host, l.strip()))
-        else:
-          # EOF, remove the socket from poll
-          self.remove(sock)
 
     # loop ended, so there must be anything in the queue
     return self.queue.get()

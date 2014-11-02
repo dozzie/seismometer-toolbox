@@ -26,6 +26,33 @@ from _connection_socket import ConnectionSocket
 
 #-----------------------------------------------------------------------------
 
+# NOTE: this class is intended for use when add() call is followed by
+# has_lines() (and by get_lines(), if has_lines() returned True)
+class LineBuffer:
+  def __init__(self, max = 16 * 1024):
+    self._buffer = []
+    #self._size = 0
+    #self._max = max
+
+  def add(self, chunk):
+    # TODO: check size
+    self._buffer.append(chunk)
+
+  def has_lines(self):
+    return len(self._buffer) > 0 and '\n' in self._buffer[-1]
+
+  def get_lines(self):
+    # return all the lines up until last NL; stuff after last NL is an
+    # unfinished line, so it forms 
+    everything = ''.join(self._buffer)
+    (lines, tail) = everything.rsplit('\n', 1)
+    del self._buffer[:]
+    if tail != '':
+      self.add(tail)
+    return lines
+
+#-----------------------------------------------------------------------------
+
 class TCP(ConnectionSocket):
   '''
   Listening TCP socket. Not intended for reading itself, instead returns
@@ -73,6 +100,7 @@ class TCPConnection:
     self.conn = conn
     # TODO: resolve hostname (some cache maybe?)
     self.host = host
+    self._buffer = LineBuffer()
 
   def __del__(self):
     self.close()
@@ -89,15 +117,18 @@ class TCPConnection:
     '''
     :return: ``(host, string)``
 
-    Read a single line from connection.
+    Read complete line (or lines) from the connection.
     '''
     line = self.conn.recv(16384)
     if line == '':
       return (None, None)
+
+    self._buffer.add(line)
+    if self._buffer.has_lines():
+      return (self.host, self._buffer.get_lines())
     else:
-      # XXX: assume the line is always transmitted as a whole (maybe more than
-      # one line, but they're always complete)
-      return (self.host, line.strip())
+      # tell the caller it's not EOF, but nothing interesting was read
+      return (self.host, '')
 
   def fileno(self):
     '''
