@@ -1,11 +1,11 @@
 #
 # The only requirement for the configuration is to have "checks" object, which
 # in turn has run_next() method. The method should wait long enough and run
-# next check, returning hash that is a message to submit to Panopticon.
+# next check, returning hash that is a message to submit to Seismometer.
 # The method will be called successively.
 #
 
-from panopticon.dumbprobe import Checks
+from seismometer.dumbprobe import Checks
 
 checks = Checks()
 checks.add(

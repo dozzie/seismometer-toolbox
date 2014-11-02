@@ -11,9 +11,9 @@ import sys
 import optparse
 import streem
 import imp
-import panopticon.message
-import panopticon.plugin
-import panopticon.pull_push_bridge
+import seismometer.message
+import seismometer.plugin
+import seismometer.pull_push_bridge
 
 #-----------------------------------------------------------------------------
 # parse command line options
@@ -25,11 +25,11 @@ def load_plugin_opts(option, opt, value, parser):
   if parser.values.plugin is not None:
     raise optparse.OptionValueError("can't use two plugins")
 
-  ploader = panopticon.plugin.PluginLoader()
-  if value in panopticon.pull_push_bridge.PLUGINS:
-    plugin = ploader.load("panopticon.pull_push_bridge.%s" % (value))
+  ploader = seismometer.plugin.PluginLoader()
+  if value in seismometer.pull_push_bridge.PLUGINS:
+    plugin = ploader.load("seismometer.pull_push_bridge.%s" % (value))
   else:
-    plugin = ploader.load("panopticon.pull_push_bridge._plugin", value)
+    plugin = ploader.load("seismometer.pull_push_bridge._plugin", value)
   ploader.close()
 
   parser.values.plugin = plugin
@@ -65,8 +65,8 @@ if options.source is None:
 
 if options.plugin is None:
   # plugin defaults to "stdout"
-  import panopticon.pull_push_bridge.stdout
-  options.plugin = panopticon.pull_push_bridge.stdout
+  import seismometer.pull_push_bridge.stdout
+  options.plugin = seismometer.pull_push_bridge.stdout
 
 #-----------------------------------------------------------------------------
 # main loop
@@ -81,7 +81,7 @@ try:
   while True:
     m = channel_in.receive()
     try:
-      msg = panopticon.message.Message(message = m)
+      msg = seismometer.message.Message(message = m)
     except ValueError:
       continue
     channel_out.send(msg)

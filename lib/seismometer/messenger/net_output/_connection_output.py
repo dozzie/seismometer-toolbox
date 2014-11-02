@@ -9,7 +9,7 @@ Generic
 #-----------------------------------------------------------------------------
 
 import json
-import panopticon.messenger.spool
+import seismometer.messenger.spool
 
 #-----------------------------------------------------------------------------
 
@@ -23,10 +23,10 @@ class ConnectionOutput(object):
   def __init__(self, spooler = None):
     '''
     :param spooler: place to put messages in case of connectivity problems
-      (defaults to :class:`panopticon.messenger.spool.MemorySpooler` instance)
+      (defaults to :class:`seismometer.messenger.spool.MemorySpooler` instance)
     '''
     if spooler is None:
-      self.spooler = panopticon.messenger.spool.MemorySpooler()
+      self.spooler = seismometer.messenger.spool.MemorySpooler()
     else:
       self.spooler = spooler
 

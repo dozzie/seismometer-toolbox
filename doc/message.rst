@@ -1,6 +1,6 @@
-******************
-Panopticon message
-******************
+*******************
+Seismometer message
+*******************
 
 Examples of use
 ---------------
@@ -10,7 +10,7 @@ Creating a new message
 
 Very basic message carrying just a single value::
 
-   from panopticon.message import Message
+   from seismometer.message import Message
 
    msg = Message(
        aspect = "users logged in",
@@ -21,7 +21,7 @@ Very basic message carrying just a single value::
 
 Message about Apache not working::
 
-   from panopticon.message import Message
+   from seismometer.message import Message
 
    msg = Message(
        aspect = "process state",
@@ -33,7 +33,7 @@ Message about Apache not working::
 
 More verbose message carrying information about disk space on :file:`/`::
 
-   from panopticon.message import Message, Value
+   from seismometer.message import Message, Value
 
    msg = Message(
        aspect = "disk space",
@@ -56,7 +56,7 @@ Altering an incoming message
 
 Replace *total* + *free* with *used* + *free* in message about disk space::
 
-   from panopticon.message import Message
+   from seismometer.message import Message
 
    # pretend that this artificial message came from outside
    incoming = {
@@ -79,7 +79,7 @@ Replace *total* + *free* with *used* + *free* in message about disk space::
 
 Add a location to a message::
 
-   from panopticon.message import Message
+   from seismometer.message import Message
 
    # pretend that this artificial message came from outside
    incoming = {
@@ -103,7 +103,7 @@ Checking a message for exceeding thresholds
 
 ::
 
-   from panopticon.message import Message, Value
+   from seismometer.message import Message, Value
 
    msg1 = Message(
        aspect = "dummy",
@@ -144,5 +144,5 @@ Checking a message for exceeding thresholds
 API documentation
 -----------------
 
-.. automodule:: panopticon.message
+.. automodule:: seismometer.message
 

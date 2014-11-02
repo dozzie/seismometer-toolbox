@@ -57,7 +57,7 @@ class PluginLoader:
 
     **NOTE**: Specifying a ``name`` under non-existent hierarchy may cause
     a warning to be issued. Better stick to a name that exists except for the
-    last component, e.g. ``panopticon.dumbprobe.__config__``.
+    last component, e.g. ``seismometer.dumbprobe.__config__``.
     '''
     if file is None:
       plugin = __import__(name)

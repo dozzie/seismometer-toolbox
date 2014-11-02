@@ -14,7 +14,7 @@ Helper module for running external commands.
 import subprocess
 import time
 import re
-from panopticon.message import Message
+from seismometer.message import Message
 
 #-----------------------------------------------------------------------------
 

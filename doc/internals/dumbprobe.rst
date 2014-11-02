@@ -6,11 +6,11 @@ DumbProbe API
 Queueing commands
 =================
 
-.. automodule:: panopticon.dumbprobe.service
+.. automodule:: seismometer.dumbprobe.service
 
 
 Running commands
 ================
 
-.. automodule:: panopticon.dumbprobe.shell_command
+.. automodule:: seismometer.dumbprobe.shell_command
 

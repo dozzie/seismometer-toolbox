@@ -1,6 +1,6 @@
-**********************************
-Panopticon Toolbox utility modules
-**********************************
+***********************************
+Seismometer Toolbox utility modules
+***********************************
 
 
 Logging
@@ -21,10 +21,10 @@ Configuration examples
 YAML logging config (see :ref:`yaml-config` for example) can be used as
 follows::
 
-   import panopticon.logging
+   import seismometer.logging
    import yaml
    log_config = yaml.safe_load(log_config_file)
-   panopticon.logging.dictConfig(log_config)
+   seismometer.logging.dictConfig(log_config)
 
 Given that logging configuration is a simple dictionary, config file is not
 restricted to YAML format. See :ref:`python-config` for example.
@@ -86,21 +86,21 @@ Programming interface
 ---------------------
 
 For Python 2.7, :mod:`logging.config` module has a :func:`dictConfig`
-function. For older releases (2.4 through 2.6, possibly even older) Panopticon
-Toolbox provides :func:`panopticon.logging.dictConfig` function that works the
+function. For older releases (2.4 through 2.6, possibly even older) Seismometer
+Toolbox provides :func:`seismometer.logging.dictConfig` function that works the
 same way (on Python 2.7 it's actually imported
 :func:`logging.config.dictConfig`). User can configure logging following way,
 regardless of the Python release::
 
-   import panopticon.logging
-   panopticon.logging.dictConfig(log_config)
+   import seismometer.logging
+   seismometer.logging.dictConfig(log_config)
 
-.. function:: panopticon.logging.dictConfig(config)
+.. function:: seismometer.logging.dictConfig(config)
 
    :param config: configuration read from a file
 
 File handle polling
 ===================
 
-.. automodule:: panopticon.poll
+.. automodule:: seismometer.poll
 

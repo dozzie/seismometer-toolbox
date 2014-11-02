@@ -15,7 +15,7 @@ Reading from a bunch of ``net_input`` sockets.
 #-----------------------------------------------------------------------------
 
 import os
-import panopticon.poll
+import seismometer.poll
 import Queue
 
 from _connection_socket import ConnectionSocket
@@ -36,7 +36,7 @@ class Poll:
   Reading socket aggregator.
   '''
   def __init__(self):
-    self.poll = panopticon.poll.Poll()
+    self.poll = seismometer.poll.Poll()
     self.queue = Queue.Queue()
 
   def add(self, sock):
@@ -91,7 +91,7 @@ class Reader:
   This reader accepts three data formats, each in its own line: JSON hash,
   Graphite/Carbon (``tag value timestamp``) or Graphite-like state
   (``tag state severity timestamp``). The latter two are converted to
-  Panopticon Message.
+  Seismometer Message.
 
   Some notes:
     * severity must be equal to ``"expected"``, ``"warning"`` or ``"critical"``

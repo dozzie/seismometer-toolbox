@@ -18,22 +18,22 @@ Daemon starter and data dispatcher
    .. attribute:: poll
 
       Poll object to check for input from command channel or daemons.
-      :class:`panopticon.poll.Poll` instance.
+      :class:`seismometer.poll.Poll` instance.
 
    .. attribute:: socket
 
       Socket on which command channel works.
-      :class:`panopticon.daemonshepherd.control_socket.ControlSocket` instance.
+      :class:`seismometer.daemonshepherd.control_socket.ControlSocket` instance.
 
    .. attribute:: running
 
       List of currently running daemons. It's a dictionary with mapping
-      daemons' names to panopticon.daemonshepherd.daemons.Daemons` instances.
+      daemons' names to seismometer.daemonshepherd.daemons.Daemons` instances.
 
    .. attribute:: expected
 
       List of daemons that are *expected* to be running. It's a dictionary with
-      mapping daemons' names to panopticon.daemonshepherd.daemons.Daemons`
+      mapping daemons' names to seismometer.daemonshepherd.daemons.Daemons`
       instances.
 
    .. attribute:: keep_running
@@ -56,7 +56,7 @@ import control_socket
 import signal
 import json
 
-import panopticon.poll
+import seismometer.poll
 
 #-----------------------------------------------------------------------------
 
@@ -202,7 +202,7 @@ class Controller:
     # NOTE: descriptions of attributes moved to top of the module
     self.daemon_spec_file = daemon_spec_file
     self.restart_queue = RestartQueue()
-    self.poll = panopticon.poll.Poll()
+    self.poll = seismometer.poll.Poll()
     if socket_address is not None:
       self.socket = control_socket.ControlSocket(socket_address)
       self.poll.add(self.socket)

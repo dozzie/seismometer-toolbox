@@ -166,7 +166,7 @@ restart strategy), restart strategy is reset.
 
 If no restart strategy is defined (neither specific to daemon nor in
 ``defaults``), assumed default is ``[0, 5, 15, 30, 60]`` (see
-:mod:`panopticon.daemonshepherd.controller.RestartQueue` module for
+:mod:`seismometer.daemonshepherd.controller.RestartQueue` module for
 reference).
 
 Example daemon spec file
@@ -184,7 +184,7 @@ channel (``state-forwarder``) and forward messages to
      # immediate, after 5s, after 10s, after 1 minute, try again each 5 minutes
      restart: [0, 5, 10, 60, 300]
      environment:
-       PYTHONPATH: /usr/lib/panopticon/toolbox
+       PYTHONPATH: /usr/lib/seismometer/toolbox
      stdout: /dev/null
 
    daemons:
@@ -196,7 +196,7 @@ channel (``state-forwarder``) and forward messages to
        stop_command: "streemctl --control=/var/run/streem/control stop"
 
      dumb-probe:
-       start_command: "dumb-probe.py --destination=localhost:10101:probes --checks=/etc/panopticon/dumb_probe.py"
+       start_command: "dumb-probe.py --destination=localhost:10101:probes --checks=/etc/seismometer/dumb_probe.py"
 
      state-forwarder:
        start_command: "pull-push-bridge.py --source=localhost:10101:probes --destination=localhost:10101:states --plugin=state_forwarder"

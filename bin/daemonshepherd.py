@@ -4,7 +4,7 @@ import sys
 import optparse
 import logging
 
-from panopticon import daemonshepherd
+from seismometer import daemonshepherd
 
 #-----------------------------------------------------------------------------
 # parse command line options {{{
@@ -91,8 +91,8 @@ else:
     }
   }
 
-import panopticon.logging
-panopticon.logging.dictConfig(log_config)
+import seismometer.logging
+seismometer.logging.dictConfig(log_config)
 
 # }}}
 #-----------------------------------------------------------------------------

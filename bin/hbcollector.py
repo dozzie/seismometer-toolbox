@@ -10,14 +10,14 @@ import argparse
 import time
 import json
 import bsddb
-import panopticon.message
+import seismometer.message
 import streem
 
 #-----------------------------------------------------------------------------
 # Creates commandline parser
 def create_parser():
     parser = argparse.ArgumentParser(
-        description="Monitors Panopticons probe messages"
+        description="Monitors Seismometer's probe messages"
     )
     parser.add_argument('--host', '-a', dest='host', type=str,
         required=True, help='Destination streem host')
@@ -58,13 +58,13 @@ try:
     while True:
         json_message = conn.receive()
         try:
-            message = panopticon.message.Message(message = json_message)
+            message = seismometer.message.Message(message = json_message)
         except ValueError:
             continue
 
         key = get_message_key(message)
         if not db.has_key(key):
-            state_message = panopticon.message.Message(
+            state_message = seismometer.message.Message(
                 aspect = message.aspect,
                 location = message.location,
                 state = "up",

@@ -1,5 +1,5 @@
-Welcome to Panopticon Toolbox's documentation!
-==============================================
+Welcome to Seismometer Toolbox's documentation!
+===============================================
 
 Contents:
 

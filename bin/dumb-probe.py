@@ -3,7 +3,7 @@
 import sys
 import optparse
 import streem
-import panopticon.plugin
+import seismometer.plugin
 
 #-----------------------------------------------------------------------------
 # parse command line options
@@ -32,8 +32,8 @@ if options.checks is None:
 #-----------------------------------------------------------------------------
 # prepare run environment: checks object and submit() function
 
-ploader = panopticon.plugin.PluginLoader()
-checks_mod = ploader.load('panopticon.dumbprobe.__config__', options.checks)
+ploader = seismometer.plugin.PluginLoader()
+checks_mod = ploader.load('seismometer.dumbprobe.__config__', options.checks)
 checks = checks_mod.checks
 ploader.close()
 

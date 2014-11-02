@@ -11,13 +11,13 @@ import time
 import argparse
 import json
 import bsddb
-import panopticon.message
+import seismometer.message
 import streem
 
 #-----------------------------------------------------------------------------
 # Creates commandline parser
 def create_parser():
-    parser = argparse.ArgumentParser(description="Monitors Panopticons probe messages")
+    parser = argparse.ArgumentParser(description="Monitors Seismometer's probe messages")
     parser.add_argument('--host', '-a', dest='host', type=str,
         required=True, help='Destination streem host')
     parser.add_argument('--port', '-p', dest='port', type=int,
@@ -59,7 +59,7 @@ try:
         for key in db.keys():
             if timeout_exceeded(int(db[key]), args.timeout):
                 json_message = json.loads(key)
-                message = panopticon.message.Message(
+                message = seismometer.message.Message(
                     aspect = json_message["event"]["name"],
                     location = json_message["location"],
                     state = "down",

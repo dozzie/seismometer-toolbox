@@ -18,32 +18,32 @@ Modules
 Network input
 -------------
 
-.. automodule:: panopticon.messenger.net_input
+.. automodule:: seismometer.messenger.net_input
 
-.. automodule:: panopticon.messenger.net_input.stdin
+.. automodule:: seismometer.messenger.net_input.stdin
 
-.. automodule:: panopticon.messenger.net_input.inet
+.. automodule:: seismometer.messenger.net_input.inet
 
-.. automodule:: panopticon.messenger.net_input.unix
+.. automodule:: seismometer.messenger.net_input.unix
 
 Network output
 --------------
 
-.. automodule:: panopticon.messenger.net_output
+.. automodule:: seismometer.messenger.net_output
 
-.. automodule:: panopticon.messenger.net_output.stdout
+.. automodule:: seismometer.messenger.net_output.stdout
 
-.. automodule:: panopticon.messenger.net_output.inet
+.. automodule:: seismometer.messenger.net_output.inet
 
-.. automodule:: panopticon.messenger.net_output.unix
+.. automodule:: seismometer.messenger.net_output.unix
 
 Tag matcher
 -----------
 
-.. automodule:: panopticon.messenger.tags
+.. automodule:: seismometer.messenger.tags
 
 Message spool
 -------------
 
-.. automodule:: panopticon.messenger.spool
+.. automodule:: seismometer.messenger.spool
 

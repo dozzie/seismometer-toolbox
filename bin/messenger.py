@@ -2,8 +2,8 @@
 
 import sys
 import optparse
-import panopticon.messenger
-import panopticon.messenger
+import seismometer.messenger
+import seismometer.messenger
 
 #-----------------------------------------------------------------------------
 # command line options {{{
@@ -28,7 +28,7 @@ parser.add_option(
 parser.add_option(
   "--tagfile", dest = "tag_file",
   help = "definitions used to convert Graphite-like tags to \"location\" for"
-         " Panopticon Message",
+         " Seismometer Message",
   metavar = "TAGFILE",
 )
 parser.add_option(
@@ -68,8 +68,8 @@ if len(options.destination) == 0:
 
 def parse_source(source):
   if source == "stdin":
-    import panopticon.messenger.net_input.stdin
-    return panopticon.messenger.net_input.stdin.STDIN()
+    import seismometer.messenger.net_input.stdin
+    return seismometer.messenger.net_input.stdin.STDIN()
 
   if source.startswith("tcp:"):
     if ":" in source[4:]:
@@ -78,8 +78,8 @@ def parse_source(source):
     else:
       host = None
       port = int(source[4:])
-    import panopticon.messenger.net_input.inet
-    return panopticon.messenger.net_input.inet.TCP(host, port)
+    import seismometer.messenger.net_input.inet
+    return seismometer.messenger.net_input.inet.TCP(host, port)
 
   if source.startswith("udp:"):
     if ":" in source[4:]:
@@ -88,18 +88,18 @@ def parse_source(source):
     else:
       host = None
       port = int(source[4:])
-    import panopticon.messenger.net_input.inet
-    return panopticon.messenger.net_input.inet.UDP(host, port)
+    import seismometer.messenger.net_input.inet
+    return seismometer.messenger.net_input.inet.UDP(host, port)
 
   if source.startswith("unix:"):
     path = source[5:]
-    import panopticon.messenger.net_input.unix
-    return panopticon.messenger.net_input.unix.UNIX(path)
+    import seismometer.messenger.net_input.unix
+    return seismometer.messenger.net_input.unix.UNIX(path)
 
   import json
   params = json.loads(source)
-  import panopticon.messenger.net_input.plugin
-  return panopticon.messenger.net_input.plugin.Plugin(params['class'], params)
+  import seismometer.messenger.net_input.plugin
+  return seismometer.messenger.net_input.plugin.Plugin(params['class'], params)
 
 # }}}
 #-----------------------------------------------------------------------------
@@ -107,30 +107,30 @@ def parse_source(source):
 
 def parse_destination(destination):
   if destination == "stdout":
-    import panopticon.messenger.net_output.stdout
-    return panopticon.messenger.net_output.stdout.STDOUT()
+    import seismometer.messenger.net_output.stdout
+    return seismometer.messenger.net_output.stdout.STDOUT()
 
   if destination.startswith("tcp:"):
     (host, port) = destination[4:].split(":")
     port = int(port)
-    import panopticon.messenger.net_output.inet
-    return panopticon.messenger.net_output.inet.TCP(host, port)
+    import seismometer.messenger.net_output.inet
+    return seismometer.messenger.net_output.inet.TCP(host, port)
 
   if destination.startswith("udp:"):
     (host, port) = destination[4:].split(":")
     port = int(port)
-    import panopticon.messenger.net_output.inet
-    return panopticon.messenger.net_output.inet.UDP(host, port)
+    import seismometer.messenger.net_output.inet
+    return seismometer.messenger.net_output.inet.UDP(host, port)
 
   if destination.startswith("unix:"):
     path = destination[5:]
-    import panopticon.messenger.net_output.unix
-    return panopticon.messenger.net_output.unix.UNIX(path)
+    import seismometer.messenger.net_output.unix
+    return seismometer.messenger.net_output.unix.UNIX(path)
 
   import json
   params = json.loads(destination)
-  import panopticon.messenger.net_output.plugin
-  return panopticon.messenger.net_output.plugin.Plugin(params['class'], params)
+  import seismometer.messenger.net_output.plugin
+  return seismometer.messenger.net_output.plugin.Plugin(params['class'], params)
 
 # }}}
 #-----------------------------------------------------------------------------
@@ -138,8 +138,8 @@ def parse_destination(destination):
 sources      = [parse_source(o)      for o in options.source]
 destinations = [parse_destination(o) for o in options.destination]
 
-reader = panopticon.messenger.net_input.Reader()
-writer = panopticon.messenger.net_output.Writer()
+reader = seismometer.messenger.net_input.Reader()
+writer = seismometer.messenger.net_output.Writer()
 
 for s in sources:
   reader.add(s)
@@ -163,7 +163,7 @@ try:
     writer.write(message)
 except KeyboardInterrupt:
   pass
-except panopticon.messenger.net_input.EOF:
+except seismometer.messenger.net_input.EOF:
   # this is somewhat expected: all the input descriptors are closed (e.g. only
   # STDIN was specified)
   pass

@@ -1,9 +1,9 @@
 #!/usr/bin/python
 '''
-Panopticon message handling.
+Seismometer message handling.
 
 Messages are expected to conform to `message schema
-<http://panopticon.cf/message-schema/v3>`_.
+<http://seismometer.net/message-schema/v3>`_.
 
 .. autodata:: SCHEMA_VERSION
 
@@ -28,14 +28,14 @@ from time import time as now
 SCHEMA_VERSION = 3
 '''
 Version of schema this module supports. Equals to ``3``, meaning the module
-supports  `message schema v3 <http://panopticon.cf/message-schema/v3>`_.
+supports  `message schema v3 <http://seismometer.net/message-schema/v3>`_.
 '''
 
 #-----------------------------------------------------------------------------
 
 class Value(object):
     '''
-    Value representation for Panopticon message.
+    Value representation for Seismometer message.
 
     :class:`Value` instance is convertible to integer and float
     (``int(v)``) if it doesn't represent ``None``.
@@ -448,7 +448,7 @@ class Location(object):
 
 class Message(object):
     '''
-    Class representing single message suitable for Panopticon.
+    Class representing single message suitable for Seismometer.
 
     An instance supports dict-like interface to access values
     (``event.vset.*``). ``len(instance)`` returns a number of values in value
@@ -529,7 +529,7 @@ class Message(object):
         Initialize the instance with values read from an incoming message.
         '''
         if "v" not in message or "event" not in message:
-            raise ValueError("not a panopticon.message")
+            raise ValueError("not a seismometer.message")
         if message["v"] != 3:
             raise ValueError("wrong schema version: %s" % (message["v"],))
 

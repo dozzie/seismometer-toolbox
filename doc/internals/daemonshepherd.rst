@@ -12,29 +12,29 @@ Architecture
 Top-level operations
 ====================
 
-.. automodule:: panopticon.daemonshepherd
+.. automodule:: seismometer.daemonshepherd
 
 
 Daemonizing *daemonshepherd*
 ============================
 
-.. automodule:: panopticon.daemonshepherd.self_detach
+.. automodule:: seismometer.daemonshepherd.self_detach
 
-.. automodule:: panopticon.daemonshepherd.setguid
+.. automodule:: seismometer.daemonshepherd.setguid
 
-.. automodule:: panopticon.daemonshepherd.pid_file
+.. automodule:: seismometer.daemonshepherd.pid_file
 
 
 Controlling child processes
 ===========================
 
-.. automodule:: panopticon.daemonshepherd.controller
+.. automodule:: seismometer.daemonshepherd.controller
 
-.. automodule:: panopticon.daemonshepherd.control_socket
+.. automodule:: seismometer.daemonshepherd.control_socket
 
-.. automodule:: panopticon.daemonshepherd.daemon
+.. automodule:: seismometer.daemonshepherd.daemon
 
-.. automodule:: panopticon.daemonshepherd.output_log
+.. automodule:: seismometer.daemonshepherd.output_log
 
-.. automodule:: panopticon.daemonshepherd.output_streem
+.. automodule:: seismometer.daemonshepherd.output_streem
 

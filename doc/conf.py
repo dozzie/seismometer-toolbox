@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Panopticon Toolbox documentation build configuration file, created by
+# Seismometer Toolbox documentation build configuration file, created by
 # sphinx-quickstart.
 #
 # This file is execfile()d with the current directory set to its containing dir.
@@ -38,7 +38,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Panopticon Toolbox'
+project = u'Seismometer Toolbox'
 copyright = u'2014, Stanislaw Klekot, Tomasz Radziewicz'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -85,7 +85,7 @@ exclude_trees = ['html', 'dirhtml', 'latex']
 pygments_style = 'sphinx'
 
 # A list of ignored prefixes for module index sorting.
-modindex_common_prefix = ["panopticon."]
+modindex_common_prefix = ["seismometer."]
 
 
 # -- Options for HTML output ---------------------------------------------------
@@ -159,7 +159,7 @@ html_static_path = ['static']
 #html_file_suffix = ''
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'PanopticonToolboxdoc'
+htmlhelp_basename = 'SeismometerToolboxdoc'
 
 
 # -- Options for LaTeX output --------------------------------------------------
@@ -173,7 +173,7 @@ htmlhelp_basename = 'PanopticonToolboxdoc'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'PanopticonToolbox.tex', u'Panopticon Toolbox Documentation',
+  ('index', 'SeismometerToolbox.tex', u'Seismometer Toolbox Documentation',
    u'Stanislaw Klekot, Tomasz Radziewicz', 'manual'),
 ]
 

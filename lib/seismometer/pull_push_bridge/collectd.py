@@ -10,7 +10,7 @@ Metrics coming from a host have following pattern:
 
 .. code-block:: none
 
-   <hostname>/panopticon/gauge-<service>+<aspect>+<value>
+   <hostname>/seismometer/gauge-<service>+<aspect>+<value>
 
 Options:
 
@@ -68,10 +68,10 @@ class PullPushBridge:
           value = 'U'
 
         if message.interval is not None:
-          line = "PUTVAL %s/panopticon/gauge-%s interval=%d %d:%s\n" % \
+          line = "PUTVAL %s/seismometer/gauge-%s interval=%d %d:%s\n" % \
                  (host, name, message.interval, time, value)
         else:
-          line = "PUTVAL %s/panopticon/gauge-%s %d:%s\n" % \
+          line = "PUTVAL %s/seismometer/gauge-%s %d:%s\n" % \
                  (host, name, time, value)
 
         self.socket.send(line)

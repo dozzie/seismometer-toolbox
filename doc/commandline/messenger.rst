@@ -2,7 +2,7 @@
 *messenger*
 ***********
 
-*messenger* is a tool that receives messages for Panopticon and passes them
+*messenger* is a tool that receives messages for Seismometer and passes them
 over to another *messenger* or to Streem.
 
 Usage

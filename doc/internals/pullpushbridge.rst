@@ -10,7 +10,7 @@ channel and sends them through output plugin instance (see
 :ref:`pullpushbridge-api`). There will be only one instance of output plugin
 throughout the life of *pull-push-bridge*.
 
-By default, plugin is loaded from :mod:`panopticon.pull_push_bridge` package,
+By default, plugin is loaded from :mod:`seismometer.pull_push_bridge` package,
 but can be specified as a path to Python file.
 
 .. _pullpushbridge-api:
@@ -41,7 +41,7 @@ Plugin API
    .. method:: send(message)
 
       :param message: message received from Streem
-      :type message: :class:`panopticon.message.Message`
+      :type message: :class:`seismometer.message.Message`
 
       This method should consume the message, either by ignoring it or passing
       to appropriate service.

@@ -10,7 +10,7 @@ Simple line message parser.
 import os
 import re
 import json
-import panopticon.message
+import seismometer.message
 
 _GRAPHITE_LINE = re.compile(
   r'^(?P<tag>(?:[a-zA-Z0-9_-]+\.)*[a-zA-Z0-9_-]+)[ \t]+(?:'
@@ -58,22 +58,22 @@ def parse_line(host, line):
   location = { 'host': host }
 
   if match['value'] is None: # match['state'] + match['severity']
-    message = panopticon.message.Message(
+    message = seismometer.message.Message(
       aspect = aspect, location = location, time = timestamp,
       state = match['state'], severity = match['severity']
     )
   elif match['value'] == 'U':
-    message = panopticon.message.Message(
+    message = seismometer.message.Message(
       aspect = aspect, location = location, time = timestamp,
       value = None
     )
   elif '.' in match['value']: # float
-    message = panopticon.message.Message(
+    message = seismometer.message.Message(
       aspect = aspect, location = location, time = timestamp,
       value = float(match['value'])
     )
   else:
-    message = panopticon.message.Message(
+    message = seismometer.message.Message(
       aspect = aspect, location = location, time = timestamp,
       value = int(match['value'])
     )

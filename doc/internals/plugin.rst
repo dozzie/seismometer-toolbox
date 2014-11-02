@@ -1,6 +1,6 @@
-************************
-Panopticon plugin loader
-************************
+*************************
+Seismometer plugin loader
+*************************
 
-.. automodule:: panopticon.plugin
+.. automodule:: seismometer.plugin
 

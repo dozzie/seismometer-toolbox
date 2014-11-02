@@ -3,7 +3,7 @@ DumbProbe
 *********
 
 DumbProbe is a simple tool that checks whether all the services defined in its
-config are healthy and submits the results of the checks to Panopticon.
+config are healthy and submits the results of the checks to Seismometer.
 
 The checks can be defined as calls to `Monitoring Plugins
 <https://www.monitoring-plugins.org/>`_.
@@ -52,7 +52,7 @@ Example configuration file
 
 ::
 
-   from panopticon.dumbprobe import Checks
+   from seismometer.dumbprobe import Checks
 
    checks = Checks()
    checks.add(
@@ -77,5 +77,5 @@ API
 not suit the needs. They are merely a proposal, but the authors they should at
 least help somewhat in deployment.
 
-.. automodule:: panopticon.dumbprobe
+.. automodule:: seismometer.dumbprobe
 

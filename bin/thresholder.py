@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Thresholder for Panopticon streem
+# Thresholder for Seismometer streem
 #
 # Verifies trhesholds given in messages and adds measured aspect state,
 # then sends message to another streem
@@ -9,14 +9,14 @@ import sys
 import socket
 import json
 import argparse
-import panopticon.message
+import seismometer.message
 import streem
 
 #-----------------------------------------------------------------------------
 # Creates commandline argument parser
 def create_parser():
     parser = argparse.ArgumentParser(
-        description="Monitors Panopticons probe messages"
+        description="Monitors Seismometer's probe messages"
     )
     parser.add_argument('--host', '-a', dest='host', type=str,
         required=True, help='Destination streem host')
@@ -52,7 +52,7 @@ try:
     while True:
         reply = conn.receive()
         try:
-            message = panopticon.message.Message(message = reply)
+            message = seismometer.message.Message(message = reply)
         except ValueError:
             continue
 

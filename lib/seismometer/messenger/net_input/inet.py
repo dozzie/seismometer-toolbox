@@ -17,8 +17,8 @@ Network sockets: TCP and UDP.
 import sys
 import os
 import socket
-import panopticon.poll
-import panopticon.message
+import seismometer.poll
+import seismometer.message
 import Queue
 import json
 

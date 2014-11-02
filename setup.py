@@ -4,9 +4,9 @@ from setuptools import setup, find_packages
 from glob import glob
 
 setup(
-  name         = 'panopticon-toolbox',
+  name         = 'seismometer-toolbox',
   version      = '0.0.1',
-  description  = "Small tools for Panopticon",
+  description  = "Small tools for Seismometer",
   scripts      = glob("bin/*"),
   packages     = find_packages("lib"),
   package_dir  = { "": "lib" },

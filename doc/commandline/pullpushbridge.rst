@@ -7,8 +7,8 @@ passing stream of monitoring messages from one channel to external service or
 to a different channel with some filtering and processing.
 
 *pull-push-bridge* only processes messages consumable by
-:mod:`panopticon.message`, that is, conforming to
-`message schema <http://panopticon.cf/message-schema/v3>`_.
+:mod:`seismometer.message`, that is, conforming to
+`message schema <http://seismometer.net/message-schema/v3>`_.
 
 Usage
 =====
@@ -39,11 +39,11 @@ Command line options
 Plugins
 =======
 
-.. automodule:: panopticon.pull_push_bridge.collectd
+.. automodule:: seismometer.pull_push_bridge.collectd
 
-.. automodule:: panopticon.pull_push_bridge.state_forwarder
+.. automodule:: seismometer.pull_push_bridge.state_forwarder
 
-.. automodule:: panopticon.pull_push_bridge.stdout
+.. automodule:: seismometer.pull_push_bridge.stdout
 
-.. automodule:: panopticon.pull_push_bridge.webasdb
+.. automodule:: seismometer.pull_push_bridge.webasdb
 
