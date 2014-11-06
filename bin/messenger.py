@@ -3,7 +3,6 @@
 import sys
 import optparse
 import seismometer.messenger
-import seismometer.messenger
 
 #-----------------------------------------------------------------------------
 # command line options {{{
