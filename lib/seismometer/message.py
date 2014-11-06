@@ -31,6 +31,10 @@ Version of schema this module supports. Equals to ``3``, meaning the module
 supports  `message schema v3 <http://seismometer.net/message-schema/v3>`_.
 '''
 
+# guard for saying that "value" is not specified, so `None' can work as
+# null
+_NOTHING = object()
+
 #-----------------------------------------------------------------------------
 
 class Value(object):
@@ -463,7 +467,8 @@ class Message(object):
 
     def __init__(self, message = None,
                  time = None, interval = None, aspect = None, location = None,
-                 state = None, severity = None, comment = None, value = None):
+                 state = None, severity = None, comment = None,
+                 value = _NOTHING):
         '''
         :param message: message to create representation for
         :param time: unix timestamp of event; defaults to ``time.time()``
@@ -481,7 +486,7 @@ class Message(object):
         :param comment: comment on monitored aspect's state
         :type comment: string
         :param value: set value named ``"value"`` to this value
-        :type value: float or integer
+        :type value: float, integer or ``None``
 
         Either :obj:`message` or rest of the parameters should be set.
         '''
@@ -518,7 +523,7 @@ class Message(object):
         # actually, finish the message
 
         # set value if provided
-        if value is not None:
+        if value is not _NOTHING:
             self["value"] = value
 
     #-----------------------------------------------------------------
