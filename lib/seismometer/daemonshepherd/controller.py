@@ -79,7 +79,11 @@ class RestartQueue:
 
     Method intended for queue inspection.
     '''
-    return [{"name": d[1], "restart_at": d[0]} for d in self.restart_queue]
+    return [
+      {"name": d[1], "restart_at": d[0]}
+      for d in self.restart_queue
+      if d[1] is not None
+    ]
 
   def clear(self):
     '''
@@ -164,6 +168,22 @@ class RestartQueue:
     schedule = time.time() + restart_backoff
     heapq.heappush(self.restart_queue, (schedule, name))
 
+  def cancel_restart(self, daemon_name):
+    '''
+    :param daemon_name: daemon, for which restart is cancelled
+
+    Abort any pending restart of a daemon.
+    '''
+    # find where in the queue is the daemon placed
+    for di in range(len(self.restart_queue)):
+      if self.restart_queue[di][1] == daemon_name:
+        # this is heap queue, so removing arbitrary element is difficult;
+        # let's just leave `None` as a marker
+        self.restart_queue[di] = (self.restart_queue[di][0], None)
+    self.backoff_pos[daemon_name] = 0
+    self.restart_time[daemon_name] = None
+    self._remove_cancelled()
+
   # retrieve list of daemons suitable for restart
   def get_restart_ready(self):
     '''
@@ -178,8 +198,15 @@ class RestartQueue:
     now = time.time()
     while len(self.restart_queue) > 0 and self.restart_queue[0][0] < now:
       (schedule, daemon) = heapq.heappop(self.restart_queue)
-      result.append(daemon)
+      if daemon is not None: # could be a cancelled restart
+        result.append(daemon)
+    self._remove_cancelled()
     return result
+
+  def _remove_cancelled(self):
+    # remove cancelled restarts from the head of the queue
+    while len(self.restart_queue) > 0 and self.restart_queue[0][1] is None:
+      heapq.heappop(self.restart_queue)
 
 #-----------------------------------------------------------------------------
 
@@ -418,6 +445,31 @@ class Controller:
         del self.running[daemon]
 
   #-------------------------------------------------------------------
+
+  def command_cancel_restart(self, **kwargs):
+    '''
+    Cancel pending restart of a process. The process stays stopped if it was
+    waiting for restart and stays started (with backoff reset) if it was
+    started.
+
+    Input data needs to contain ``"daemon"`` key specifying daemon's name.
+    '''
+    if not isinstance(kwargs.get('daemon'), (str, unicode)):
+      # TODO: signal error (unrecognized arguments)
+      return
+
+    if not kwargs['daemon'] in self.expected:
+      # TODO: signal error (unknown daemon)
+      return
+
+    logger = logging.getLogger("controller")
+
+    if kwargs['daemon'] in self.running:
+      logger.info("restart cancel for already running %s", kwargs['daemon'])
+    else:
+      logger.info("restart cancel for awaiting %s", kwargs['daemon'])
+    self.restart_queue.cancel_restart(kwargs['daemon'])
+    # TODO: return indicator of whether daemon is running or not
 
   def command_ps(self, **kwargs):
     '''
