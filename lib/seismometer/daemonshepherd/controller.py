@@ -71,7 +71,7 @@ class RestartQueue:
     self.backoff_pos = {}
     self.restart_time = {}
 
-  def list(self):
+  def list_restarts(self):
     '''
     :return: list of ``{"name": daemon_name, "restart_at": timestamp}`` dicts
 
@@ -109,64 +109,63 @@ class RestartQueue:
     self.restart_time[daemon_name] = None
 
   # the daemon has just been started (or is going to be in a second)
-  def start(self, daemon_name):
+  def daemon_started(self, name):
     '''
-    :param daemon_name: name of daemon that has been started
+    :param name: daemon that has been started
 
     Notify restart queue that a daemon has just been started.
     '''
-    self.restart_time[daemon_name] = time.time()
+    self.restart_time[name] = time.time()
     logger = logging.getLogger("restart_queue")
-    logger.info("daemon %s started", daemon_name)
+    logger.info("daemon %s started", name)
 
   # the daemon has just been (intentionally) stopped
-  def stop(self, daemon_name):
+  def daemon_stopped(self, name):
     '''
-    :param daemon_name: name of daemon that has been stopped
+    :param name: daemon that has been stopped
 
     Notify restart queue that a daemon has just been stopped. Method resets
     backoff time for the daemon.
     '''
-    # NOTE: unused for now, added for API completeness
-    self.restart_time[daemon_name] = None
-    self.backoff_pos[daemon_name] = 0
+    self.restart_time[name] = None
+    self.backoff_pos[name] = 0
     logger = logging.getLogger("restart_queue")
-    logger.info("daemon %s stopped", daemon_name)
+    logger.info("daemon %s stopped", name)
 
   # the daemon has just died
-  def die(self, daemon_name):
+  def daemon_died(self, name):
     '''
-    :param daemon_name: name of daemon that has died
+    :param name: daemon that has died
 
     Notify restart queue that a daemon has just died. The queue schedules the
     daemon for restart according to the restart strategy (see :meth:`add`).
 
     List of daemons ready to restart can be retrieved using :meth:`restart`.
     '''
-    backoff_pos = self.backoff_pos[daemon_name]
-    restart_backoff = self.backoff[daemon_name][backoff_pos]
+    backoff_pos = self.backoff_pos[name]
+    restart_backoff = self.backoff[name][backoff_pos]
     if restart_backoff < 1: # minimum backoff: 1s
       restart_backoff = 1
 
     # reset backoff if the command was running long enough (but at least for
     # 10 seconds, to prevent continuous restarts when backoff is small)
-    if self.restart_time[daemon_name] is not None:
-      running_time = time.time() - self.restart_time[daemon_name]
+    if self.restart_time[name] is not None:
+      running_time = time.time() - self.restart_time[name]
       if running_time > 10 and running_time > 2 * restart_backoff:
-        self.backoff_pos[daemon_name] = 0
-        restart_backoff = self.backoff[daemon_name][0]
+        self.backoff_pos[name] = 0
+        restart_backoff = self.backoff[name][0]
 
     logger = logging.getLogger("restart_queue")
-    logger.warning("daemon %s died, sleeping %d", daemon_name, restart_backoff)
+    logger.warning("daemon %s died, sleeping %d", name, restart_backoff)
 
-    if self.backoff_pos[daemon_name] + 1 < len(self.backoff[daemon_name]):
+    if self.backoff_pos[name] + 1 < len(self.backoff[name]):
       # advance to next backoff on next restart
-      self.backoff_pos[daemon_name] += 1
+      self.backoff_pos[name] += 1
     schedule = time.time() + restart_backoff
-    heapq.heappush(self.restart_queue, (schedule, daemon_name))
+    heapq.heappush(self.restart_queue, (schedule, name))
 
   # retrieve list of daemons suitable for restart
-  def restart(self):
+  def get_restart_ready(self):
     '''
     :return: list of names of daemons ready to restart
 
@@ -255,7 +254,7 @@ class Controller:
         self.poll.remove(daemon)
         daemon.close()
         del self.running[dname]
-        self.restart_queue.die(dname)
+        self.restart_queue.daemon_died(dname)
 
   def loop(self):
     '''
@@ -268,9 +267,9 @@ class Controller:
     while self.keep_running:
       self.check_children()
       # start all daemons suitable for restart
-      for daemon in self.restart_queue.restart():
+      for daemon in self.restart_queue.get_restart_ready():
         # TODO: move these four operations to a separate function
-        self.restart_queue.start(daemon)
+        self.restart_queue.daemon_started(daemon)
         self.expected[daemon].start()
         self.running[daemon] = self.expected[daemon]
         self.poll.add(self.running[daemon])
@@ -404,7 +403,7 @@ class Controller:
     for daemon in self.expected:
       if daemon not in self.running:
         logger.info("starting %s", daemon)
-        self.restart_queue.start(daemon)
+        self.restart_queue.daemon_started(daemon)
         self.expected[daemon].start()
         self.running[daemon] = self.expected[daemon]
         self.poll.add(self.running[daemon])
@@ -436,7 +435,7 @@ class Controller:
     return {
       "all": sorted(self.expected.keys()),
       "running": sorted(self.running.keys()),
-      "awaiting_restart": sorted(self.restart_queue.list()),
+      "awaiting_restart": sorted(self.restart_queue.list_restarts()),
     }
 
   def command_reload(self, **kwargs):
