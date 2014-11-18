@@ -422,27 +422,111 @@ class Controller:
          self.expected[daemon] != self.running[daemon]:
         # just stop the changed ones, they'll get started just after this loop
         logger.info("changed config: %s, stopping current instance", daemon)
-        self.running[daemon].stop()
-        self.poll.remove(self.running[daemon])
-        del self.running[daemon]
+        self._stop(daemon)
 
     # start daemons that are expected to be running but aren't doing so
     for daemon in self.expected:
       if daemon not in self.running:
         logger.info("starting %s", daemon)
-        self.restart_queue.daemon_started(daemon)
-        self.expected[daemon].start()
-        self.running[daemon] = self.expected[daemon]
-        self.poll.add(self.running[daemon])
+        self._start(daemon)
 
     # stop daemons that are running but are not supposed to
     for daemon in self.running.keys():
       if daemon not in self.expected:
         # shouldn't be present in self.restart_queue
         logger.info("stopping %s", daemon)
-        self.running[daemon].stop()
-        self.poll.remove(self.running[daemon])
-        del self.running[daemon]
+        self._stop(daemon)
+
+  #-------------------------------------------------------------------
+
+  def _stop(self, daemon):
+    self.restart_queue.daemon_stopped(daemon)
+    self.running[daemon].stop()
+    self.poll.remove(self.running[daemon])
+    del self.running[daemon]
+
+  def _start(self, daemon):
+    self.restart_queue.daemon_started(daemon)
+    self.expected[daemon].start()
+    self.running[daemon] = self.expected[daemon]
+    self.poll.add(self.running[daemon])
+
+  #-------------------------------------------------------------------
+
+  def command_start(self, **kwargs):
+    '''
+    Start a stopped daemon. If daemon was waiting for restart, it is started
+    immediately. Restart backoff is reset in any case.
+
+    Input data needs to contain ``"daemon"`` key specifying daemon's name.
+    '''
+    if not isinstance(kwargs.get('daemon'), (str, unicode)):
+      # TODO: signal error (unrecognized arguments)
+      return
+
+    if not kwargs['daemon'] in self.expected:
+      # TODO: signal error (unknown daemon)
+      return
+
+    logger = logging.getLogger("controller")
+
+    if kwargs['daemon'] not in self.running:
+      logger.info("manually starting %s", kwargs['daemon'])
+      self._start(kwargs['daemon'])
+    self.restart_queue.cancel_restart(kwargs['daemon'])
+
+  #-------------------------------------------------------------------
+
+  def command_stop(self, **kwargs):
+    '''
+    Start a stopped daemon. If daemon was waiting for restart, its restart
+    is cancelled. In either case, restart backoff is reset.
+
+    Input data needs to contain ``"daemon"`` key specifying daemon's name.
+    '''
+    if not isinstance(kwargs.get('daemon'), (str, unicode)):
+      # TODO: signal error (unrecognized arguments)
+      return
+
+    if not kwargs['daemon'] in self.expected:
+      # TODO: signal error (unknown daemon)
+      return
+
+    logger = logging.getLogger("controller")
+
+    if kwargs['daemon'] in self.running:
+      logger.info("manually stopping %s", kwargs['daemon'])
+      self._stop(kwargs['daemon'])
+    self.restart_queue.cancel_restart(kwargs['daemon'])
+
+  #-------------------------------------------------------------------
+
+  def command_restart(self, **kwargs):
+    '''
+    Restart a daemon. If it was running, it is stopped first. If it was
+    waiting for restart or stopped altogether, it is started immediately.
+    Restart backoff is reset in any case.
+
+    Input data needs to contain ``"daemon"`` key specifying daemon's name.
+    '''
+    if not isinstance(kwargs.get('daemon'), (str, unicode)):
+      # TODO: signal error (unrecognized arguments)
+      return
+
+    if not kwargs['daemon'] in self.expected:
+      # TODO: signal error (unknown daemon)
+      return
+
+    logger = logging.getLogger("controller")
+
+    if kwargs['daemon'] in self.running:
+      logger.info("manually restarting %s", kwargs['daemon'])
+      self._stop(kwargs['daemon'])
+      self._start(kwargs['daemon'])
+    else:
+      logger.info("manually restarting %s (was stopped)", kwargs['daemon'])
+      self._start(kwargs['daemon'])
+    self.restart_queue.cancel_restart(kwargs['daemon'])
 
   #-------------------------------------------------------------------
 
@@ -471,6 +555,8 @@ class Controller:
     self.restart_queue.cancel_restart(kwargs['daemon'])
     # TODO: return indicator of whether daemon is running or not
 
+  #-------------------------------------------------------------------
+
   def command_ps(self, **kwargs):
     '''
     List daemons that are expected, running and that stay in restart queue.
@@ -489,6 +575,8 @@ class Controller:
       "running": sorted(self.running.keys()),
       "awaiting_restart": sorted(self.restart_queue.list_restarts()),
     }
+
+  #-------------------------------------------------------------------
 
   def command_reload(self, **kwargs):
     '''
