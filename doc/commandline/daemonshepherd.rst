@@ -89,7 +89,7 @@ Available commands
      configuration, currently running ones and the ones with restart pending)
 
       * response result:
-        ``{"result": {"all": [...], "running": [...], "awaiting_restart": [...]}, "status": "ok"}``
+        ``{"result": {"all": [...], "running": [...], "restart_backoff": [...]}, "status": "ok"}``
       * elements in lists are daemon names
 
    * ``{"command": "reload"}`` -- reload daemons definition file

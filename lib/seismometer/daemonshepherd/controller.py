@@ -566,14 +566,14 @@ class Controller:
        {
          "all": ["daemon1", "daemon2"],
          "running": ["daemon2"],
-         "awaiting_restart": ["daemon1"]
+         "restart_backoff": ["daemon1"]
        }
     '''
     # TODO: be more verbose, e.g. include command used to start the child
     return {
       "all": sorted(self.expected.keys()),
       "running": sorted(self.running.keys()),
-      "awaiting_restart": sorted(self.restart_queue.list_restarts()),
+      "restart_backoff": sorted(self.restart_queue.list_restarts()),
     }
 
   #-------------------------------------------------------------------
