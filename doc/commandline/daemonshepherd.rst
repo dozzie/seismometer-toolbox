@@ -67,6 +67,22 @@ tool where to send commands to.
    group to run as
 
 
+Control commands
+----------------
+
+Control commands mimic the protocol of :ref:`command channel
+<command-channel>`. Except for ``ps``, they print nothing and exit with 0 on
+success.
+
+   * ``reload`` -- instructs *daemonshepherd* to reload its configuration,
+     the same as sending *SIGHUP* signal
+   * ``ps`` -- lists daemons that are currently defined, one JSON per line
+   * ``start`` -- starts the specified daemon
+   * ``stop`` -- stops the specified daemon
+   * ``restart`` -- restarts the specified daemon
+   * ``cancel_restart`` -- cancels pending restart of specified daemon
+
+
 Signals
 -------
 
