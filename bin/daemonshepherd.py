@@ -3,16 +3,20 @@
 import sys
 import optparse
 import logging
+import socket
+import json
 
 from seismometer import daemonshepherd
+from seismometer.daemonshepherd.control_socket import ControlSocketClient
 
 #-----------------------------------------------------------------------------
 # parse command line options {{{
 
-# TODO: logging config
-
 parser = optparse.OptionParser(
-    usage = "%prog [options] --daemons=FILE",
+    usage = "\n  %prog [options] --daemons=FILE"
+            "\n  %prog [options] reload"
+            "\n  %prog [options] ps"
+            "\n  %prog [options] {start|stop|restart|cancel_restart} <daemon_name>"
 )
 
 parser.add_option(
@@ -46,90 +50,113 @@ parser.add_option(
 )
 
 (options, args) = parser.parse_args()
+# assume this until proven otherwise
+command = "daemon_supervisor"
 
-if options.daemons is None:
-    parser.print_help()
-    sys.exit(1)
+SOLE_COMMANDS = set(["reload", "ps"])
+DAEMON_COMMANDS = set(["start", "stop", "restart", "cancel_restart"])
+KNOWN_COMMANDS = SOLE_COMMANDS | DAEMON_COMMANDS
 
-# }}}
-#-----------------------------------------------------------------------------
-
-pid_file = None
-controller = None
-
-#-----------------------------------------------------------------------------
-# create pidfile (if applicable) {{{
-
-if options.pid_file is not None:
-    pid_file = daemonshepherd.PidFile(options.pid_file)
-
-# }}}
-#-----------------------------------------------------------------------------
-# change user/group (if applicable) {{{
-
-if options.user is not None or options.group is not None:
-    daemonshepherd.setguid(options.user, options.group)
+if len(args) == 0 and options.daemons is None:
+    parser.error("--daemons option is required for this mode")
+elif len(args) > 0:
+    command = args.pop(0)
+    if command not in KNOWN_COMMANDS:
+        parser.error("unrecognized command: %s" % (command,))
+    if len(args) == 1 and command in DAEMON_COMMANDS:
+        parser.error("daemon name is required for command %s" % (command,))
 
 # }}}
 #-----------------------------------------------------------------------------
-# configure logging (if applicable) {{{
 
-if options.logging is not None:
-    # JSON is valid YAML, so I can skip loading json module (yaml module is
-    # necessary for daemons spec file anyway)
-    import yaml
-    log_config = yaml.safe_load(open(options.logging))
-else:
-    log_config = {
-        "version": 1,
-        "root": { "handlers": ["null"] },
-        "handlers": {
-            "null": {
-                "class": "logging.StreamHandler",
-                "stream": open('/dev/null', 'w'),
+if command == "daemon_supervisor":
+    #------------------------------------------------------
+    # run as a daemon supervisor {{{
+
+    pid_file = None
+    controller = None
+
+    # create pidfile (if applicable) 
+    if options.pid_file is not None:
+        pid_file = daemonshepherd.PidFile(options.pid_file)
+
+    # change user/group (if applicable) 
+    if options.user is not None or options.group is not None:
+        daemonshepherd.setguid(options.user, options.group)
+
+    # configure logging (if applicable) 
+    if options.logging is not None:
+        # JSON is valid YAML, so I can skip loading json module (yaml module
+        # is necessary for daemons spec file anyway)
+        import yaml
+        log_config = yaml.safe_load(open(options.logging))
+    else:
+        log_config = {
+            "version": 1,
+            "root": { "handlers": ["null"] },
+            "handlers": {
+                "null": {
+                    "class": "logging.StreamHandler",
+                    "stream": open('/dev/null', 'w'),
+                }
             }
         }
-    }
 
-import seismometer.logging
-seismometer.logging.dictConfig(log_config)
+    import seismometer.logging
+    seismometer.logging.dictConfig(log_config)
 
-# }}}
-#-----------------------------------------------------------------------------
-# daemonize (if applicable) {{{
+    # daemonize (if applicable) 
+    if options.background:
+        daemonshepherd.detach("/")
+        if pid_file is not None:
+            pid_file.update()
 
-if options.background:
-    daemonshepherd.detach("/")
     if pid_file is not None:
-        pid_file.update()
+        pid_file.claim() # remove on close
 
-if pid_file is not None:
-    pid_file.claim() # remove on close
+    # create controller thread 
+    controller = daemonshepherd.Controller(options.daemons,
+                                           options.control_socket)
 
-# }}}
-#-----------------------------------------------------------------------------
-# create controller thread {{{
+    # acknowledge success to parent process (if --background) 
+    if options.background:
+        daemonshepherd.detach_succeeded()
 
-controller = daemonshepherd.Controller(options.daemons, options.control_socket)
+    # main loop 
+    try:
+        controller.loop()
+    except KeyboardInterrupt:
+        pass
 
-# }}}
-#-----------------------------------------------------------------------------
-# acknowledge success to parent process (if --background) {{{
+    controller.shutdown()
+    sys.exit()
 
-if options.background:
-    daemonshepherd.detach_succeeded()
+    # }}}
+    #------------------------------------------------------
+else:
+    conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        conn.connect(options.control_socket)
+    except socket.error, e:
+        print >>sys.stderr, e
+        sys.exit(1)
 
-# }}}
-#-----------------------------------------------------------------------------
-# main loop {{{
+    supervisor = ControlSocketClient(conn)
 
-try:
-    controller.loop()
-except KeyboardInterrupt:
-    pass
+    if command in SOLE_COMMANDS:
+        supervisor.send({"command": command})
+    elif command in DAEMON_COMMANDS:
+        supervisor.send({"command": command, "daemon": args[0]})
+    reply = supervisor.read()
+    supervisor.close()
 
-controller.shutdown()
+    if reply.get("status") != "ok":
+        print >>sys.stderr, json.dumps(reply)
+        sys.exit(1)
 
-# }}}
+    if command == "ps":
+        for daemon in reply["result"]:
+            print json.dumps(daemon)
+
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker
