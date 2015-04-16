@@ -41,8 +41,6 @@ Plugins
 
 .. automodule:: seismometer.pull_push_bridge.collectd
 
-.. automodule:: seismometer.pull_push_bridge.state_forwarder
-
 .. automodule:: seismometer.pull_push_bridge.stdout
 
 .. automodule:: seismometer.pull_push_bridge.webasdb
