@@ -275,6 +275,12 @@ class Daemon:
   #-------------------------------------------------------------------
   # child process management
 
+  def pid(self):
+    '''
+    Return PID of the daemon (``None`` if daemon is stopped).
+    '''
+    return self.child_pid
+
   def is_alive(self):
     '''
     Check if the daemon is still alive.

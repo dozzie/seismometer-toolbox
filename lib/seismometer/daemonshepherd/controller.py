@@ -28,13 +28,14 @@ Daemon starter and data dispatcher
    .. attribute:: running
 
       List of currently running daemons. It's a dictionary with mapping
-      daemons' names to seismometer.daemonshepherd.daemons.Daemons` instances.
+      daemons' names to :class:`seismometer.daemonshepherd.daemon.Daemon`
+      instances.
 
    .. attribute:: expected
 
-      List of daemons that are *expected* to be running. It's a dictionary with
-      mapping daemons' names to seismometer.daemonshepherd.daemons.Daemons`
-      instances.
+      List of daemons that are *expected* to be running. It's a dictionary
+      with mapping daemons' names to
+      :class:`seismometer.daemonshepherd.daemon.Daemon` instances.
 
    .. attribute:: keep_running
 
