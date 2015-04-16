@@ -2,16 +2,16 @@
 *daemonshepherd*
 ****************
 
-*daemonshepherd* is a tool for keeping other tools running. This consists of
-starting the tools, capturing their *STDOUT* and restarting them if they die.
-This way user can focus on work the tool needs to do instead of reimplementing
-daemonization and logging over and over again.
+*daemonshepherd* is a tool for keeping other tools running. This task consists
+of starting the tools, capturing their *STDOUT* and restarting them if they
+die. This way user can focus on work the tool needs to do instead of
+reimplementing daemonization and logging over and over again.
 
 
 Usage
 =====
 
-*daemonshepherd* needs a daemons specification file provided.
+Running *daemonshepherd* as a supervisor for other daemons:
 
 .. code-block:: none
 
@@ -20,9 +20,23 @@ Usage
 Basic operation doesn't detach *daemonshepherd* from terminal and logging goes
 to :file:`/dev/null`.
 
+Controlling an already running *daemonshepherd* instance:
+
+.. code-block:: none
+
+   daemonshepherd.py [options] reload
+   daemonshepherd.py [options] ps
+   daemonshepherd.py [options] start <daemon-name>
+   daemonshepherd.py [options] stop <daemon-name>
+   daemonshepherd.py [options] restart <daemon-name>
+   daemonshepherd.py [options] cancel_restart <daemon-name>
 
 Command line options
 --------------------
+
+These options are only meaningful when *daemonshepherd* runs as a supervisor,
+with the exception of :option:`--control-socket`, which tells the command line
+tool where to send commands to.
 
 .. cmdoption:: -f <specfile>, --daemons <specfile>
 
@@ -85,33 +99,35 @@ are signaled with ``{"status": "error", "reason": "..."}``.
 Available commands
 ------------------
 
-   * ``{"command": "ps"}`` -- list daemons names (all that were defined in
-     configuration, currently running ones and the ones with restart pending)
-
-      * response result:
-        ``{"result": {"all": [...], "running": [...], "restart_backoff": [...]}, "status": "ok"}``
-      * elements in lists are daemon names
-
    * ``{"command": "reload"}`` -- reload daemons definition file
 
       * no data returned, just ``{"status": "ok"}``
 
-   * ``{"command": "start", "daemon": "daemon-name"}`` -- start a daemon that
+   * ``{"command": "ps"}`` -- list daemons names (all that were defined in
+     configuration, currently running ones and the ones with restart pending)
+
+      * response result:
+        ``{"result": [<info1>, <info2>, ...], "status": "ok"}``
+      * ``<infoX>>`` is a hash containing information about the daemon:
+        ``{"daemon": <name>, "pid": <PID> | null, "running": true | false,
+        "restart_at": null | <timestamp>}``
+
+   * ``{"command": "start", "daemon": <name>}`` -- start a daemon that
      is stopped or waits in backoff for restart
 
       * no data returned, just ``{"status": "ok"}``
 
-   * ``{"command": "stop", "daemon": "daemon-name"}`` -- stop a daemon that is
+   * ``{"command": "stop", "daemon": <name>}`` -- stop a daemon that is
      running or cancel its restart if it is waiting in backoff
 
       * no data returned, just ``{"status": "ok"}``
 
-   * ``{"command": "restart", "daemon": "daemon-name"}`` -- restart running
+   * ``{"command": "restart", "daemon": <name>}`` -- restart running
      daemon (immediately if it waits in backoff) or start stopped one
 
       * no data returned, just ``{"status": "ok"}``
 
-   * ``{"command": "cancel_restart", "daemon": "daemon-name"}`` -- cancel
+   * ``{"command": "cancel_restart", "daemon": <name>}`` -- cancel
      pending restart of a daemon. If daemon was running, nothing changes. If
      daemon was waiting in backoff timer, backoff is reset and the daemon is
      left stopped.
