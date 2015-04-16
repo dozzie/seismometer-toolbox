@@ -29,6 +29,7 @@ parser.add_option(
 )
 parser.add_option(
     "-s", "--control-socket", dest = "control_socket",
+    default = "/var/run/daemonshepherd.sock",
     help = "path or host:port to control socket", metavar = "FILE|ADDRESS",
 )
 parser.add_option(
