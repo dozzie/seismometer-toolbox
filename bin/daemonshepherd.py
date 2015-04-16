@@ -12,44 +12,44 @@ from seismometer import daemonshepherd
 # TODO: logging config
 
 parser = optparse.OptionParser(
-  usage = "%prog [options] --daemons=FILE",
+    usage = "%prog [options] --daemons=FILE",
 )
 
 parser.add_option(
-  "-f", "--daemons", dest = "daemons",
-  help = "YAML file with daemons to control", metavar = "FILE",
+    "-f", "--daemons", dest = "daemons",
+    help = "YAML file with daemons to control", metavar = "FILE",
 )
 parser.add_option(
-  "-l", "--logging", dest = "logging",
-  help = "YAML/JSON file with logging configuration", metavar = "FILE",
+    "-l", "--logging", dest = "logging",
+    help = "YAML/JSON file with logging configuration", metavar = "FILE",
 )
 parser.add_option(
-  "-s", "--control-socket", dest = "control_socket",
-  help = "path or host:port to control socket", metavar = "FILE|ADDRESS",
+    "-s", "--control-socket", dest = "control_socket",
+    help = "path or host:port to control socket", metavar = "FILE|ADDRESS",
 )
 parser.add_option(
-  "-p", "--pid-file", dest = "pid_file",
-  help = "PID file for going daemon", metavar = "FILE",
+    "-p", "--pid-file", dest = "pid_file",
+    help = "PID file for going daemon", metavar = "FILE",
 )
 parser.add_option(
-  "-d", "--background", dest = "background",
-  action = "store_true", default = False,
-  help = "detach from terminal (run as a daemon)",
+    "-d", "--background", dest = "background",
+    action = "store_true", default = False,
+    help = "detach from terminal (run as a daemon)",
 )
 parser.add_option(
-  "-u", "--user", dest = "user",
-  help = "user to run as",
+    "-u", "--user", dest = "user",
+    help = "user to run as",
 )
 parser.add_option(
-  "-g", "--group", dest = "group",
-  help = "group to run as",
+    "-g", "--group", dest = "group",
+    help = "group to run as",
 )
 
 (options, args) = parser.parse_args()
 
 if options.daemons is None:
-  parser.print_help()
-  sys.exit(1)
+    parser.print_help()
+    sys.exit(1)
 
 # }}}
 #-----------------------------------------------------------------------------
@@ -61,35 +61,35 @@ controller = None
 # create pidfile (if applicable) {{{
 
 if options.pid_file is not None:
-  pid_file = daemonshepherd.PidFile(options.pid_file)
+    pid_file = daemonshepherd.PidFile(options.pid_file)
 
 # }}}
 #-----------------------------------------------------------------------------
 # change user/group (if applicable) {{{
 
 if options.user is not None or options.group is not None:
-  daemonshepherd.setguid(options.user, options.group)
+    daemonshepherd.setguid(options.user, options.group)
 
 # }}}
 #-----------------------------------------------------------------------------
 # configure logging (if applicable) {{{
 
 if options.logging is not None:
-  # JSON is valid YAML, so I can skip loading json module (yaml module is
-  # necessary for daemons spec file anyway)
-  import yaml
-  log_config = yaml.safe_load(open(options.logging))
+    # JSON is valid YAML, so I can skip loading json module (yaml module is
+    # necessary for daemons spec file anyway)
+    import yaml
+    log_config = yaml.safe_load(open(options.logging))
 else:
-  log_config = {
-    "version": 1,
-    "root": { "handlers": ["null"] },
-    "handlers": {
-      "null": {
-        "class": "logging.StreamHandler",
-        "stream": open('/dev/null', 'w'),
-      }
+    log_config = {
+        "version": 1,
+        "root": { "handlers": ["null"] },
+        "handlers": {
+            "null": {
+                "class": "logging.StreamHandler",
+                "stream": open('/dev/null', 'w'),
+            }
+        }
     }
-  }
 
 import seismometer.logging
 seismometer.logging.dictConfig(log_config)
@@ -99,12 +99,12 @@ seismometer.logging.dictConfig(log_config)
 # daemonize (if applicable) {{{
 
 if options.background:
-  daemonshepherd.detach("/")
-  if pid_file is not None:
-    pid_file.update()
+    daemonshepherd.detach("/")
+    if pid_file is not None:
+        pid_file.update()
 
 if pid_file is not None:
-  pid_file.claim() # remove on close
+    pid_file.claim() # remove on close
 
 # }}}
 #-----------------------------------------------------------------------------
@@ -117,16 +117,16 @@ controller = daemonshepherd.Controller(options.daemons, options.control_socket)
 # acknowledge success to parent process (if --background) {{{
 
 if options.background:
-  daemonshepherd.detach_succeeded()
+    daemonshepherd.detach_succeeded()
 
 # }}}
 #-----------------------------------------------------------------------------
 # main loop {{{
 
 try:
-  controller.loop()
+    controller.loop()
 except KeyboardInterrupt:
-  pass
+    pass
 
 controller.shutdown()
 
