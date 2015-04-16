@@ -562,20 +562,36 @@ class Controller:
     '''
     List daemons that are expected, running and that stay in restart queue.
 
-    Example of returned data::
+    Returned data is a list of elements of following dictionaries::
 
        {
-         "all": ["daemon1", "daemon2"],
-         "running": ["daemon2"],
-         "restart_backoff": ["daemon1"]
+         "daemon": <name>,
+         "pid": <PID> | None,
+         "running": True | False,
+         "restart_at": None | <timestamp>
        }
     '''
-    # TODO: be more verbose, e.g. include command used to start the child
-    return {
-      "all": sorted(self.expected.keys()),
-      "running": sorted(self.running.keys()),
-      "restart_backoff": sorted(self.restart_queue.list_restarts()),
-    }
+    result = []
+    restarts = dict([
+      (r["name"], r["restart_at"])
+      for r in self.restart_queue.list_restarts()
+    ])
+    # should self.running be included here? probably not, since it's supposed
+    # to be a subset of the self.expected
+    for name in sorted(self.expected):
+      result.append({
+        "daemon": name,
+        #"command": ..., # TODO: command used to start the daemon
+        "pid":     self.expected[name].pid(),
+        # there is a small possibility that daemon has just died, so it's not
+        # in the restart queue yet (it's basically a race condition); I want
+        # here to return a consistent view of the system at some point, so
+        # I won't check if the daemon is alive, just if it was supposed to be
+        # alive recently (daemon.is_alive() vs. daemon.pid() != None)
+        "running": (self.expected[name].pid() is not None),
+        "restart_at": restarts.get(name),
+      })
+    return result
 
   #-------------------------------------------------------------------
 
