@@ -64,7 +64,7 @@ elif len(args) > 0:
     command = args.pop(0)
     if command not in KNOWN_COMMANDS:
         parser.error("unrecognized command: %s" % (command,))
-    if len(args) == 1 and command in DAEMON_COMMANDS:
+    if len(args) != 1 and command in DAEMON_COMMANDS:
         parser.error("daemon name is required for command %s" % (command,))
 
 # }}}
