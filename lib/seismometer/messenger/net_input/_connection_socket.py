@@ -11,20 +11,20 @@ incoming data from those.
 #-----------------------------------------------------------------------------
 
 class ConnectionSocket:
-  '''
-  Connection-oriented generic socket.
-  '''
-  def accept(self):
     '''
-    Return a connection suitable for ``poll()``.
+    Connection-oriented generic socket.
     '''
-    raise NotImplementedError()
+    def accept(self):
+        '''
+        Return a connection suitable for ``poll()``.
+        '''
+        raise NotImplementedError()
 
-  def fileno(self):
-    '''
-    Return a file descriptor.
-    '''
-    raise NotImplementedError()
+    def fileno(self):
+        '''
+        Return a file descriptor.
+        '''
+        raise NotImplementedError()
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker
