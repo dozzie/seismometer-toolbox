@@ -453,7 +453,12 @@ class Controller:
                    cmp(a, b)
 
         # start daemons that are expected to be running but aren't doing so
+        recent_priority = None
         for daemon in sorted(self.expected, cmp = prio_cmp):
+            if recent_priority != self.start_priorities[daemon]:
+                # FIXME: how should daemon signal that it has started
+                # successfully and we can move to starting other daemons?
+                time.sleep(0.1) # 100ms delay between different priorities
             if daemon not in self.running:
                 logger.info("starting %s", daemon)
                 self._start(daemon)
