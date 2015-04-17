@@ -194,8 +194,6 @@ Daemon can have following variables:
       * ``/dev/null`` -- redirect output to :file:`/dev/null`
       * ``log`` -- intercept *STDOUT*/*STDERR* and log it with :mod:`logging`
         module (**TODO**)
-      * ``{type: streem, host: localhost, port: 10101, channel: logs}`` --
-        the output is linewise JSON which will be sent to Streem (**TODO**)
 
    * ``restart`` -- restart strategy; see :ref:`restart-strategy` for details
 

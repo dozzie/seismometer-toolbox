@@ -370,15 +370,15 @@ class Controller:
     def handle_daemon_output(self, daemon):
         '''
         Handle output from a daemon according to daemon's definition: either
-        log it or send to Streem as a message.
+        log it or forward it as a message.
         '''
         line = daemon.readline()
         if line == '': # EOF, but this doesn't mean that the daemon died yet
             self.poll.remove(daemon)
             daemon.close()
         else:
-            # TODO: process the line (JSON-decode and send to Streem or log
-            # using logging module)
+            # TODO: process the line (JSON-decode and forward it or log using
+            # logging module)
             pass
 
     #-------------------------------------------------------------------

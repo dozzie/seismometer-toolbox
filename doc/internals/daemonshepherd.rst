@@ -36,5 +36,3 @@ Controlling child processes
 
 .. automodule:: seismometer.daemonshepherd.output_log
 
-.. automodule:: seismometer.daemonshepherd.output_streem
-
