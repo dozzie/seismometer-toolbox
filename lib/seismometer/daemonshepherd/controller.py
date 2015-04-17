@@ -38,6 +38,13 @@ Daemon starter and data dispatcher
       with mapping daemons' names to
       :class:`seismometer.daemonshepherd.daemon.Daemon` instances.
 
+   .. attribute:: start_priorities
+
+      Mapping between daemons' names and their start priorities (lower
+      priority starts earlier).
+
+      Only used for starting daemons when booting or reloading config.
+
    .. attribute:: keep_running
 
       Marker to terminate :meth:`loop` gracefully from inside of signal
@@ -241,6 +248,7 @@ class Controller:
             self.poll.add(self.socket)
         self.running  = {} # name => daemon.Daemon
         self.expected = {} # name => daemon.Daemon
+        self.start_priorities = {} # name => int
         self.keep_running = True
         self.reload()
         signal.signal(signal.SIGHUP, self.signal_handler)
@@ -398,15 +406,17 @@ class Controller:
         spec = yaml.safe_load(open(self.daemon_spec_file))
         defaults = spec.get('defaults', {})
 
-        def var(daemon, varname):
+        def var(daemon, varname, default = None):
             if varname in spec['daemons'][daemon]:
                 return spec['daemons'][daemon][varname]
-            return defaults.get(varname)
+            return defaults.get(varname, default)
 
         self.expected = {}
+        self.start_priorities = {}
         self.restart_queue.clear()
         for dname in spec['daemons']:
             self.restart_queue.add(dname, var(dname, 'restart'))
+            self.start_priorities[dname] = var(dname, 'start_priority', 10)
             self.expected[dname] = daemon.Daemon(
                 start_command = var(dname, 'start_command'),
                 stop_command  = var(dname, 'stop_command'),
@@ -436,14 +446,20 @@ class Controller:
                             daemon)
                 self._stop(daemon)
 
+        def prio_cmp(a, b):
+            # XXX: self.start_priorities is fully populated with keys from
+            # self.expected
+            return cmp(self.start_priorities[a], self.start_priorities[b]) or \
+                   cmp(a, b)
+
         # start daemons that are expected to be running but aren't doing so
-        for daemon in self.expected:
+        for daemon in sorted(self.expected, cmp = prio_cmp):
             if daemon not in self.running:
                 logger.info("starting %s", daemon)
                 self._start(daemon)
 
         # stop daemons that are running but are not supposed to
-        for daemon in self.running.keys():
+        for daemon in sorted(self.running.keys(), cmp = prio_cmp, reverse = True):
             if daemon not in self.expected:
                 # shouldn't be present in self.restart_queue
                 logger.info("stopping %s", daemon)

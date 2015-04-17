@@ -196,6 +196,8 @@ Daemon can have following variables:
         module (**TODO**)
 
    * ``restart`` -- restart strategy; see :ref:`restart-strategy` for details
+   * ``start_priority`` -- start priority (lower number starts earlier);
+     defaults to 10
 
 Default values for above-mentioned variables can be stored in ``defaults``
 hash.
