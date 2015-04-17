@@ -190,10 +190,10 @@ class Daemon:
                 self.stop_signal = signal.SIGTERM
             elif isinstance(stop_signal, (str, unicode)):
                 # convert stop_signal from name to number
-                if stop_signal.startswith('SIG'):
-                    self.stop_signal = signal.__dict__[stop_signal]
-                else:
-                    self.stop_signal = signal.__dict__['SIG' + stop_signal]
+                stop_signal = stop_signal.upper()
+                if not stop_signal.startswith('SIG'):
+                    stop_signal = 'SIG' + stop_signal
+                self.stop_signal = signal.__dict__[stop_signal]
             else:
                 self.stop_signal = stop_signal
 
