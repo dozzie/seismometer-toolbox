@@ -26,14 +26,14 @@ Command line options
 
 .. cmdoption:: --source stdin | tcp:<addr> | udp:<addr> | unix:<path>
 
-   Destination to send data to. ``<addr>`` can be in one of two forms:
+   Address to receive data on. ``<addr>`` can be in one of two forms:
    ``<host>:<port>`` (bind to ``<host>`` address) or ``<port>``.
 
    If no destination was provided, messages are printed to STDOUT.
 
 .. cmdoption:: --destination stdout | tcp:<host>:<port> | udp:<host>:<port> | unix:<path>
 
-   Destination to send data to.
+   Address to send data to.
 
    If no destination was provided, messages are printed to STDOUT.
 
