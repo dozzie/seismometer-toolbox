@@ -459,12 +459,17 @@ class Controller:
                 # FIXME: how should daemon signal that it has started
                 # successfully and we can move to starting other daemons?
                 time.sleep(0.1) # 100ms delay between different priorities
-            if daemon not in self.running:
+            if daemon in self.running:
+                # replace the old object with new one, so `command_ps' doesn't
+                # lose PID
+                self.expected[daemon].take_over_child(self.running[daemon])
+                self.running[daemon] = self.expected[daemon]
+            else:
                 logger.info("starting %s", daemon)
                 self._start(daemon)
 
         # stop daemons that are running but are not supposed to
-        for daemon in sorted(self.running.keys(), cmp = prio_cmp, reverse = True):
+        for daemon in sorted(self.running, cmp = prio_cmp, reverse = True):
             if daemon not in self.expected:
                 # shouldn't be present in self.restart_queue
                 logger.info("stopping %s", daemon)

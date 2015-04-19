@@ -241,6 +241,19 @@ class Daemon:
         self.reap()
 
     #-------------------------------------------------------------------
+
+    def take_over_child(self, other):
+        '''
+        Take the operational information about the child (PID and STDOUT) over
+        from another :class:`Daemon` instance, effectively taking the child
+        ownership.
+        '''
+        self.child_pid = other.child_pid
+        self.child_stdout = other.child_stdout
+        other.child_pid = None
+        other.child_stdout = None
+
+    #-------------------------------------------------------------------
     # filehandle methods
 
     def fileno(self):
