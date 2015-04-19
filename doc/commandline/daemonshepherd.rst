@@ -185,6 +185,9 @@ Daemon can have following variables:
      executed with the same environment and working directory as
      ``start_command``; if both ``stop_signal`` and ``stop_command`` are
      defined, ``stop_command`` has the precedence
+   * ``user``, ``group`` -- username and group name to run as (both
+     ``start_command`` and ``stop_command`` will be run with these
+     credentials); obviously this requires *daemonshepherd* to be run as root
    * ``cwd`` -- working directory to start daemon in
    * ``environment`` -- additional environment variables to set (useful for
      setting :envvar:`$PYTHONPATH` or similar)

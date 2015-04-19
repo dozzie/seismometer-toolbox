@@ -424,6 +424,8 @@ class Controller:
                 environment   = var(dname, 'environment'),
                 cwd           = var(dname, 'cwd'),
                 stdout        = var(dname, 'stdout'),
+                user          = var(dname, 'user'),
+                group         = var(dname, 'group'),
             )
         self.converge()
 

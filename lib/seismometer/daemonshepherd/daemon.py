@@ -17,6 +17,7 @@ import sys
 import signal
 import time
 import re
+import setguid
 
 #-----------------------------------------------------------------------------
 
@@ -42,7 +43,8 @@ class Command:
     SHELL_META = re.compile('[]\'"$&*()`{}\\\\;<>?[]')
     SPACE = re.compile('[ \t\r\n]+')
 
-    def __init__(self, command, environment = None, cwd = None, stdout = None):
+    def __init__(self, command, environment = None, cwd = None, stdout = None,
+                 user = None, group = None):
         '''
         :param command: command to be run (could be a shell snippet)
         :param environment: environment variables to be added/replaced in
@@ -57,6 +59,8 @@ class Command:
         '''
         self.environment = environment
         self.cwd = cwd
+        self.user = user
+        self.group = group
         self.stdout = stdout
         if Command.SHELL_META.search(command):
             self.args = ["/bin/sh", "-c", command]
@@ -73,7 +77,9 @@ class Command:
                self.cwd         == other.cwd         and \
                self.stdout      == other.stdout      and \
                self.args        == other.args        and \
-               self.command     == other.command
+               self.command     == other.command     and \
+               self.user        == other.user        and \
+               self.group       == other.group
 
     def run(self):
         '''
@@ -114,6 +120,9 @@ class Command:
         # process, it's a parent's job)
         os.setpgrp()
 
+        # set UID/GID as necessary
+        setguid.setguid(self.user, self.group)
+
         # close reading end of pipe, if any
         if read_end is not None:
             os.close(read_end)
@@ -150,7 +159,8 @@ class Daemon:
     '''
 
     def __init__(self, start_command, stop_command = None, stop_signal = None,
-                 environment = None, cwd = None, stdout = None):
+                 environment = None, cwd = None, stdout = None,
+                 user = None, group = None):
         '''
         :param start_command: command used to start the daemon
         :param stop_command: command used to stop the daemon instead of signal
@@ -169,19 +179,20 @@ class Daemon:
         '''
 
         if stdout is None or stdout == 'stdout':
-            self.start_command = Command(start_command, environment, cwd)
+            self.start_command = Command(start_command, environment, cwd,
+                                         user = user, group = group)
         elif stdout == '/dev/null':
             self.start_command = Command(
-                start_command, environment, cwd, Command.DEVNULL
+                start_command, environment, cwd, Command.DEVNULL, user, group
             )
         elif stdout == 'pipe':
             self.start_command = Command(
-                start_command, environment, cwd, Command.PIPE
+                start_command, environment, cwd, Command.PIPE, user, group
             )
 
         if stop_command is not None:
             self.stop_command = Command(
-                stop_command, environment, cwd, Command.DEVNULL
+                stop_command, environment, cwd, Command.DEVNULL, user, group
             )
             self.stop_signal = None
         else:
