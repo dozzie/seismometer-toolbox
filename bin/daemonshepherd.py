@@ -116,8 +116,12 @@ if command == "daemon_supervisor":
         pid_file.claim() # remove on close
 
     # create controller thread 
-    controller = daemonshepherd.Controller(options.daemons,
-                                           options.control_socket)
+    try:
+        controller = daemonshepherd.Controller(options.daemons,
+                                               options.control_socket)
+    except Exception, e:
+        print >>sys.stderr, str(e)
+        sys.exit(1)
 
     # acknowledge success to parent process (if --background) 
     if options.background:

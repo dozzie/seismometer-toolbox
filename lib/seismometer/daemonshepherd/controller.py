@@ -243,13 +243,13 @@ class Controller:
         self.daemon_spec_file = daemon_spec_file
         self.restart_queue = RestartQueue()
         self.poll = seismometer.poll.Poll()
-        if socket_address is not None:
-            self.socket = control_socket.ControlSocket(socket_address)
-            self.poll.add(self.socket)
         self.running  = {} # name => daemon.Daemon
         self.expected = {} # name => daemon.Daemon
         self.start_priorities = {} # name => int
         self.keep_running = True
+        if socket_address is not None:
+            self.socket = control_socket.ControlSocket(socket_address)
+            self.poll.add(self.socket)
         self.reload()
         signal.signal(signal.SIGHUP, self.signal_handler)
         signal.signal(signal.SIGINT, self.signal_handler)

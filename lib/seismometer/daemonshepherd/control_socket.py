@@ -35,6 +35,7 @@ class ControlSocket:
         # address = (bindaddr, port)
         if isinstance(address, str): # UNIX
             self.path = os.path.abspath(address)
+            self.socket = None
             conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             conn.bind(self.path)
             # only set self.socket it after bind(), so the file won't get
