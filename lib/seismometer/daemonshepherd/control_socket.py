@@ -35,8 +35,11 @@ class ControlSocket:
         # address = (bindaddr, port)
         if isinstance(address, str): # UNIX
             self.path = os.path.abspath(address)
-            self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            self.socket.bind(self.path)
+            conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            conn.bind(self.path)
+            # only set self.socket it after bind(), so the file won't get
+            # removed when it's not ours (e.g. existed already)
+            self.socket = conn
         elif isinstance(address, int): # *:port
             self.path = None
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
