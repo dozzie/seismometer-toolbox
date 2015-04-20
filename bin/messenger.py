@@ -3,6 +3,7 @@
 import sys
 import optparse
 import seismometer.messenger
+import signal
 
 #-----------------------------------------------------------------------------
 # command line options {{{
@@ -151,10 +152,17 @@ for d in destinations:
 #-----------------------------------------------------------------------------
 
 # TODO:
-#   * signal handlers:
-#     * SIGPIPE: SIG_IGN
-#     * SIGHUP: reload tag patterns
-#     * SIGUSR1: reload logging config
+#   * logging
+#   * SIGUSR1: reload logging config
+#   * SIGPIPE: SIG_IGN (when can it break things and how?)
+
+def reload_tags(sig, stack_frame):
+    try:
+        tag_matcher.reload()
+    except Exception, e:
+        pass # TODO: log the problem with tag file
+
+signal.signal(signal.SIGHUP, reload_tags)
 
 #-----------------------------------------------------------------------------
 # main loop

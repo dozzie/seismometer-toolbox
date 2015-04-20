@@ -50,6 +50,13 @@ Command line options
 
    Spool size. Affects on-disk and in-memory spooling.
 
+Signals
+-------
+
+*messenger* recognizes following signals:
+
+* *SIGHUP* causes reloading tag pattern file
+
 .. _messenger-protocol:
 
 Communication protocol
