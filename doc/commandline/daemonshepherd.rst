@@ -74,13 +74,13 @@ Control commands mimic the protocol of :ref:`command channel
 <command-channel>`. Except for ``ps``, they print nothing and exit with 0 on
 success.
 
-   * ``reload`` -- instructs *daemonshepherd* to reload its configuration,
-     the same as sending *SIGHUP* signal
-   * ``ps`` -- lists daemons that are currently defined, one JSON per line
-   * ``start`` -- starts the specified daemon
-   * ``stop`` -- stops the specified daemon
-   * ``restart`` -- restarts the specified daemon
-   * ``cancel_restart`` -- cancels pending restart of specified daemon
+* ``reload`` -- instructs *daemonshepherd* to reload its configuration, the
+  same as sending *SIGHUP* signal
+* ``ps`` -- lists daemons that are currently defined, one JSON per line
+* ``start`` -- starts the specified daemon
+* ``stop`` -- stops the specified daemon
+* ``restart`` -- restarts the specified daemon
+* ``cancel_restart`` -- cancels pending restart of specified daemon
 
 
 Signals
@@ -88,8 +88,8 @@ Signals
 
 *daemonshepherd* recognizes following signals:
 
-   * *SIGTERM* and *SIGINT* cause termination
-   * *SIGHUP* causes reloading daemons specification
+* *SIGTERM* and *SIGINT* cause termination
+* *SIGHUP* causes reloading daemons specification
 
 
 .. _command-channel:
@@ -115,40 +115,40 @@ are signaled with ``{"status": "error", "reason": "..."}``.
 Available commands
 ------------------
 
-   * ``{"command": "reload"}`` -- reload daemons definition file
+* ``{"command": "reload"}`` -- reload daemons definition file
 
-      * no data returned, just ``{"status": "ok"}``
+  * no data returned, just ``{"status": "ok"}``
 
-   * ``{"command": "ps"}`` -- list daemons names (all that were defined in
-     configuration, currently running ones and the ones with restart pending)
+* ``{"command": "ps"}`` -- list daemons names (all that were defined in
+  configuration, currently running ones and the ones with restart pending)
 
-      * response result:
-        ``{"result": [<info1>, <info2>, ...], "status": "ok"}``
-      * ``<infoX>>`` is a hash containing information about the daemon:
-        ``{"daemon": <name>, "pid": <PID> | null, "running": true | false,
-        "restart_at": null | <timestamp>}``
+  * response result:
+    ``{"result": [<info1>, <info2>, ...], "status": "ok"}``
+  * ``<infoX>>`` is a hash containing information about the daemon:
+    ``{"daemon": <name>, "pid": <PID> | null, "running": true | false,
+    "restart_at": null | <timestamp>}``
 
-   * ``{"command": "start", "daemon": <name>}`` -- start a daemon that
-     is stopped or waits in backoff for restart
+* ``{"command": "start", "daemon": <name>}`` -- start a daemon that
+  is stopped or waits in backoff for restart
 
-      * no data returned, just ``{"status": "ok"}``
+  * no data returned, just ``{"status": "ok"}``
 
-   * ``{"command": "stop", "daemon": <name>}`` -- stop a daemon that is
-     running or cancel its restart if it is waiting in backoff
+* ``{"command": "stop", "daemon": <name>}`` -- stop a daemon that is
+  running or cancel its restart if it is waiting in backoff
 
-      * no data returned, just ``{"status": "ok"}``
+  * no data returned, just ``{"status": "ok"}``
 
-   * ``{"command": "restart", "daemon": <name>}`` -- restart running
-     daemon (immediately if it waits in backoff) or start stopped one
+* ``{"command": "restart", "daemon": <name>}`` -- restart running
+  daemon (immediately if it waits in backoff) or start stopped one
 
-      * no data returned, just ``{"status": "ok"}``
+  * no data returned, just ``{"status": "ok"}``
 
-   * ``{"command": "cancel_restart", "daemon": <name>}`` -- cancel
-     pending restart of a daemon. If daemon was running, nothing changes. If
-     daemon was waiting in backoff timer, backoff is reset and the daemon is
-     left stopped.
+* ``{"command": "cancel_restart", "daemon": <name>}`` -- cancel
+  pending restart of a daemon. If daemon was running, nothing changes. If
+  daemon was waiting in backoff timer, backoff is reset and the daemon is
+  left stopped.
 
-      * no data returned, just ``{"status": "ok"}``
+  * no data returned, just ``{"status": "ok"}``
 
 Commands that operate on daemons (*start*, *stop*, *restart*,
 *cancel_restart*) always reset backoff, even if nothing was changed (e.g.
@@ -177,30 +177,30 @@ a name, by which it will be referred to in :ref:`commands <command-channel>`.
 
 Daemon can have following variables:
 
-   * ``start_command`` -- command used to start the daemon (can be a shell
-     command, too)
-   * ``stop_signal`` -- signal (number or name, like SIGTERM or TERM) to stop
-     the daemon; defaults to *SIGTERM*
-   * ``stop_command`` -- command used to stop running daemon; it will be
-     executed with the same environment and working directory as
-     ``start_command``; if both ``stop_signal`` and ``stop_command`` are
-     defined, ``stop_command`` has the precedence
-   * ``user``, ``group`` -- username and group name to run as (both
-     ``start_command`` and ``stop_command`` will be run with these
-     credentials); obviously this requires *daemonshepherd* to be run as root
-   * ``cwd`` -- working directory to start daemon in
-   * ``environment`` -- additional environment variables to set (useful for
-     setting :envvar:`$PYTHONPATH` or similar)
-   * ``stdout`` -- what to do with daemon's *STDOUT* and *STDERR*
+* ``start_command`` -- command used to start the daemon (can be a shell
+  command, too)
+* ``stop_signal`` -- signal (number or name, like SIGTERM or TERM) to stop
+  the daemon; defaults to *SIGTERM*
+* ``stop_command`` -- command used to stop running daemon; it will be
+  executed with the same environment and working directory as
+  ``start_command``; if both ``stop_signal`` and ``stop_command`` are
+  defined, ``stop_command`` has the precedence
+* ``user``, ``group`` -- username and group name to run as (both
+  ``start_command`` and ``stop_command`` will be run with these
+  credentials); obviously this requires *daemonshepherd* to be run as root
+* ``cwd`` -- working directory to start daemon in
+* ``environment`` -- additional environment variables to set (useful for
+  setting :envvar:`$PYTHONPATH` or similar)
+* ``stdout`` -- what to do with daemon's *STDOUT* and *STDERR*
 
-      * ``stdout`` or undefined -- pass the output to terminal
-      * ``/dev/null`` -- redirect output to :file:`/dev/null`
-      * ``log`` -- intercept *STDOUT*/*STDERR* and log it with :mod:`logging`
-        module (**TODO**)
+  * ``stdout`` or undefined -- pass the output to terminal
+  * ``/dev/null`` -- redirect output to :file:`/dev/null`
+  * ``log`` -- intercept *STDOUT*/*STDERR* and log it with :mod:`logging`
+    module (**TODO**)
 
-   * ``restart`` -- restart strategy; see :ref:`restart-strategy` for details
-   * ``start_priority`` -- start priority (lower number starts earlier);
-     defaults to 10
+* ``restart`` -- restart strategy; see :ref:`restart-strategy` for details
+* ``start_priority`` -- start priority (lower number starts earlier);
+  defaults to 10
 
 Default values for above-mentioned variables can be stored in ``defaults``
 hash.

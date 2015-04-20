@@ -9,10 +9,10 @@ Logging
 Python documentation to read
 ----------------------------
 
-   * Python :mod:`logging`: `<https://docs.python.org/2/library/logging.html>`_
-   * Configuring :mod:`logging`: `<https://docs.python.org/2/library/logging.config.html>`_
-   * Configuring :mod:`logging` with dictionary:
-     `<https://docs.python.org/2/library/logging.config.html#logging-config-dictschema>`_
+* Python :mod:`logging`: `<https://docs.python.org/2/library/logging.html>`_
+* Configuring :mod:`logging`: `<https://docs.python.org/2/library/logging.config.html>`_
+* Configuring :mod:`logging` with dictionary:
+  `<https://docs.python.org/2/library/logging.config.html#logging-config-dictschema>`_
 
 
 Configuration examples
