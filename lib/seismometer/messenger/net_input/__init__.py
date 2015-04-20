@@ -16,6 +16,7 @@ Reading from a bunch of ``net_input`` sockets.
 
 import os
 import seismometer.poll
+from .. import tags
 import Queue
 
 from _connection_socket import ConnectionSocket
@@ -103,8 +104,12 @@ class Reader:
       * value for metric is integer, float in non-scientific notation or
         ``"U"`` ("undefined")
     '''
-    def __init__(self):
+    def __init__(self, tag_matcher = None):
         self.poll = Poll()
+        if tag_matcher is not None:
+            self.tag_matcher = tag_matcher
+        else:
+            self.tag_matcher = tags.TagMatcher()
 
     def add(self, sock):
         '''
@@ -121,7 +126,7 @@ class Reader:
         # try reading and parsing until a good message is produced
         while True:
             (host, line) = self.poll.readline()
-            message = parser.parse_line(host, line)
+            message = parser.parse_line(host, line, self.tag_matcher)
 
             if message is not None:
                 return message

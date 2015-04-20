@@ -22,7 +22,7 @@ _GRAPHITE_LINE = re.compile(
 
 #-----------------------------------------------------------------------------
 
-def parse_line(host, line):
+def parse_line(host, line, tag_matcher):
     '''
     :return: loaded JSON, ``(host, tag, value, time)`` or None if couldn't
       parse the line
@@ -53,9 +53,7 @@ def parse_line(host, line):
 
     timestamp = int(match['time'])
 
-    # TODO: use tag matcher
-    aspect = match['tag']
-    location = { 'host': host }
+    (aspect, location) = tag_matcher.match(match['tag'])
 
     if match['value'] is None: # match['state'] + match['severity']
         message = seismometer.message.Message(

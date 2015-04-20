@@ -139,7 +139,8 @@ def parse_destination(destination):
 sources      = [parse_source(o)      for o in options.source]
 destinations = [parse_destination(o) for o in options.destination]
 
-reader = seismometer.messenger.net_input.Reader()
+tag_matcher = seismometer.messenger.tags.TagMatcher(options.tag_file)
+reader = seismometer.messenger.net_input.Reader(tag_matcher)
 writer = seismometer.messenger.net_output.Writer()
 
 for s in sources:
