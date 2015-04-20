@@ -22,13 +22,15 @@ class UNIX:
         :param path: socket address
         :type path: string
         '''
+        self.path = None
         self.conn = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
         self.conn.bind(path)
         self.path = os.path.abspath(path)
 
     def __del__(self):
         self.conn.close()
-        os.unlink(self.path)
+        if self.path is not None:
+            os.unlink(self.path)
 
     def readline(self):
         # XXX: no EOF is expected here
