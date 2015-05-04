@@ -162,7 +162,11 @@ def reload_tags(sig, stack_frame):
     except Exception, e:
         pass # TODO: log the problem with tag file
 
+def quit_daemon(sig, stack_frame):
+    sys.exit(0)
+
 signal.signal(signal.SIGHUP, reload_tags)
+signal.signal(signal.SIGTERM, quit_daemon)
 
 #-----------------------------------------------------------------------------
 # main loop
