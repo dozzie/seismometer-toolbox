@@ -14,6 +14,7 @@ Network output sockets.
 import socket
 import json
 from _connection_output import ConnectionOutput
+import platform
 
 #-----------------------------------------------------------------------------
 
@@ -54,6 +55,14 @@ class TCP(ConnectionOutput):
             conn = socket.socket()
             conn.connect((self.host, self.port))
             conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            if platform.system() == "Linux":
+                # XXX: unportable, Linux-specific code
+                # send first probe after 30s
+                conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 30)
+                # keep sending probes every 30s
+                conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 30)
+                # after this many probes the connection drops
+                conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 9)
             self.conn = conn
             return True
         except socket.error:
