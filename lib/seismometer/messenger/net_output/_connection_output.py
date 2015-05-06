@@ -10,6 +10,7 @@ Generic
 
 import json
 import seismometer.messenger.spool
+import seismometer.logging.rate_limit
 
 #-----------------------------------------------------------------------------
 
@@ -30,6 +31,7 @@ class ConnectionOutput(object):
             self.spooler = seismometer.messenger.spool.MemorySpooler()
         else:
             self.spooler = spooler
+        self.spool_dropped = seismometer.logging.rate_limit.RateLimit(count = 0)
 
     def write(self, line):
         '''
@@ -56,6 +58,21 @@ class ConnectionOutput(object):
         '''
         raise NotImplementedError()
 
+    def get_logger(self):
+        '''
+        :return: logger instance (see :mod:`logging` module)
+        '''
+        raise NotImplementedError()
+
+    def get_name(self):
+        '''
+        :return: string identifying output
+
+        Return a human-meaningful string representation of the output
+        (typically: target address) for logging.
+        '''
+        raise NotImplementedError()
+
     def send(self, message):
         '''
         :param message: message to send
@@ -65,17 +82,38 @@ class ConnectionOutput(object):
         In case of connectivity errors message will be spooled and sent later.
         '''
         line = json.dumps(message) + "\n"
+        logger = self.get_logger()
 
         if not self.is_connected() and not self.repair_connection():
             # lost connection, can't repair it at the moment
-            self.spooler.spool(line)
+            dropped_count = self.spooler.spool(line)
+            self.spool_dropped.count += dropped_count
+            if self.spool_dropped.count > 0 and \
+               self.spool_dropped.should_log():
+                logger.warn("%s: dropped %d pending messages", self.get_name(),
+                            self.spool_dropped.count)
+                self.spool_dropped.count = 0
+                self.spool_dropped.logged()
             return
 
         # self.is_connected()
+        if self.spool_dropped.count > 0:
+            logger.warn("%s: dropped %d pending messages", self.get_name(),
+                        self.spool_dropped.count)
+            self.spool_dropped.count = 0
+            self.spool_dropped.reset()
+
         if not self.send_pending() or not self.write(line):
             # didn't send all the pending lines -- make the current one
             # pending, too didn't send the current line -- make it pending
-            self.spooler.spool(line)
+            dropped_count = self.spooler.spool(line)
+            self.spool_dropped.count += dropped_count
+            if self.spool_dropped.count > 0 and \
+               self.spool_dropped.should_log():
+                logger.warn("%s: dropped %d pending messages", self.get_name(),
+                            self.spool_dropped.count)
+                self.spool_dropped.count = 0
+                self.spool_dropped.logged()
 
     def send_pending(self):
         '''
@@ -84,14 +122,27 @@ class ConnectionOutput(object):
 
         Send all pending messages.
         '''
+        pending_before = len(self.spooler)
+
+        sent_all_pending = True
         line = self.spooler.peek()
         while line is not None:
             if self.write(line):
                 self.spooler.drop_one()
                 line = self.spooler.peek()
             else:
-                return False
-        return True
+                sent_all_pending = False
+                break
+
+        pending_after = len(self.spooler)
+        if pending_before != pending_after:
+            # no need to log totally unsuccessful flushes (partially
+            # successful ones are somewhat interesting, however)
+            logger = self.get_logger()
+            logger.info("%s: sent %d pending messages, %d left",
+                        self.get_name(), pending_before - pending_after,
+                        pending_after)
+        return sent_all_pending
 
     def flush(self):
         '''

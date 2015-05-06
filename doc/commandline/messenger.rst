@@ -50,12 +50,19 @@ Command line options
 
    Spool size. Affects on-disk and in-memory spooling.
 
+.. cmdoption:: --logging <logging_config>
+
+   Logging configuration file (YAML or JSON) with dictionary suitable for
+   :func:`logging.config.dictConfig`. If not specified, messages (but only
+   warnings) are printed to *STDERR*.
+
 Signals
 -------
 
 *messenger* recognizes following signals:
 
 * *SIGHUP* causes reloading tag pattern file
+* *SIGTERM* causes termination
 
 .. _messenger-protocol:
 

@@ -14,6 +14,8 @@ Network output sockets.
 import socket
 import json
 from _connection_output import ConnectionOutput
+import logging
+import seismometer.logging.rate_limit
 import platform
 
 #-----------------------------------------------------------------------------
@@ -32,7 +34,15 @@ class TCP(ConnectionOutput):
         self.host = host
         self.port = port
         self.conn = None
+        # "connection still closed" rate limiter
+        self.conn_still_closed = seismometer.logging.rate_limit.RateLimit()
         super(TCP, self).__init__(spooler)
+
+    def get_logger(self):
+        return logging.getLogger("output.tcp")
+
+    def get_name(self):
+        return "%s:%d" % (self.host, self.port)
 
     def write(self, line):
         if self.conn is None:
@@ -43,6 +53,8 @@ class TCP(ConnectionOutput):
             return True
         except socket.error:
             # lost connection
+            logger = self.get_logger()
+            logger.warn("%s: lost connection", self.get_name())
             self.conn = None
             return False
 
@@ -51,6 +63,7 @@ class TCP(ConnectionOutput):
         return (self.conn is not None)
 
     def repair_connection(self):
+        logger = self.get_logger()
         try:
             conn = socket.socket()
             conn.connect((self.host, self.port))
@@ -64,8 +77,14 @@ class TCP(ConnectionOutput):
                 # after this many probes the connection drops
                 conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 9)
             self.conn = conn
+            logger.info("%s: reconnected", self.get_name())
+            self.conn_still_closed.reset()
             return True
-        except socket.error:
+        except socket.error, e:
+            if self.conn_still_closed.should_log():
+                logger.warn("%s: reconnecting failed: %s", self.get_name(),
+                            e.strerror)
+                self.conn_still_closed.logged()
             return False
 
 #-----------------------------------------------------------------------------
