@@ -54,8 +54,7 @@ parser.add_option(
 (options, args) = parser.parse_args()
 
 if len(args) > 0:
-    parser.print_help()
-    sys.exit(1)
+    parser.error("too many arguments")
 
 if len(options.source) == 0:
     options.source = ["stdin"]
