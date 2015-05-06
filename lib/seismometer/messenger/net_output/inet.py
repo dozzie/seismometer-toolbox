@@ -51,7 +51,7 @@ class TCP(ConnectionOutput):
         try:
             self.conn.send(line)
             return True
-        except socket.error:
+        except socket.error: # this covers `socket.timeout'
             # lost connection
             logger = self.get_logger()
             logger.warn("%s: lost connection", self.get_name())
@@ -66,6 +66,7 @@ class TCP(ConnectionOutput):
         logger = self.get_logger()
         try:
             conn = socket.socket()
+            conn.settimeout(5) # 5s timeout for connect, send, and such
             conn.connect((self.host, self.port))
             conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
             if platform.system() == "Linux":
@@ -80,6 +81,11 @@ class TCP(ConnectionOutput):
             logger.info("%s: reconnected", self.get_name())
             self.conn_still_closed.reset()
             return True
+        except socket.timeout, e:
+            if self.conn_still_closed.should_log():
+                logger.warn("%s: reconnecting failed: timeout", self.get_name())
+                self.conn_still_closed.logged()
+            return False
         except socket.error, e:
             if self.conn_still_closed.should_log():
                 logger.warn("%s: reconnecting failed: %s", self.get_name(),
