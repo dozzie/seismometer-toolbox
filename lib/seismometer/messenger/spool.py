@@ -32,15 +32,19 @@ class MemorySpooler:
     def spool(self, line):
         '''
         :param line: line to spool
+        :returns: number of messages dropped to keep the queue under its limit
 
         Spool single line. If spool limit was set, oldest entries will be
         dropped.
         '''
         self._size += len(line)
         self._queue.append(line)
+        dropped_count = 0
         if self._max is not None:
             while self._size > self._max:
                 self.drop_one()
+                dropped_count += 1
+        return dropped_count
 
     def peek(self):
         '''
@@ -58,6 +62,12 @@ class MemorySpooler:
         '''
         line = self._queue.popleft()
         self._size -= len(line)
+
+    def __len__(self):
+        '''
+        Return number of messages in the queue.
+        '''
+        return len(self._queue)
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker
