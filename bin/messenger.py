@@ -65,7 +65,7 @@ if len(options.destination) == 0:
 #-----------------------------------------------------------------------------
 # --source options parsing {{{
 
-def parse_source(source):
+def prepare_source(source):
     if source == "stdin":
         import seismometer.messenger.net_input.stdin
         return seismometer.messenger.net_input.stdin.STDIN()
@@ -105,7 +105,7 @@ def parse_source(source):
 #-----------------------------------------------------------------------------
 # --destination options parsing {{{
 
-def parse_destination(destination):
+def prepare_destination(destination):
     if destination == "stdout":
         import seismometer.messenger.net_output.stdout
         return seismometer.messenger.net_output.stdout.STDOUT()
@@ -136,8 +136,8 @@ def parse_destination(destination):
 # }}}
 #-----------------------------------------------------------------------------
 
-sources      = [parse_source(o)      for o in options.source]
-destinations = [parse_destination(o) for o in options.destination]
+sources      = [prepare_source(o)      for o in options.source]
+destinations = [prepare_destination(o) for o in options.destination]
 
 tag_matcher = seismometer.messenger.tags.TagMatcher(options.tag_file)
 reader = seismometer.messenger.net_input.Reader(tag_matcher)
