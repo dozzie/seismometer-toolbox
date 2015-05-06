@@ -16,9 +16,9 @@ Python documentation to read
 
 
 Configuration examples
-------------------------------
+----------------------
 
-YAML logging config (see :ref:`yaml-config` for example) can be used as
+YAML logging config (see :ref:`yaml-logging-config` for example) can be used as
 follows::
 
    import seismometer.logging
@@ -27,12 +27,12 @@ follows::
    seismometer.logging.dictConfig(log_config)
 
 Given that logging configuration is a simple dictionary, config file is not
-restricted to YAML format. See :ref:`python-config` for example.
+restricted to YAML format. See :ref:`python-logging-config` for example.
 
-.. _python-config:
+.. _python-logging-config:
 
-Python dictionary
-^^^^^^^^^^^^^^^^^
+Logging config dict
+^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
@@ -44,7 +44,13 @@ Python dictionary
          "class": "logging.StreamHandler",
          "stream": "ext://sys.stdout",
          "formatter": "precise_formatter",
-       }
+       },
+       "syslog": {
+         "class": "logging.handlers.SysLogHandler",
+         "formatter": "syslog_formatter",
+         "address": "/dev/log", # this path is valid under Linux
+         "facility": "daemon",
+       },
      },
      "formatters": {
        "brief_formatter": {
@@ -54,14 +60,19 @@ Python dictionary
          "format": "%(asctime)s %(levelname)-8s %(name)-15s %(message)s",
          "datefmt": "<%Y-%m-%d %H:%M:%S>",
        },
+       "syslog_formatter": {
+         # XXX: change "somethingd" to your daemon name if you plan to use
+         # syslog handler
+         "format": "somethingd[%(process)d]: [%(name)s] %(message)s",
+       },
      },
    }
 
 
-.. _yaml-config:
+.. _yaml-logging-config:
 
-YAML file
-^^^^^^^^^
+Logging config YAML
+^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: yaml
 
@@ -74,12 +85,22 @@ YAML file
        class: logging.StreamHandler
        stream: ext://sys.stdout
        formatter: precise_formatter
+     syslog:
+       class: logging.handlers.SysLogHandler
+       formatter: syslog_formatter
+       # this path is valid under Linux
+       address: /dev/log
+       facility: daemon
    formatters:
      brief_formatter:
        format: "%(levelname)-8s %(message)s"
      precise_formatter:
        format: "%(asctime)s %(levelname)-8s %(name)-15s %(message)s"
        datefmt: "%Y-%m-%d %H:%M:%S"
+     syslog_formatter:
+       # XXX: change "somethingd" to your daemon name if you plan to use
+       # syslog handler
+       format: "somethingd[%(process)d]: [%(name)s] %(message)s"
 
 
 Programming interface

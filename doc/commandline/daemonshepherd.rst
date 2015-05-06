@@ -44,7 +44,8 @@ tool where to send commands to.
 
 .. cmdoption:: -l <config>, --logging <config>
 
-   logging configuration, in JSON or YAML format
+   logging configuration, in JSON or YAML format (see
+   :ref:`yaml-logging-config` for example structure)
 
 .. cmdoption:: -s <path>, --control-socket <path>
 

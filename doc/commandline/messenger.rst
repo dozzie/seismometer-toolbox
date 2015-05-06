@@ -54,7 +54,8 @@ Command line options
 
    Logging configuration file (YAML or JSON) with dictionary suitable for
    :func:`logging.config.dictConfig`. If not specified, messages (but only
-   warnings) are printed to *STDERR*.
+   warnings) are printed to *STDERR*. See :ref:`yaml-logging-config` for
+   example config.
 
 Signals
 -------
