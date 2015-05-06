@@ -33,6 +33,14 @@ class ConnectionOutput(object):
             self.spooler = spooler
         self.spool_dropped = seismometer.logging.rate_limit.RateLimit(count = 0)
 
+    def __del__(self):
+        logger = self.get_logger()
+        if self.spool_dropped.count > 0:
+            logger.warn("%s: dropped %d pending messages", self.get_name(),
+                        self.spool_dropped.count)
+        logger.info("%s: %d messages left in queue", self.get_name(),
+                    len(self.spooler))
+
     def write(self, line):
         '''
         :return: ``True`` when line was sent successfully, ``False`` when
