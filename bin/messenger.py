@@ -35,7 +35,7 @@ parser.add_option(
     metavar = "TAGFILE",
 )
 parser.add_option(
-    "--spool", dest = "spool",
+    "--spool", dest = "spool_dir",
     help = "directory to spool messages in case of network problems",
     metavar = "SPOOLDIR",
 )
@@ -147,6 +147,29 @@ def prepare_source(source):
 #-----------------------------------------------------------------------------
 # --destination options parsing {{{
 
+#-----------------------------------------------------------
+# spooler creation {{{
+
+def create_spooler():
+    if options.max_spool is None:
+        return None
+
+    if options.max_spool.endswith("k") or options.max_spool.endswith("K"):
+        max_spool_size = int(options.max_spool[0:-1]) * 1024
+    elif options.max_spool.endswith("m") or options.max_spool.endswith("M"):
+        max_spool_size = int(options.max_spool[0:-1]) * 1024 * 1024
+    else:
+        max_spool_size = int(options.max_spool)
+
+    if options.spool_dir is not None:
+        # TODO: implement disk spooler
+        raise NotImplementedError("spooling to disk not supported yet")
+    else:
+        return seismometer.messenger.spool.MemorySpooler(max = max_spool_size)
+
+# }}}
+#-----------------------------------------------------------
+
 def prepare_destination(destination):
     if destination == "stdout":
         logger.info("adding destination: STDOUT")
@@ -157,8 +180,9 @@ def prepare_destination(destination):
         (host, port) = destination[4:].split(":")
         port = int(port)
         logger.info("adding destination: TCP:%s:%d", host, port)
+        spooler = create_spooler()
         import seismometer.messenger.net_output.inet
-        return seismometer.messenger.net_output.inet.TCP(host, port)
+        return seismometer.messenger.net_output.inet.TCP(host, port, spooler)
 
     if destination.startswith("udp:"):
         (host, port) = destination[4:].split(":")
@@ -170,8 +194,9 @@ def prepare_destination(destination):
     if destination.startswith("unix:"):
         path = destination[5:]
         logger.info("adding destination: UNIX:%s", path)
+        spooler = create_spooler()
         import seismometer.messenger.net_output.unix
-        return seismometer.messenger.net_output.unix.UNIX(path)
+        return seismometer.messenger.net_output.unix.UNIX(path, spooler)
 
     import json
     params = json.loads(destination)
