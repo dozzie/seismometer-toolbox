@@ -337,7 +337,7 @@ class Controller:
             logger.info('got signal %s, reloading config', signame)
             self.reload()
         else:
-            logger.warning('got unknown signal %d (%s)', signame, sig)
+            logger.warning('got unknown signal %s (%d)', signame, sig)
             pass # or something else?
 
     #-------------------------------------------------------------------
