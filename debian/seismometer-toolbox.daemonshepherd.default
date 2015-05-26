@@ -1,0 +1,8 @@
+# Definitions of daemons to run under daemonshepherd (defaults to
+# /etc/seismometer/daemonshepherd.yaml)
+#DAEMONSHEPHERD_CONFIG=/etc/seismometer/daemonshepherd.yaml
+
+# Logging configuration for daemonshepherd (defaults to empty string, meaning
+# no logging at all)
+#DAEMONSHEPHERD_LOG_CONFIG=
+DAEMONSHEPHERD_LOG_CONFIG=/etc/seismometer/daemonshepherd.logging

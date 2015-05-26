@@ -1,0 +1,26 @@
+Source: seismometer-toolbox
+Maintainer: Stanislaw Klekot <dozzie@jarowit.net>
+Section: admin
+Priority: optional
+Build-Depends: debhelper (>> 7.0.0), make, python-setuptools, python-sphinx
+Homepage: http://seismometer.net/
+
+Package: seismometer-toolbox
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python,
+ python-yaml
+X-Python-Version: >= 2.6
+Description: Small tools for Seismometer monitoring system
+ Seismometer is a monitoring system composed of many small modules, each doing
+ its own, well-defined task: collecting performance metrics, checking the
+ metrics against thresholds, sending alerts and so on.
+
+Package: seismometer-toolbox-doc
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}
+Description: Small tools for Seismometer monitoring system (documentation)
+ Seismometer is a monitoring system composed of many small modules, each doing
+ its own, well-defined task: collecting performance metrics, checking the
+ metrics against thresholds, sending alerts and so on.
+ .
+ This package contains documentation for Seismometer Toolbox.

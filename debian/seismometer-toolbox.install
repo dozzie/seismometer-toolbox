@@ -1,0 +1,5 @@
+/etc/seismometer/*.example
+/usr/bin/daemonshepherd
+/usr/bin/dumb-probe
+/usr/bin/messenger
+/usr/lib/python2.*/site-packages/seismometer*
