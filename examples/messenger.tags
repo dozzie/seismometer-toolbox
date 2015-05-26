@@ -1,0 +1,11 @@
+#services = nginx collectd, fluentd, /d(aemon)?shepherd/,
+#           streamproxyng
+
+#/(..)lin(.)[1-4][0-9]/ : host . (services):service.(**):aspect
+
+#service : static_match . [nginx, httpd]:service.(*):aspect
+
+#(services):service . (*):host . (*):aspect
+#foo-bar:f1 . nabla:f2
+#foo:service . (*):aspect
+#foo:service . (**):aspect

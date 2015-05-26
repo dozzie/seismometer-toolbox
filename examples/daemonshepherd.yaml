@@ -1,0 +1,12 @@
+defaults:
+  restart: [0, 5, 10, 60, 300]
+  environment:
+    PATH: /usr/local/bin:/usr/bin:/bin
+    #PYTHONPATH: lib
+
+daemons:
+  messenger:
+    start_priority: 1
+    start_command: messenger --src=unix:/var/run/messenger.sock --dest=tcp:10.0.0.18:24222 --tagfile=/etc/seismometer/messenger.tags --logging=/etc/seismometer/messenger.logging
+
+# vim:ft=yaml

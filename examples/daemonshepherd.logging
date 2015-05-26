@@ -1,0 +1,15 @@
+version: 1
+root:
+  level: INFO
+  handlers: [syslog]
+formatters:
+  syslog_formatter:
+    format: "daemonshepherd[%(process)d]: [%(name)s] %(message)s"
+handlers:
+  syslog:
+    class: logging.handlers.SysLogHandler
+    formatter: syslog_formatter
+    address: /dev/log
+    facility: daemon
+
+# vim:ft=yaml
