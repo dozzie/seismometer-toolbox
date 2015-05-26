@@ -15,7 +15,7 @@ Running *daemonshepherd* as a supervisor for other daemons:
 
 .. code-block:: none
 
-   daemonshepherd.py [options] --daemons=<specfile>
+   daemonshepherd [options] --daemons=<specfile>
 
 Basic operation doesn't detach *daemonshepherd* from terminal and logging goes
 to :file:`/dev/null`.
@@ -24,12 +24,12 @@ Controlling an already running *daemonshepherd* instance:
 
 .. code-block:: none
 
-   daemonshepherd.py [options] reload
-   daemonshepherd.py [options] ps
-   daemonshepherd.py [options] start <daemon-name>
-   daemonshepherd.py [options] stop <daemon-name>
-   daemonshepherd.py [options] restart <daemon-name>
-   daemonshepherd.py [options] cancel_restart <daemon-name>
+   daemonshepherd [options] reload
+   daemonshepherd [options] ps
+   daemonshepherd [options] start <daemon-name>
+   daemonshepherd [options] stop <daemon-name>
+   daemonshepherd [options] restart <daemon-name>
+   daemonshepherd [options] cancel_restart <daemon-name>
 
 Command line options
 --------------------
@@ -259,13 +259,13 @@ channel (``state-forwarder``) and forward messages to
        stop_command: "streemctl --control=/var/run/streem/control stop"
 
      dumb-probe:
-       start_command: "dumb-probe.py --destination=localhost:10101:probes --checks=/etc/seismometer/dumb_probe.py"
+       start_command: "dumb-probe --destination=localhost:10101:probes --checks=/etc/seismometer/dumb_probe.py"
 
      state-forwarder:
-       start_command: "pull-push-bridge.py --source=localhost:10101:probes --destination=localhost:10101:states --plugin=state_forwarder"
+       start_command: "pull-push-bridge --source=localhost:10101:probes --destination=localhost:10101:states --plugin=state_forwarder"
 
      webasdb-bridge:
-       start_command: "pull-push-bridge.py --source=localhost:10101:states --destination=http://localhost/webasdb --plugin=webasdb"
+       start_command: "pull-push-bridge --source=localhost:10101:states --destination=http://localhost/webasdb --plugin=webasdb"
 
      collectd-bridge:
-       start_command: "pull-push-bridge.py --source=localhost:10101:probes --destination=/var/run/collectd.sock --plugin=collectd"
+       start_command: "pull-push-bridge --source=localhost:10101:probes --destination=/var/run/collectd.sock --plugin=collectd"

@@ -15,7 +15,7 @@ Usage is pretty straightforward: one just needs to run:
 
 .. code-block:: none
 
-   dumb-probe.py --checks=./checks.py --destination=host:port:channel
+   dumb-probe --checks=./checks.py --destination=host:port:channel
 
 All the probe results will be sent to ``host:port`` address to Streem, to
 channel ``channel``.

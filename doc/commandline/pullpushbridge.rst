@@ -15,7 +15,7 @@ Usage
 
 .. code-block:: none
 
-   pull-push-bridge.py --source=<streem> --plugin=<plugin> --destination=<address>
+   pull-push-bridge --source=<streem> --plugin=<plugin> --destination=<address>
 
 Command line options
 --------------------

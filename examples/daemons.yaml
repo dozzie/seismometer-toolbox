@@ -22,13 +22,13 @@ daemons:
     #  host: localhost
 
   dumb-probe:
-    start_command: "bin/dumb-probe.py --destination=localhost:10101:probes --checks=examples/dumb_probe_sample_configuration"
+    start_command: "bin/dumb-probe --destination=localhost:10101:probes --checks=examples/dumb_probe_sample_configuration"
 
   state-forwarder:
-    start_command: "bin/pull-push-bridge.py --source=localhost:10101:probes --destination=localhost:10101:states --plugin=state_forwarder"
+    start_command: "bin/pull-push-bridge --source=localhost:10101:probes --destination=localhost:10101:states --plugin=state_forwarder"
 
   webasdb-bridge:
-    start_command: "bin/pull-push-bridge.py --source=localhost:10101:states --destination=http://localhost:10080 --plugin=webasdb"
+    start_command: "bin/pull-push-bridge --source=localhost:10101:states --destination=http://localhost:10080 --plugin=webasdb"
 
   collectd-bridge:
-    start_command: "bin/pull-push-bridge.py --source=localhost:10101:probes --destination=../_dashboards/collectd/collectd.sock --plugin=collectd"
+    start_command: "bin/pull-push-bridge --source=localhost:10101:probes --destination=../_dashboards/collectd/collectd.sock --plugin=collectd"

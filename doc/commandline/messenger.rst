@@ -10,7 +10,7 @@ Usage
 
 .. code-block:: none
 
-   messenger.py [--tagfile=<pattern_file>] [--source=<address> ...] [--destination=<address> ...]
+   messenger [--tagfile=<pattern_file>] [--source=<address> ...] [--destination=<address> ...]
 
 
 *messenger* can also be used as a simple message converter:
@@ -19,7 +19,7 @@ Usage
 
    TAG=$(uname -n).uptime
    VALUE=$(cut -f1 -d' ' /proc/uptime)
-   date +"$TAG $VALUE %s" | messenger.py
+   date +"$TAG $VALUE %s" | messenger
 
 Command line options
 --------------------
