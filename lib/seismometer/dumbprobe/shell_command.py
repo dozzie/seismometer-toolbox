@@ -121,7 +121,7 @@ class NagiosPlugin:
 
   def run(self):
     '''
-    :return: dictionary representing :doc:`/message`
+    :return: dictionary representing :doc:`/api/message`
 
     Execute the plugin and return message to submit to Streem.
     '''

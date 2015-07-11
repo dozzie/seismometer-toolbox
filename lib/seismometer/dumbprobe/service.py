@@ -108,7 +108,7 @@ class Checks:
 
   def run_next(self):
     '''
-    :return: dictionary representing :doc:`/message`
+    :return: dictionary representing :doc:`/api/message`
 
     Sleep until next check is expected to be run and run the check.
     '''

@@ -1,15 +1,21 @@
 #!/usr/bin/python
 '''
-Seismometer message handling.
-
 Messages are expected to conform to `message schema
 <http://seismometer.net/message-schema/v3>`_.
 
 .. autodata:: SCHEMA_VERSION
 
+Message class
+-------------
+
 .. autoclass:: Message
    :members:
    :member-order: groupwise
+
+Auxiliary classes
+-----------------
+
+These classes represent specific data inside of :class:`Message`.
 
 .. autoclass:: Value
    :members:
@@ -33,7 +39,7 @@ supports  `message schema v3 <http://seismometer.net/message-schema/v3>`_.
 
 # guard for saying that "value" is not specified, so `None' can work as
 # null
-_NOTHING = object()
+_NOTHING = "NOT_SPECIFIED"
 
 #-----------------------------------------------------------------------------
 

@@ -1,11 +1,12 @@
 #!/usr/bin/python
 '''
-Reading from a bunch of ``net_input`` sockets.
+Reading from a bunch of input sockets
+-------------------------------------
 
 .. autoclass:: Reader
    :members:
 
-.. autoclass:: Poll
+.. autoclass:: JSONReader
    :members:
 
 .. autoexception:: EOF
@@ -14,13 +15,11 @@ Reading from a bunch of ``net_input`` sockets.
 '''
 #-----------------------------------------------------------------------------
 
-import os
 import seismometer.poll
-from .. import tags
 import Queue
+import json
 
 from _connection_socket import ConnectionSocket
-import parser
 
 #-----------------------------------------------------------------------------
 
@@ -32,9 +31,9 @@ class EOF(Exception):
 
 #-----------------------------------------------------------------------------
 
-class Poll:
+class ReadQueue:
     '''
-    Reading socket aggregator.
+    Read a line from any polled socket.
     '''
     def __init__(self):
         self.poll = seismometer.poll.Poll()
@@ -49,6 +48,9 @@ class Poll:
     def remove(self, sock):
         '''
         Remove socket from poll list.
+
+        Raises :class:`EOF` when there is no more sockets to read from after
+        this function finishes.
         '''
         self.poll.remove(sock)
         if self.poll.empty():
@@ -60,6 +62,8 @@ class Poll:
         :rtype: tuple (string, string)
 
         Read single line from all the sockets from poll list.
+
+        Raises :class:`EOF` when there is no more sockets to read from.
         '''
         # XXX: in any given poll there could be just TCP connection attempts and
         # closed sockets with no incoming data
@@ -88,28 +92,15 @@ class Poll:
 
 #-----------------------------------------------------------------------------
 
-class Reader:
+class Reader(object):
     '''
     Network reader, polling for a line and converting it to proper message.
 
-    This reader accepts three data formats, each in its own line: JSON hash,
-    Graphite/Carbon (``tag value timestamp``) or Graphite-like state (``tag
-    state severity timestamp``). The latter two are converted to Seismometer
-    Message.
-
-    Some notes:
-      * severity must be equal to ``"expected"``, ``"warning"`` or
-        ``"critical"``
-      * timestamp is an integer (epoch time)
-      * value for metric is integer, float in non-scientific notation or
-        ``"U"`` ("undefined")
+    This is a base class for different line-based protocols. See
+    :class:`JSONReader` for an example implementation.
     '''
-    def __init__(self, tag_matcher = None):
-        self.poll = Poll()
-        if tag_matcher is not None:
-            self.tag_matcher = tag_matcher
-        else:
-            self.tag_matcher = tags.TagMatcher()
+    def __init__(self):
+        self.poll = ReadQueue()
 
     def add(self, sock):
         '''
@@ -122,17 +113,45 @@ class Reader:
         :rtype: dict
 
         Read a message from polled sockets.
+
+        Raises :class:`EOF` when there is no more sockets to read from.
         '''
         # try reading and parsing until a good message is produced
         while True:
             (host, line) = self.poll.readline()
-            message = parser.parse_line(host, line, self.tag_matcher)
+            message = self.parse_line(host, line)
 
             if message is not None:
                 return message
 
             # else (message is None): try reading next message
 
+    def parse_line(self, host, line):
+        '''
+        :param host: name of the host that sent the message
+        :param line: serialized message sent from the host
+
+        Parse line to a usable message. Method should return ``None`` if
+        nothing could be parsed.
+
+        Method to be implemented in subclass.
+        '''
+        raise NotImplementedError("parse_line() not implemented")
+
+class JSONReader(Reader):
+    '''
+    Network reader, expecting JSON object per line.
+    '''
+    def parse_line(self, host, line):
+        if line == '':
+            return None
+
+        if line[0] == '{': # JSON
+            try:
+                return json.loads(line)
+            except ValueError:
+                return None
+        return None
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker

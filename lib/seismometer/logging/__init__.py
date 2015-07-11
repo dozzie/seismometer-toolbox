@@ -1,5 +1,9 @@
 #!/usr/bin/python
+'''
+.. function:: dictConfig(config)
 
+   :param config: configuration read from a file
+'''
 #-----------------------------------------------------------------------------
 
 try:

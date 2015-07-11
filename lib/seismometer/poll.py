@@ -1,7 +1,7 @@
 #!/usr/bin/python
 '''
-File poll interface
--------------------
+Input descriptors polling
+-------------------------
 
 .. autoclass:: Poll
    :members:
@@ -16,7 +16,10 @@ import errno
 
 class Poll:
   '''
-  Convenience wrapper around :mod:`select` module.
+  Poll filehandles for input.
+
+  This is convenience wrapper around :mod:`select` module to work with
+  filehandles instead of file descriptors.
   '''
 
   def __init__(self):
