@@ -33,6 +33,33 @@ if options.checks is None:
 
 # }}}
 #-----------------------------------------------------------------------------
+# --destination options parsing {{{
+
+# The block is (mostly) copy-pasted from messenger.
+# TODO: Abstract this away to somewhere.
+
+def prepare_destination(destination):
+    if destination == "stdout":
+        return seismometer.output.stdout.STDOUT()
+
+    if destination.startswith("tcp:"):
+        (host, port) = destination[4:].split(":")
+        port = int(port)
+        spooler = None
+        return seismometer.output.inet.TCP(host, port, spooler)
+
+    if destination.startswith("udp:"):
+        (host, port) = destination[4:].split(":")
+        port = int(port)
+        return seismometer.output.inet.UDP(host, port)
+
+    if destination.startswith("unix:"):
+        path = destination[5:]
+        spooler = None
+        return seismometer.output.unix.UNIX(path, spooler)
+
+# }}}
+#-----------------------------------------------------------------------------
 # load checks
 
 ploader = seismometer.plugin.PluginLoader()
@@ -42,8 +69,9 @@ ploader.close()
 if isinstance(checks, (list, tuple)):
     checks = seismometer.dumbprobe.Checks(checks)
 
-# TODO: other output modules
-output = seismometer.output.stdout.STDOUT()
+output = prepare_destination(options.destination)
+if output is None:
+    parser.error("invalid --destination")
 
 #-----------------------------------------------------------------------------
 # main loop
