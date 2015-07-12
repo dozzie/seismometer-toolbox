@@ -41,6 +41,14 @@ __all__ = [
     'Function',
 ]
 
+# XXX: this should be a field of `ShellExitState' class, but caused Sphinx to
+# include unexpected parts of `signal' module documentation
+_SIGNALS = dict([
+    (num, name.lower())
+    for (name, num) in signal.__dict__.items()
+    if name.startswith("SIG") and not name.startswith("SIG_")
+])
+
 #-----------------------------------------------------------------------------
 # base class for checks {{{
 
@@ -251,11 +259,6 @@ class ShellOutputState(BaseCheck):
         )
 
 class ShellExitState(BaseCheck):
-    _SIGNALS = dict([
-        (num, name.lower())
-        for (name, num) in signal.__dict__.items()
-        if name.startswith("SIG") and not name.startswith("SIG_")
-    ])
     '''
     Plugin to collect state from exit code of a command.
 
@@ -285,8 +288,8 @@ class ShellExitState(BaseCheck):
             severity = 'error'
         else: # exitcode < 0
             signum = -exitcode
-            if signum in ShellExitState._SIGNALS:
-                state = ShellExitState._SIGNALS[signum]
+            if signum in _SIGNALS:
+                state = _SIGNALS[signum]
             else:
                 state = 'signal_%d' % (signum,)
             severity = 'error'
@@ -298,6 +301,14 @@ class ShellExitState(BaseCheck):
         )
 
 class Nagios(BaseCheck):
+    '''
+    Plugin to collect state and possibly metrics from a `Monitoring Plugin
+    <https://www.monitoring-plugins.org/>`_.
+
+    Metrics to be recognized need to be specified as described in section
+    *Performance data* of `Monitoring Plugins Development Guidelines
+    <https://www.monitoring-plugins.org/doc/guidelines.html>`_.
+    '''
     _PERFDATA = re.compile(
         "(?P<label>[^ '=]+|'(?:[^']|'')*')="     \
         "(?P<value>[0-9.]+)"                     \
@@ -316,14 +327,6 @@ class Nagios(BaseCheck):
         2: ('critical', 'error'),
         #3: ('unknown', 'error'), # will be handled by codes.get()
     }
-    '''
-    Plugin to collect state and possibly metrics from a `Monitoring Plugin
-    <https://www.monitoring-plugins.org/>`_.
-
-    Metrics to be recognized need to be specified as described in section
-    *Performance data* of `Monitoring Plugins Development Guidelines
-    <https://www.monitoring-plugins.org/doc/guidelines.html>`_.
-    '''
     def __init__(self, plugin, aspect, **kwargs):
         '''
         :param plugin: command to run (string for shell command, or list of

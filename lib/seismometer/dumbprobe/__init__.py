@@ -12,6 +12,12 @@ option.
 Available check classes
 -----------------------
 
+The classes that work with external commands (e.g. :class:`ShellOutputJSON` or
+:class:`Nagios`) assume that if the command is specified as simple string, it
+should be run with shell (``/bin/sh -c ...``), and if it's specified as
+a list, it is run without invoking :file:`/bin/sh`. The latter is especially
+important when the command is provided with calculated arguments.
+
 .. autoclass:: ShellOutputJSON
    :members:
 
