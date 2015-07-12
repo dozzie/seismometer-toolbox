@@ -184,11 +184,29 @@ class ShellOutputMetric(BaseCheck):
            strings for direct command to run)
         :param aspect: aspect name, as in :class:`seismometer.message.Message`
         '''
-        super(ShellOutputMetric, self).__init__(**kwargs)
+        super(ShellOutputMetric, self).__init__(aspect = aspect, **kwargs)
+        self.command = command
+        self.use_shell = not isinstance(command, (list, tuple))
 
     def run(self):
         self.mark_run()
-        return None
+
+        (exitcode, stdout) = run(self.command, self.use_shell)
+        if exitcode != 0:
+            # TODO: report error (exitcode < 0 -- signal)
+            return None
+
+        metric = stdout.strip().lower()
+        if '.' in metric or 'e' in metric:
+            metric = float(metric)
+        else:
+            metric = int(metric)
+
+        return seismometer.message.Message(
+            value = metric,
+            aspect = self.aspect,
+            location = self.location,
+        )
 
 class ShellOutputState(BaseCheck):
     '''
