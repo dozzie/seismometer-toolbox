@@ -215,17 +215,38 @@ class ShellOutputState(BaseCheck):
     The command should print the state as a single word. The state is then
     checked against expected states to determine its severity.
     '''
-    def __init__(self, command, aspect, **kwargs):
+    def __init__(self, command, expected, aspect, **kwargs):
         '''
         :param command: command to run (string for shell command, or list of
            strings for direct command to run)
+        :param expected: list of states of severity *expected*; all the others
+           are considered *error*
         :param aspect: aspect name, as in :class:`seismometer.message.Message`
         '''
-        super(ShellOutputState, self).__init__(**kwargs)
+        super(ShellOutputState, self).__init__(aspect = aspect, **kwargs)
+        self.command = command
+        self.use_shell = not isinstance(command, (list, tuple))
+        self.expected = set(expected)
 
     def run(self):
         self.mark_run()
-        return None
+
+        (exitcode, stdout) = run(self.command, self.use_shell)
+        if exitcode != 0:
+            # TODO: report error (exitcode < 0 -- signal)
+            return None
+
+        state = stdout.strip()
+        if state in self.expected:
+            severity = 'expected'
+        else:
+            severity = 'error'
+
+        return seismometer.message.Message(
+            state = state, severity = severity,
+            aspect = self.aspect,
+            location = self.location,
+        )
 
 class ShellExitState(BaseCheck):
     '''
