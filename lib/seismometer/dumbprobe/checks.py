@@ -29,6 +29,7 @@ Available checks
 
 import time
 import json
+import signal
 import subprocess
 import seismometer.message
 
@@ -249,6 +250,11 @@ class ShellOutputState(BaseCheck):
         )
 
 class ShellExitState(BaseCheck):
+    _SIGNALS = dict([
+        (num, name.lower())
+        for (name, num) in signal.__dict__.items()
+        if name.startswith("SIG") and not name.startswith("SIG_")
+    ])
     '''
     Plugin to collect state from exit code of a command.
 
@@ -262,11 +268,33 @@ class ShellExitState(BaseCheck):
            strings for direct command to run)
         :param aspect: aspect name, as in :class:`seismometer.message.Message`
         '''
-        super(ShellExitState, self).__init__(**kwargs)
+        super(ShellExitState, self).__init__(aspect = aspect, **kwargs)
+        self.command = command
+        self.use_shell = not isinstance(command, (list, tuple))
 
     def run(self):
         self.mark_run()
-        return None
+
+        (exitcode, stdout) = run(self.command, self.use_shell)
+        if exitcode == 0:
+            state = 'ok'
+            severity = 'expected'
+        elif exitcode > 0:
+            state = 'exit_%d' % (exitcode,)
+            severity = 'error'
+        else: # exitcode < 0
+            signum = -exitcode
+            if signum in ShellExitState._SIGNALS:
+                state = ShellExitState._SIGNALS[signum]
+            else:
+                state = 'signal_%d' % (signum,)
+            severity = 'error'
+
+        return seismometer.message.Message(
+            state = state, severity = severity,
+            aspect = self.aspect,
+            location = self.location,
+        )
 
 class Nagios(BaseCheck):
     '''
