@@ -21,6 +21,12 @@ import json
 
 from _connection_socket import ConnectionSocket
 
+import inet, stdin, unix
+__all__ = [
+    'EOF', 'Reader', 'JSONReader',
+    'inet', 'stdin', 'unix',
+]
+
 #-----------------------------------------------------------------------------
 
 class EOF(Exception):

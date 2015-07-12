@@ -78,7 +78,6 @@ logger = logging.getLogger()
 def prepare_source(source):
     if source == "stdin":
         logger.info("adding source: STDIN")
-        import seismometer.input.stdin
         return seismometer.input.stdin.STDIN()
 
     if source.startswith("tcp:"):
@@ -90,7 +89,6 @@ def prepare_source(source):
             host = None
             port = int(source[4:])
             logger.info("adding source: TCP:%s:%d", host, port)
-        import seismometer.input.inet
         return seismometer.input.inet.TCP(host, port)
 
     if source.startswith("udp:"):
@@ -102,18 +100,15 @@ def prepare_source(source):
             host = None
             port = int(source[4:])
             logger.info("adding source: UDP:%s:%d", host, port)
-        import seismometer.input.inet
         return seismometer.input.inet.UDP(host, port)
 
     if source.startswith("unix:"):
         path = source[5:]
         logger.info("adding source: UNIX:%s", path)
-        import seismometer.input.unix
         return seismometer.input.unix.UNIX(path)
 
     import json
     params = json.loads(source)
-    import seismometer.input.plugin
     # TODO: log this
     # TODO: document this
     return seismometer.input.plugin.Plugin(params['class'], params)
@@ -148,7 +143,6 @@ def create_spooler():
 def prepare_destination(destination):
     if destination == "stdout":
         logger.info("adding destination: STDOUT")
-        import seismometer.output.stdout
         return seismometer.output.stdout.STDOUT()
 
     if destination.startswith("tcp:"):
@@ -156,26 +150,22 @@ def prepare_destination(destination):
         port = int(port)
         logger.info("adding destination: TCP:%s:%d", host, port)
         spooler = create_spooler()
-        import seismometer.output.inet
         return seismometer.output.inet.TCP(host, port, spooler)
 
     if destination.startswith("udp:"):
         (host, port) = destination[4:].split(":")
         port = int(port)
         logger.info("adding destination: UDP:%s:%d", host, port)
-        import seismometer.output.inet
         return seismometer.output.inet.UDP(host, port)
 
     if destination.startswith("unix:"):
         path = destination[5:]
         logger.info("adding destination: UNIX:%s", path)
         spooler = create_spooler()
-        import seismometer.output.unix
         return seismometer.output.unix.UNIX(path, spooler)
 
     import json
     params = json.loads(destination)
-    import seismometer.output.plugin
     # TODO: log this
     # TODO: document this
     return seismometer.output.plugin.Plugin(params['class'], params)

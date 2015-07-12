@@ -31,6 +31,12 @@ Example implementation of output socket that ignores all the messages::
 import json
 import signal
 
+import inet, stdout, unix
+__all__ = [
+    'Writer',
+    'inet', 'stdin', 'unix',
+]
+
 #-----------------------------------------------------------------------------
 
 class Writer:
