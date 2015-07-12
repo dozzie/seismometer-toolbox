@@ -31,6 +31,7 @@ import time
 import re
 import json
 import signal
+import logging
 import subprocess
 import seismometer.message
 
@@ -163,7 +164,13 @@ class ShellOutputJSON(BaseCheck):
 
         (exitcode, stdout) = run(self.command, self.use_shell)
         if exitcode != 0:
-            # TODO: report error (exitcode < 0 -- signal)
+            logger = logging.getLogger("check.shell.json")
+            if exitcode > 0:
+                logger.warn("exit code %d when running %s",
+                            exitcode, json.dumps(self.command))
+            else: # exitcode < 0
+                logger.warn("signal %d when running %s",
+                            -exitcode, json.dumps(self.command))
             return None
 
         def skip_spaces(string, offset = 0):
@@ -203,7 +210,13 @@ class ShellOutputMetric(BaseCheck):
 
         (exitcode, stdout) = run(self.command, self.use_shell)
         if exitcode != 0:
-            # TODO: report error (exitcode < 0 -- signal)
+            logger = logging.getLogger("check.shell.metric")
+            if exitcode > 0:
+                logger.warn("exit code %d when running %s",
+                            exitcode, json.dumps(self.command))
+            else: # exitcode < 0
+                logger.warn("signal %d when running %s",
+                            -exitcode, json.dumps(self.command))
             return None
 
         metric = stdout.strip().lower()
@@ -243,7 +256,13 @@ class ShellOutputState(BaseCheck):
 
         (exitcode, stdout) = run(self.command, self.use_shell)
         if exitcode != 0:
-            # TODO: report error (exitcode < 0 -- signal)
+            logger = logging.getLogger("check.shell.state")
+            if exitcode > 0:
+                logger.warn("exit code %d when running %s",
+                            exitcode, json.dumps(self.command))
+            else: # exitcode < 0
+                logger.warn("signal %d when running %s",
+                            -exitcode, json.dumps(self.command))
             return None
 
         state = stdout.strip()

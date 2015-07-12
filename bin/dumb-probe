@@ -6,6 +6,8 @@ import seismometer.plugin
 import seismometer.output
 import seismometer.message
 import seismometer.dumbprobe
+import seismometer.logging
+import logging
 
 #-----------------------------------------------------------------------------
 # parse command line options {{{
@@ -24,6 +26,12 @@ parser.add_option(
            " stdout is the default)",
     metavar = "TARGET",
 )
+parser.add_option(
+    "--logging", dest = "logging",
+    default = None,
+    help = "YAML/JSON file with logging configuration",
+    metavar = "FILE",
+)
 
 (options, args) = parser.parse_args()
 
@@ -32,6 +40,11 @@ if options.checks is None:
     sys.exit(1)
 
 # }}}
+#-----------------------------------------------------------------------------
+
+seismometer.logging.configure_from_file(options.logging, default = "stderr")
+logger = logging.getLogger()
+
 #-----------------------------------------------------------------------------
 # --destination options parsing {{{
 
@@ -62,6 +75,7 @@ def prepare_destination(destination):
 #-----------------------------------------------------------------------------
 # load checks
 
+logger.info("loading checks file: %s", options.checks)
 ploader = seismometer.plugin.PluginLoader()
 checks_mod = ploader.load('seismometer.dumbprobe.__config__', options.checks)
 checks = checks_mod.CHECKS

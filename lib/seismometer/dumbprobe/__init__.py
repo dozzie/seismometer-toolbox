@@ -44,6 +44,7 @@ important when the command is provided with calculated arguments.
 
 import heapq
 import time
+import logging
 
 from checks import *
 __all__ = [
@@ -68,8 +69,23 @@ class Checks:
             for c in checks:
                 self.add(c)
 
+    @staticmethod
+    def check_id(check):
+        return "C-%08X/%s.%s" % (
+            id(check),
+            check.__class__.__module__,
+            check.__class__.__name__,
+        )
+
     def add(self, check):
-        self.q.add(check.next_run(), check)
+        logger = logging.getLogger("checks_queue")
+        next_run = check.next_run()
+        if next_run < time.time():
+            logger.info("adding check %s to run now", Checks.check_id(check))
+        else:
+            logger.info("adding check %s to run at @%d",
+                        Checks.check_id(check), next_run)
+        self.q.add(next_run, check)
 
     def run_next(self):
         '''
@@ -78,15 +94,23 @@ class Checks:
 
         Sleep until next check is expected to be run and run the check.
         '''
+        logger = logging.getLogger("checks_queue")
         # loop until the first check encountered returns something meaningful
         result = None
         while result is None:
             (next_run, check) = self.q.get()
+            logger.info("sleeping %ds to run %s",
+                        max(next_run - time.time(), 0), Checks.check_id(check))
             self.sleep_until(next_run)
             try:
                 result = check.run()
-            finally:
-                self.q.add(check.next_run(), check)
+            except Exception, e:
+                logger.warn("%s raised exception: %s",
+                            Checks.check_id(check), str(e))
+                continue
+            if result is None:
+                logger.info("%s has returned nothing", Checks.check_id(check))
+            self.q.add(check.next_run(), check)
         if isinstance(result, list):
             return result
         elif isinstance(result, tuple):
