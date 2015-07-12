@@ -28,6 +28,7 @@ Available checks
 #-----------------------------------------------------------------------------
 
 import time
+import json
 import subprocess
 import seismometer.message
 
@@ -143,10 +144,32 @@ class ShellOutputJSON(BaseCheck):
            strings for direct command to run)
         '''
         super(ShellOutputJSON, self).__init__(**kwargs)
+        self.command = command
+        self.use_shell = not isinstance(command, (list, tuple))
+        self.json = json.JSONDecoder()
 
     def run(self):
         self.mark_run()
-        return None
+
+        (exitcode, stdout) = run(self.command, self.use_shell)
+        if exitcode != 0:
+            # TODO: report error (exitcode < 0 -- signal)
+            return None
+
+        def skip_spaces(string, offset = 0):
+            while offset < len(string) and \
+                  string[offset] in (' ', '\t', '\r', '\n'):
+                offset += 1
+            return offset
+
+        messages = []
+        offset = skip_spaces(stdout)
+        while offset < len(stdout):
+            (msg, offset) = self.json.raw_decode(stdout, offset)
+            messages.append(self._populate(msg))
+            offset = skip_spaces(stdout, offset)
+
+        return messages
 
 class ShellOutputMetric(BaseCheck):
     '''
@@ -271,6 +294,19 @@ def each(msglist):
             yield msg
     else:
         raise ValueError("invalid message (%s)" % (type(msglist),))
+
+def run(command, use_shell):
+    # TODO: what to do with STDERR?
+    proc = subprocess.Popen(
+        command,
+        stdin = open("/dev/null"),
+        stdout = subprocess.PIPE,
+        shell = use_shell,
+    )
+    (stdout, stderr) = proc.communicate()
+    # returncode <  0 -- signal
+    # returncode >= 0 -- exit code
+    return (proc.returncode, stdout)
 
 #-----------------------------------------------------------------------------
 
