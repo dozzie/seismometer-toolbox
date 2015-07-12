@@ -2,60 +2,61 @@
 
 import sys
 import optparse
-import streem
 import seismometer.plugin
+import seismometer.output
+import seismometer.message
+import seismometer.dumbprobe
 
 #-----------------------------------------------------------------------------
-# parse command line options
+# parse command line options {{{
 
 parser = optparse.OptionParser(
-  usage = "%prog --checks=PYFILE [--destination=stdout | --destination=host:port:channel]",
+    usage = "%prog --checks=PYFILE [--destination=stdout | --destination=host:port:channel]",
 )
 
 parser.add_option(
-  "--checks", dest = "checks",
-  help = "load checks from *.py file", metavar = "PYFILE",
+    "--checks", dest = "checks",
+    help = "load checks from *.py file", metavar = "PYFILE",
 )
 parser.add_option(
-  "--destination", dest = "destination", default = "stdout",
-  help = "where to submit messages to (host:port:channel or stdout;"
-         " stdout is the default)",
-  metavar = "TARGET",
+    "--destination", dest = "destination", default = "stdout",
+    help = "where to submit messages to (host:port:channel or stdout;"
+           " stdout is the default)",
+    metavar = "TARGET",
 )
 
 (options, args) = parser.parse_args()
 
 if options.checks is None:
-  parser.print_help()
-  sys.exit(1)
+    parser.print_help()
+    sys.exit(1)
 
+# }}}
 #-----------------------------------------------------------------------------
-# prepare run environment: checks object and submit() function
+# load checks
 
 ploader = seismometer.plugin.PluginLoader()
 checks_mod = ploader.load('seismometer.dumbprobe.__config__', options.checks)
-checks = checks_mod.checks
+checks = checks_mod.CHECKS
 ploader.close()
+if isinstance(checks, (list, tuple)):
+    checks = seismometer.dumbprobe.Checks(checks)
 
-if options.destination == "stdout":
-  def submit(data):
-    print data
-else:
-  (host, port, channel) = options.destination.split(":", 2)
-  s = streem.Streem(host, int(port))
-  s.register(channel)
-  def submit(data):
-    s.submit(data)
+# TODO: other output modules
+output = seismometer.output.stdout.STDOUT()
 
 #-----------------------------------------------------------------------------
 # main loop
 
 try:
-  while True:
-    m = checks.run_next()
-    submit(m)
+    while True:
+        for msg in checks.run_next():
+            if isinstance(msg, seismometer.message.Message):
+                output.send(msg.to_dict())
+            else: # dict
+                output.send(msg)
 except KeyboardInterrupt:
-  pass
+    pass
 
 #-----------------------------------------------------------------------------
-# vim:ft=python
+# vim:ft=python:foldmethod=marker

@@ -70,12 +70,12 @@ Example configuration file
      schedule = 10, # every 10s
    )
 
-API
-===
+Programming interface
+=====================
 
 **NOTE**: User doesn't need to use these classes/functions if they happen to
-not suit the needs. They are merely a proposal, but the authors they should at
-least help somewhat in deployment.
+not suit the needs. They are merely a proposal, but the authors think they
+should at least help somewhat in deployment.
 
 .. automodule:: seismometer.dumbprobe
 
