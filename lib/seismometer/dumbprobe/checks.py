@@ -28,6 +28,7 @@ Available checks
 #-----------------------------------------------------------------------------
 
 import time
+import re
 import json
 import signal
 import subprocess
@@ -297,6 +298,24 @@ class ShellExitState(BaseCheck):
         )
 
 class Nagios(BaseCheck):
+    _PERFDATA = re.compile(
+        "(?P<label>[^ '=]+|'(?:[^']|'')*')="     \
+        "(?P<value>[0-9.]+)"                     \
+        "(?P<unit>[um]?s|%|[KMGT]?B|c)?"         \
+            "(?:;(?P<warn>[0-9.]*)"              \
+                "(?:;(?P<crit>[0-9.]*)"          \
+                    "(?:;(?P<min>[0-9.]*)"       \
+                        "(?:;(?P<max>[0-9.]*))?" \
+                    ")?" \
+                ")?" \
+            ")?"
+    )
+    _EXIT_CODES = {
+        0: ('ok', 'expected'),
+        1: ('warning', 'warning'),
+        2: ('critical', 'error'),
+        #3: ('unknown', 'error'), # will be handled by codes.get()
+    }
     '''
     Plugin to collect state and possibly metrics from a `Monitoring Plugin
     <https://www.monitoring-plugins.org/>`_.
@@ -311,11 +330,76 @@ class Nagios(BaseCheck):
            strings for direct command to run)
         :param aspect: aspect name, as in :class:`seismometer.message.Message`
         '''
-        super(Nagios, self).__init__(**kwargs)
+        super(Nagios, self).__init__(aspect = aspect, **kwargs)
+        self.plugin = plugin
+        self.use_shell = not isinstance(plugin, (list, tuple))
 
     def run(self):
         self.mark_run()
-        return None
+
+        (code, stdout) = run(self.plugin, self.use_shell)
+        (state, severity) = Nagios._EXIT_CODES.get(code, ('unknown', 'error'))
+        message = seismometer.message.Message(
+            state = state, severity = severity,
+            aspect = self.aspect,
+            location = self.location,
+        )
+
+        status_line = stdout.split('\n')[0]
+        if '|' not in status_line:
+            # nothing more to parse
+            return message
+
+        metrics = []
+        perfdata = status_line.split('|', 1)[1].strip()
+        while perfdata != '':
+            match = Nagios._PERFDATA.match(perfdata)
+            if match is None: # non-plugins-conforming perfdata, abort
+                return message
+            metrics.append(match.groupdict())
+            perfdata = perfdata[match.end():].lstrip()
+
+        #---------------------------------------------------
+        # helper functions {{{
+
+        def number(string):
+            if string == "":
+                return None
+            elif "." in string:
+                return float(string)
+            else:
+                return int(string)
+
+        def make_value(metric):
+            # create a value
+            value = seismometer.message.Value(number(metric['value']))
+            if metric['warn'] != "":
+                value.set_above(number(metric['warn']), "warning", "warning")
+            if metric['crit'] != "":
+                value.set_above(number(metric['crit']), "critical", "error")
+            if metric['unit'] != "":
+                value.unit = metric['unit']
+
+            # extract value's name
+            if metric['label'].startswith("'"):
+                name = metric['label'][1:-1].replace("''", "'")
+            else:
+                name = metric['label']
+
+            return (name, value)
+
+        # }}}
+        #---------------------------------------------------
+
+        for metric in metrics:
+            (name, value) = make_value(metric)
+            message[name] = value
+            # if any of the values has thresholds, state is expected to be
+            # derivable from those thresholds
+            if value.has_thresholds():
+                del message.state # safe to do multiple times
+
+        return message
 
 # }}}
 #-----------------------------------------------------------------------------
