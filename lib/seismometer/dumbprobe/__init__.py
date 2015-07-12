@@ -4,9 +4,12 @@ DumbProbe config interface
 --------------------------
 
 This interface is intended for use in script specified with :option:`--checks`
-option.
+option, may also be useful as a basis for custom implementation.
 
 .. autoclass:: Checks
+   :members:
+
+.. autoclass:: RunQueue
    :members:
 
 Available check classes
@@ -58,13 +61,58 @@ __all__ = [
 
 #-----------------------------------------------------------------------------
 
+#-----------------------------------------------------------------------------
+# RunQueue {{{
+
+class RunQueue:
+    '''
+    Queue for running commands at specified times.
+    '''
+    def __init__(self, elements = []):
+        # elements = [(time, command), ...]
+        self.queue = elements[:] # XXX: shallow copy of array
+        heapq.heapify(self.queue)
+
+    def empty(self):
+        '''
+        :rtype: Boolean
+
+        Check if the queue is empty.
+        '''
+        return len(self.queue) == 0
+
+    def add(self, time, command):
+        '''
+        :param time: Epoch timestamp to run command at
+        :param command: command to run
+
+        Add a command to run at specified time.
+
+        :obj:`command` is opaque to the queue.
+        '''
+        heapq.heappush(self.queue, (time, command))
+
+    def get(self):
+        '''
+        :rtype: tuple (time, command)
+
+        Return command that has earliest run time.
+
+        :obj:`command` is the same object as it was passed to :meth:`add()`.
+        '''
+        (time, command) = heapq.heappop(self.queue)
+        return (time, command)
+
+# }}}
+#-----------------------------------------------------------------------------
+
 class Checks:
     '''
     Container for checks to be executed.
     '''
 
     def __init__(self, checks = None):
-        self.q = Checks.RunQueue()
+        self.q = RunQueue()
         if checks is not None:
             for c in checks:
                 self.add(c)
@@ -78,6 +126,12 @@ class Checks:
         )
 
     def add(self, check):
+        '''
+        :param check: check to run (typically an instance of
+            :class:`BaseCheck` subclass)
+
+        Add an entry to the list of checks to be run periodically.
+        '''
         logger = logging.getLogger("checks_queue")
         next_run = check.next_run()
         if next_run < time.time():
@@ -131,51 +185,6 @@ class Checks:
             # it may be interrupted by some ignored signal
             time.sleep(when - now)
             now = time.time()
-
-    #-------------------------------------------------------
-    # RunQueue {{{
-
-    class RunQueue:
-        '''
-        Queue for running commands at specified times.
-        '''
-        def __init__(self, elements = []):
-            # elements = [(time, command), ...]
-            self.queue = elements[:] # XXX: shallow copy of array
-            heapq.heapify(self.queue)
-
-        def empty(self):
-            '''
-            :rtype: Boolean
-
-            Check if the queue is empty.
-            '''
-            return len(self.queue) == 0
-
-        def add(self, time, command):
-            '''
-            :param time: Epoch timestamp to run command at
-            :param command: command to run
-
-            Add a command to run at specified time.
-
-            :obj:`command` is opaque to the queue.
-            '''
-            heapq.heappush(self.queue, (time, command))
-
-        def get(self):
-            '''
-            :rtype: tuple (time, command)
-
-            Return command that has earliest run time.
-
-            :obj:`command` is the same object as it was passed to :meth:`add()`.
-            '''
-            (time, command) = heapq.heappop(self.queue)
-            return (time, command)
-
-    # }}}
-    #-------------------------------------------------------
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker
