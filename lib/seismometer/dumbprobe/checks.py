@@ -53,9 +53,9 @@ class BaseCheck(object):
         :param interval: number of seconds between consequent checks
         :param aspect: aspect name, as in :class:`seismometer.message.Message`
         :param location: ``str => str`` dictionary, as in
-           :class:`seismometer.message.Message`
-        :param kwargs: additional keys to be added to ``location`` (kwargs
-           take precedence over individual values in ``location``)
+            :class:`seismometer.message.Message`
+        :param kwargs: additional keys to be added to :obj:`location` (kwargs
+            take precedence over individual values in :obj:`location`)
 
         Fields defined by this class:
 
@@ -87,7 +87,7 @@ class BaseCheck(object):
         '''
         :return: check result
         :rtype: :class:`seismometer.message.Message`, dict, list of these, or
-           ``None``
+            ``None``
 
         Run the check.
 
@@ -143,7 +143,7 @@ class ShellOutputJSON(BaseCheck):
     def __init__(self, command, **kwargs):
         '''
         :param command: command to run (string for shell command, or list of
-           strings for direct command to run)
+            strings for direct command to run)
         '''
         super(ShellOutputJSON, self).__init__(**kwargs)
         self.command = command
@@ -183,7 +183,7 @@ class ShellOutputMetric(BaseCheck):
     def __init__(self, command, aspect, **kwargs):
         '''
         :param command: command to run (string for shell command, or list of
-           strings for direct command to run)
+            strings for direct command to run)
         :param aspect: aspect name, as in :class:`seismometer.message.Message`
         '''
         super(ShellOutputMetric, self).__init__(aspect = aspect, **kwargs)
@@ -220,9 +220,9 @@ class ShellOutputState(BaseCheck):
     def __init__(self, command, expected, aspect, **kwargs):
         '''
         :param command: command to run (string for shell command, or list of
-           strings for direct command to run)
+            strings for direct command to run)
         :param expected: list of states of severity *expected*; all the others
-           are considered *error*
+            are considered *error*
         :param aspect: aspect name, as in :class:`seismometer.message.Message`
         '''
         super(ShellOutputState, self).__init__(aspect = aspect, **kwargs)
@@ -266,7 +266,7 @@ class ShellExitState(BaseCheck):
     def __init__(self, command, aspect, **kwargs):
         '''
         :param command: command to run (string for shell command, or list of
-           strings for direct command to run)
+            strings for direct command to run)
         :param aspect: aspect name, as in :class:`seismometer.message.Message`
         '''
         super(ShellExitState, self).__init__(aspect = aspect, **kwargs)
@@ -327,7 +327,7 @@ class Nagios(BaseCheck):
     def __init__(self, plugin, aspect, **kwargs):
         '''
         :param plugin: command to run (string for shell command, or list of
-           strings for direct command to run)
+            strings for direct command to run)
         :param aspect: aspect name, as in :class:`seismometer.message.Message`
         '''
         super(Nagios, self).__init__(aspect = aspect, **kwargs)
@@ -420,7 +420,7 @@ class Function(BaseCheck):
         :param args: positional arguments to pass to the function call
         :param kwargs: keyword arguments to pass to the function call
         :param _kwargs: keyword arguments to pass to :class:`BaseCheck`
-           constructor
+            constructor
         '''
         super(Function, self).__init__(**_kwargs)
         self.function = function

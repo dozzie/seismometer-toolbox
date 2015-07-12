@@ -115,7 +115,7 @@ class ControlSocketClient:
     def send(self, message):
         '''
         :param message: data structure to serialize as JSON and send to the
-          client
+            client
         :type message: dict, list or scalar
 
         Send a JSON message to connected client.

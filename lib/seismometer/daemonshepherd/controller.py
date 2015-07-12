@@ -83,7 +83,7 @@ class RestartQueue:
     def list_restarts(self):
         '''
         :return: list of ``{"name": daemon_name, "restart_at": timestamp}``
-          dicts
+            dicts
 
         List all daemons scheduled for restart along with their restart times.
 
@@ -236,7 +236,7 @@ class Controller:
     def __init__(self, daemon_spec_file, socket_address = None):
         '''
         :param daemon_spec_file: name of the file with daemons specification;
-          see :doc:`/commandline/daemonshepherd` for format documentation
+            see :doc:`/commandline/daemonshepherd` for format documentation
         :param socket_address: address of socket for command channel
         '''
         # NOTE: descriptions of attributes moved to top of the module
@@ -395,7 +395,7 @@ class Controller:
         '''
         Reload daemon specifications from :attr:`daemon_spec_file` and
         converge list of running daemons with expectations list (see
-        :meth:`converge`).
+        :meth:`converge()`).
 
         Method resets the restart queue, trying to start all the missing
         daemons now.
@@ -640,7 +640,7 @@ class Controller:
 
     def command_reload(self, **kwargs):
         '''
-        Reload daemon specifications. This command calls :meth:`reload`
+        Reload daemon specifications. This command calls :meth:`reload()`
         method.
         '''
         self.reload()

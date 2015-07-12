@@ -51,7 +51,7 @@ class Queue:
 
     Return command that has earliest run time.
 
-    :obj:`command` is the same object as it was passed to :meth:`add`.
+    :obj:`command` is the same object as it was passed to :meth:`add()`.
     '''
     (time, command) = heapq.heappop(self.queue)
     return (time, command)

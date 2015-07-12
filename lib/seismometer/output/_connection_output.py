@@ -24,8 +24,8 @@ class ConnectionOutput(object):
     def __init__(self, spooler = None):
         '''
         :param spooler: place to put messages in case of connectivity problems
-          (defaults to :class:`seismometer.messenger.spool.MemorySpooler`
-          instance)
+            (defaults to :class:`seismometer.messenger.spool.MemorySpooler`
+            instance)
         '''
         if spooler is None:
             self.spooler = seismometer.spool.MemorySpooler()
@@ -44,7 +44,7 @@ class ConnectionOutput(object):
     def write(self, line):
         '''
         :return: ``True`` when line was sent successfully, ``False`` when
-          problems occurred
+            problems occurred
 
         Write a single line to socket. Function to be implemented in subclass.
         '''
@@ -126,7 +126,7 @@ class ConnectionOutput(object):
     def send_pending(self):
         '''
         :return: ``True`` if all pending messages were sent successfully,
-          ``False`` otherwise.
+            ``False`` otherwise.
 
         Send all pending messages.
         '''

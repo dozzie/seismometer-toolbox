@@ -25,8 +25,8 @@ import os
 
 class PluginLoader:
   '''
-  Plugin loader. It can load module from ``sys.path`` or a code snippet from
-  outside.
+  Plugin loader. It can load module from :obj:`sys.path` or a code snippet
+  from outside.
   '''
 
   def __init__(self):
@@ -52,12 +52,12 @@ class PluginLoader:
     :return: imported module's handle
 
     Load specified module and return its handle. Module can be loaded from
-    outside of ``sys.path`` (e.g. from :file:`/etc`) by providing its file
+    outside of :obj:`sys.path` (e.g. from :file:`/etc`) by providing its file
     name. (In such case, no ``*.pyc`` is stored along the original file.)
 
-    **NOTE**: Specifying a ``name`` under non-existent hierarchy may cause
+    **NOTE**: Specifying a :obj:`name` under non-existent hierarchy may cause
     a warning to be issued. Better stick to a name that exists except for the
-    last component, e.g. ``seismometer.dumbprobe.__config__``.
+    last component, e.g. :obj:`seismometer.dumbprobe.__config__`.
     '''
     if file is None:
       plugin = __import__(name)

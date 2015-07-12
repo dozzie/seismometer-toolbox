@@ -59,16 +59,17 @@ class NullHandler(logging.Handler):
 def configure_from_file(filename, default = None):
     '''
     :param filename: file (JSON or YAML) to read configuration from (may be
-       ``None``)
-    :param default: configuration to use in case when ``filename`` doesn't
-       exist
+        ``None``)
+    :param default: configuration to use in case when :obj:`filename` doesn't
+        exist
 
     Function configures logging according to dict config read from
-    ``filename``. If ``filename`` is missing and ``default`` was specified,
-    logging is configured according to that one. If no acceptable ``filename``
-    nor ``default`` was provided, :exc:`RuntimeError` is raised.
+    :obj:`filename`. If :obj:`filename` is missing and :obj:`default` was
+    specified, logging is configured according to that one. If no acceptable
+    :obj:`filename` nor :obj:`default` was provided, :exc:`RuntimeError` is
+    raised.
 
-    ``default`` should be dict config, but as a shorthand, it may be
+    :obj:`default` should be dict config, but as a shorthand, it may be
     ``"stderr"`` or ``"null"``. Logging will be configured then with
     :func:`log_config_stderr()` or :func:`log_config_null()`,
     respectively.

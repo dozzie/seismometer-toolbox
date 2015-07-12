@@ -198,7 +198,7 @@ class Value(object):
         :param name: name of the threshold
         :param severity: severity of the threshold
         :type severity: ``"warning"`` or ``"error"``
-        :return: ``self``
+        :return: :obj:`self`
 
         Add/change high threshold.
         '''
@@ -219,7 +219,7 @@ class Value(object):
         :param name: name of the threshold
         :param severity: severity of the threshold
         :type severity: ``"warning"`` or ``"error"``
-        :return: ``self``
+        :return: :obj:`self`
 
         Add/change low threshold.
         '''

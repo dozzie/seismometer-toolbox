@@ -68,7 +68,7 @@ class Checks:
     def run_next(self):
         '''
         :return: non-empty list of dicts and
-           :class:`seismometer.message.Message` instances
+            :class:`seismometer.message.Message` instances
 
         Sleep until next check is expected to be run and run the check.
         '''
@@ -139,7 +139,7 @@ class Checks:
 
             Return command that has earliest run time.
 
-            :obj:`command` is the same object as it was passed to :meth:`add`.
+            :obj:`command` is the same object as it was passed to :meth:`add()`.
             '''
             (time, command) = heapq.heappop(self.queue)
             return (time, command)
