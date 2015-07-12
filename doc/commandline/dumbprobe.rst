@@ -5,8 +5,24 @@ DumbProbe
 DumbProbe is a simple tool that checks whether all the services defined in its
 config are healthy and submits the results of the checks to Seismometer.
 
-The checks can be defined as calls to `Monitoring Plugins
-<https://www.monitoring-plugins.org/>`_.
+The checks can be defined as calls to Python functions
+(:class:`seismometer.dumbprobe.Function`) or running external commands, which
+return data using various protocols.
+
+Following protocols for external commands are provided as a built-in classes:
+
+* :class:`seismometer.dumbprobe.ShellOutputMetric` -- number (integer or
+  float) printed to *STDOUT*
+* :class:`seismometer.dumbprobe.ShellOutputState` -- state (see `message
+  schema v3 <http://seismometer.net/message-schema/v3/#structure>`_) printed
+  to *STDOUT*
+* :class:`seismometer.dumbprobe.ShellExitState` -- exit code indicating state
+  (*STDOUT* discarded)
+* :class:`seismometer.dumbprobe.ShellOutputJSON` -- raw JSON messages printed
+  to *STDOUT*
+* :class:`seismometer.dumbprobe.Nagios` -- `Monitoring Plugins
+  <https://www.monitoring-plugins.org/>`_ (including performance data for
+  collecting metrics)
 
 Usage
 =====
@@ -56,23 +72,28 @@ Example configuration file
    from seismometer.dumbprobe import *
    from seismometer.message import Message, Value
    import os
-   
+
    #--------------------------------------------------------------------------
-   
+
+   def hostname():
+       return os.uname()[1]
+
+   #--------------------------------------------------------------------------
+
    def uptime():
        with open("/proc/uptime") as f:
            return Message(
                aspect = "uptime",
-               location = {"host": os.uname()[1]},
+               location = {"host": hostname()},
                value = float(f.read().split()[0]),
            )
-   
+
    def df(mountpoint):
        stat = os.statvfs(mountpoint)
        result = Message(
            aspect = "disk space",
            location = {
-               "host": os.uname()[1],
+               "host": hostname(),
                "filesystem": mountpoint,
            },
        )
@@ -85,9 +106,9 @@ Example configuration file
            unit = "MB",
        )
        return result
-   
+
    #--------------------------------------------------------------------------
-   
+
    CHECKS = [
        # function called every 60s with empty arguments list
        Function(uptime, interval = 60),
@@ -102,7 +123,7 @@ Example configuration file
            ["/usr/local/bin/random", "0.5"],
            interval = 30,
            aspect = "random",
-           host = os.uname()[1],
+           host = hostname(),
        ),
        # external command, prints "missing" (expected) or anything else
        # (error)
@@ -115,17 +136,17 @@ Example configuration file
        # and two Monitoring Plugins
        Nagios(
            # this one is run without shell
-           ["nagios/plugins/check_load", "-w", "0.25", "-c", "0.5"],
+           ["/usr/lib/nagios/plugins/check_load", "-w", "0.25", "-c", "0.5"],
            interval = 10,
            aspect = "load average",
-           host = "wolfram.example.net", service = "load",
+           host = hostname(), service = "load",
        ),
        Nagios(
            # this one is run with shell
            "/usr/lib/nagios/plugins/check_users -w 3 -c 5",
            interval = 60,
            aspect = "wtmp",
-           host = "wolfram.example.net", service = "users",
+           host = hostname(), service = "users",
        ),
    ]
 
