@@ -136,7 +136,7 @@ class Value(object):
     def value(self, value):
         if value is None:
             self._value = None
-        elif isinstance(value, (int, float)):
+        elif isinstance(value, (int, long, float)):
             self._value = value
         else:
             raise ValueError(
@@ -146,6 +146,9 @@ class Value(object):
     def __int__(self):
         return int(self._value)
 
+    def __long__(self):
+        return long(self._value)
+
     def __float__(self):
         return float(self._value)
 
@@ -154,7 +157,7 @@ class Value(object):
             return (self._value is None)
         elif isinstance(other, Value):
             return self._value == other._value
-        elif isinstance(other, (int, float)):
+        elif isinstance(other, (int, long, float)):
             return self._value == other
 
     def __gt__(self, other):
@@ -202,7 +205,7 @@ class Value(object):
 
         Add/change high threshold.
         '''
-        if not isinstance(value, (int, float)):
+        if not isinstance(value, (int, long, float)):
             raise ValueError(
                 "invalid type of threshold %s: %s" % (name, type(value))
             )
@@ -223,7 +226,7 @@ class Value(object):
 
         Add/change low threshold.
         '''
-        if not isinstance(value, (int, float)):
+        if not isinstance(value, (int, long, float)):
             raise ValueError(
                 "invalid type of threshold %s: %s" % (name, type(value))
             )
