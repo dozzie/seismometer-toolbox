@@ -33,11 +33,11 @@ import os
 #-----------------------------------------------------------------------------
 
 try:
-  # Python 2.7+
-  from logging.config import dictConfig
+    # Python 2.7+
+    from logging.config import dictConfig
 except ImportError:
-  # older Python, use local copy of dictConfig()
-  from logging_config import dictConfig
+    # older Python, use local copy of dictConfig()
+    from logging_config import dictConfig
 
 #-----------------------------------------------------------------------------
 
