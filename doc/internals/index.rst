@@ -7,4 +7,3 @@ Internals of the tools
 
    daemonshepherd
    dumbprobe
-   pullpushbridge
