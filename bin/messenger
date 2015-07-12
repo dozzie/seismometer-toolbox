@@ -69,36 +69,9 @@ if len(options.source) == 0:
 if len(options.destination) == 0:
     options.destination = ["stdout"]
 
-#-----------------------------------------------------------------------------
-# configure logging {{{
-
-if options.logging_config is not None:
-    cf = open(options.logging_config)
-    seismometer.logging.dictConfig(yaml.safe_load(cf))
-else:
-    seismometer.logging.dictConfig({
-        "version": 1,
-        "root": {
-            "level": "WARNING",
-            "handlers": ["console"],
-        },
-        "formatters": {
-            "brief_formatter": {
-                "format": "[%(name)s] %(message)s",
-            },
-        },
-        "handlers": {
-            "console": {
-                "class": "logging.StreamHandler",
-                "formatter": "brief_formatter",
-                "stream": "ext://sys.stderr",
-            },
-        },
-    })
-
+seismometer.logging.configure_from_file(options.logging_config, default = "stderr")
 logger = logging.getLogger()
 
-# }}}
 #-----------------------------------------------------------------------------
 # --source options parsing {{{
 
