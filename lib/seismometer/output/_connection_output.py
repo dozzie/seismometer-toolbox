@@ -9,8 +9,8 @@ Generic
 #-----------------------------------------------------------------------------
 
 import json
-import seismometer.messenger.spool
-import seismometer.logging.rate_limit
+import seismometer.spool
+import seismometer.rate_limit
 
 #-----------------------------------------------------------------------------
 
@@ -24,14 +24,14 @@ class ConnectionOutput(object):
     def __init__(self, spooler = None):
         '''
         :param spooler: place to put messages in case of connectivity problems
-          (defaults to :class:`seismometer.messenger.spool.MemorySpooler`
-          instance)
+            (defaults to :class:`seismometer.messenger.spool.MemorySpooler`
+            instance)
         '''
         if spooler is None:
-            self.spooler = seismometer.messenger.spool.MemorySpooler()
+            self.spooler = seismometer.spool.MemorySpooler()
         else:
             self.spooler = spooler
-        self.spool_dropped = seismometer.logging.rate_limit.RateLimit(count = 0)
+        self.spool_dropped = seismometer.rate_limit.RateLimit(count = 0)
 
     def __del__(self):
         logger = self.get_logger()
@@ -44,7 +44,7 @@ class ConnectionOutput(object):
     def write(self, line):
         '''
         :return: ``True`` when line was sent successfully, ``False`` when
-          problems occurred
+            problems occurred
 
         Write a single line to socket. Function to be implemented in subclass.
         '''
@@ -97,11 +97,11 @@ class ConnectionOutput(object):
             dropped_count = self.spooler.spool(line)
             self.spool_dropped.count += dropped_count
             if self.spool_dropped.count > 0 and \
-               self.spool_dropped.should_log():
+               self.spool_dropped.should_fire():
                 logger.warn("%s: dropped %d pending messages", self.get_name(),
                             self.spool_dropped.count)
                 self.spool_dropped.count = 0
-                self.spool_dropped.logged()
+                self.spool_dropped.fired()
             return
 
         # self.is_connected()
@@ -117,16 +117,16 @@ class ConnectionOutput(object):
             dropped_count = self.spooler.spool(line)
             self.spool_dropped.count += dropped_count
             if self.spool_dropped.count > 0 and \
-               self.spool_dropped.should_log():
+               self.spool_dropped.should_fire():
                 logger.warn("%s: dropped %d pending messages", self.get_name(),
                             self.spool_dropped.count)
                 self.spool_dropped.count = 0
-                self.spool_dropped.logged()
+                self.spool_dropped.fired()
 
     def send_pending(self):
         '''
         :return: ``True`` if all pending messages were sent successfully,
-          ``False`` otherwise.
+            ``False`` otherwise.
 
         Send all pending messages.
         '''

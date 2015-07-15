@@ -21,10 +21,10 @@ import sys
 
 def detach(new_cwd = None):
     '''
-    :param new_cwd: directory to :func:`chdir` to (``None`` if no change
-      needed)
+    :param new_cwd: directory to :func:`chdir()` to (``None`` if no change
+        needed)
 
-    Detach current program from terminal (:func:`fork` + :func:`exit`).
+    Detach current program from terminal (:func:`fork()` + :func:`exit()`).
 
     Detached (child) process will have *STDIN*, *STDOUT* and *STDERR*
     redirected to :file:`/dev/null`.
@@ -44,7 +44,8 @@ def child_process():
     :file:`/dev/null`.
 
     **NOTE**: This is not the place to acknowledge success. There are other
-    operations, like creating listening sockets. See :func:`detach_succeeded`.
+    operations, like creating listening sockets. See
+    :func:`detach_succeeded()`.
     '''
     # replace STDIN, STDOUT and STDERR
     new_stdin_fd = os.open('/dev/null', os.O_RDONLY)

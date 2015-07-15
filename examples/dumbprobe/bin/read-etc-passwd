@@ -1,0 +1,13 @@
+#!/usr/bin/python
+
+import json
+
+field_names = ["user", "pw", "uid", "gid", "gecos", "home", "shell"]
+
+for entry in open("/etc/passwd"):
+    fields = entry.strip().split(":")
+    entry = dict(zip(field_names, fields))
+    uid = int(entry["uid"])
+    if (uid > 0 and uid < 1000) or entry["user"] == "nobody":
+        continue
+    print json.dumps(entry)

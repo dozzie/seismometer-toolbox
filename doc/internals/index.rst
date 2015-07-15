@@ -1,13 +1,9 @@
-******************************
-Internal programming interface
-******************************
+**********************
+Internals of the tools
+**********************
 
 .. toctree::
    :maxdepth: 2
 
-   plugin
    daemonshepherd
    dumbprobe
-   pullpushbridge
-   messenger
-   utilities

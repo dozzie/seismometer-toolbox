@@ -1,6 +1,7 @@
 #!/usr/bin/python
 '''
-STDIN input reader.
+STDIN input reader
+------------------
 
 .. autoclass:: STDIN
    :members:

@@ -1,6 +1,7 @@
 #!/usr/bin/python
 '''
-STDOUT message writer.
+STDOUT message writer
+---------------------
 
 .. autoclass:: STDOUT
    :members:

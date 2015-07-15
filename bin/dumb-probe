@@ -2,60 +2,103 @@
 
 import sys
 import optparse
-import streem
 import seismometer.plugin
+import seismometer.output
+import seismometer.message
+import seismometer.dumbprobe
+import seismometer.logging
+import logging
 
 #-----------------------------------------------------------------------------
-# parse command line options
+# parse command line options {{{
 
 parser = optparse.OptionParser(
-  usage = "%prog --checks=PYFILE [--destination=stdout | --destination=host:port:channel]",
+    usage = "%prog --checks=PYFILE [--destination=stdout | --destination=host:port:channel]",
 )
 
 parser.add_option(
-  "--checks", dest = "checks",
-  help = "load checks from *.py file", metavar = "PYFILE",
+    "--checks", dest = "checks",
+    help = "load checks from *.py file", metavar = "PYFILE",
 )
 parser.add_option(
-  "--destination", dest = "destination", default = "stdout",
-  help = "where to submit messages to (host:port:channel or stdout;"
-         " stdout is the default)",
-  metavar = "TARGET",
+    "--destination", dest = "destination", default = "stdout",
+    help = "where to submit messages to (host:port:channel or stdout;"
+           " stdout is the default)",
+    metavar = "TARGET",
+)
+parser.add_option(
+    "--logging", dest = "logging",
+    default = None,
+    help = "YAML/JSON file with logging configuration",
+    metavar = "FILE",
 )
 
 (options, args) = parser.parse_args()
 
 if options.checks is None:
-  parser.print_help()
-  sys.exit(1)
+    parser.print_help()
+    sys.exit(1)
+
+# }}}
+#-----------------------------------------------------------------------------
+
+seismometer.logging.configure_from_file(options.logging, default = "stderr")
+logger = logging.getLogger()
 
 #-----------------------------------------------------------------------------
-# prepare run environment: checks object and submit() function
+# --destination options parsing {{{
 
+# The block is (mostly) copy-pasted from messenger.
+# TODO: Abstract this away to somewhere.
+
+def prepare_destination(destination):
+    if destination == "stdout":
+        return seismometer.output.stdout.STDOUT()
+
+    if destination.startswith("tcp:"):
+        (host, port) = destination[4:].split(":")
+        port = int(port)
+        spooler = None
+        return seismometer.output.inet.TCP(host, port, spooler)
+
+    if destination.startswith("udp:"):
+        (host, port) = destination[4:].split(":")
+        port = int(port)
+        return seismometer.output.inet.UDP(host, port)
+
+    if destination.startswith("unix:"):
+        path = destination[5:]
+        spooler = None
+        return seismometer.output.unix.UNIX(path, spooler)
+
+# }}}
+#-----------------------------------------------------------------------------
+# load checks
+
+logger.info("loading checks file: %s", options.checks)
 ploader = seismometer.plugin.PluginLoader()
 checks_mod = ploader.load('seismometer.dumbprobe.__config__', options.checks)
-checks = checks_mod.checks
+checks = checks_mod.CHECKS
 ploader.close()
+if isinstance(checks, (list, tuple)):
+    checks = seismometer.dumbprobe.Checks(checks)
 
-if options.destination == "stdout":
-  def submit(data):
-    print data
-else:
-  (host, port, channel) = options.destination.split(":", 2)
-  s = streem.Streem(host, int(port))
-  s.register(channel)
-  def submit(data):
-    s.submit(data)
+output = prepare_destination(options.destination)
+if output is None:
+    parser.error("invalid --destination")
 
 #-----------------------------------------------------------------------------
 # main loop
 
 try:
-  while True:
-    m = checks.run_next()
-    submit(m)
+    while True:
+        for msg in checks.run_next():
+            if isinstance(msg, seismometer.message.Message):
+                output.send(msg.to_dict())
+            else: # dict
+                output.send(msg)
 except KeyboardInterrupt:
-  pass
+    pass
 
 #-----------------------------------------------------------------------------
-# vim:ft=python
+# vim:ft=python:foldmethod=marker

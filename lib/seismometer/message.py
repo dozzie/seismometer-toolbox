@@ -1,15 +1,21 @@
 #!/usr/bin/python
 '''
-Seismometer message handling.
-
 Messages are expected to conform to `message schema
 <http://seismometer.net/message-schema/v3>`_.
 
 .. autodata:: SCHEMA_VERSION
 
+Message class
+-------------
+
 .. autoclass:: Message
    :members:
    :member-order: groupwise
+
+Auxiliary classes
+-----------------
+
+These classes represent specific data inside of :class:`Message`.
 
 .. autoclass:: Value
    :members:
@@ -33,7 +39,7 @@ supports  `message schema v3 <http://seismometer.net/message-schema/v3>`_.
 
 # guard for saying that "value" is not specified, so `None' can work as
 # null
-_NOTHING = object()
+_NOTHING = "NOT_SPECIFIED"
 
 #-----------------------------------------------------------------------------
 
@@ -130,7 +136,7 @@ class Value(object):
     def value(self, value):
         if value is None:
             self._value = None
-        elif isinstance(value, (int, float)):
+        elif isinstance(value, (int, long, float)):
             self._value = value
         else:
             raise ValueError(
@@ -140,6 +146,9 @@ class Value(object):
     def __int__(self):
         return int(self._value)
 
+    def __long__(self):
+        return long(self._value)
+
     def __float__(self):
         return float(self._value)
 
@@ -148,7 +157,7 @@ class Value(object):
             return (self._value is None)
         elif isinstance(other, Value):
             return self._value == other._value
-        elif isinstance(other, (int, float)):
+        elif isinstance(other, (int, long, float)):
             return self._value == other
 
     def __gt__(self, other):
@@ -192,11 +201,11 @@ class Value(object):
         :param name: name of the threshold
         :param severity: severity of the threshold
         :type severity: ``"warning"`` or ``"error"``
-        :return: ``self``
+        :return: :obj:`self`
 
         Add/change high threshold.
         '''
-        if not isinstance(value, (int, float)):
+        if not isinstance(value, (int, long, float)):
             raise ValueError(
                 "invalid type of threshold %s: %s" % (name, type(value))
             )
@@ -213,11 +222,11 @@ class Value(object):
         :param name: name of the threshold
         :param severity: severity of the threshold
         :type severity: ``"warning"`` or ``"error"``
-        :return: ``self``
+        :return: :obj:`self`
 
         Add/change low threshold.
         '''
-        if not isinstance(value, (int, float)):
+        if not isinstance(value, (int, long, float)):
             raise ValueError(
                 "invalid type of threshold %s: %s" % (name, type(value))
             )

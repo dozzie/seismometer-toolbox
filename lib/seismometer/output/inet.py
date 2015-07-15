@@ -1,6 +1,7 @@
 #!/usr/bin/python
 '''
-Network output sockets.
+Network output sockets
+----------------------
 
 .. autoclass:: TCP
    :members:
@@ -15,7 +16,7 @@ import socket
 import json
 from _connection_output import ConnectionOutput
 import logging
-import seismometer.logging.rate_limit
+import seismometer.rate_limit
 import platform
 
 #-----------------------------------------------------------------------------
@@ -35,7 +36,7 @@ class TCP(ConnectionOutput):
         self.port = port
         self.conn = None
         # "connection still closed" rate limiter
-        self.conn_still_closed = seismometer.logging.rate_limit.RateLimit()
+        self.conn_still_closed = seismometer.rate_limit.RateLimit()
         super(TCP, self).__init__(spooler)
 
     def get_logger(self):
@@ -82,15 +83,15 @@ class TCP(ConnectionOutput):
             self.conn_still_closed.reset()
             return True
         except socket.timeout, e:
-            if self.conn_still_closed.should_log():
+            if self.conn_still_closed.should_fire():
                 logger.warn("%s: reconnecting failed: timeout", self.get_name())
-                self.conn_still_closed.logged()
+                self.conn_still_closed.fired()
             return False
         except socket.error, e:
-            if self.conn_still_closed.should_log():
+            if self.conn_still_closed.should_fire():
                 logger.warn("%s: reconnecting failed: %s", self.get_name(),
                             e.strerror)
-                self.conn_still_closed.logged()
+                self.conn_still_closed.fired()
             return False
 
 #-----------------------------------------------------------------------------

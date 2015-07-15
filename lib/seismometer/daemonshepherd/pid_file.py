@@ -16,7 +16,7 @@ import os
 class PidFile:
     '''
     Handle for pid file. The file will be deleted when the instance is
-    destroyed, if the file ownership was claimed (see :meth:`claim`).
+    destroyed, if the file ownership was claimed (see :meth:`claim()`).
     '''
 
     def __init__(self, filename):

@@ -1,6 +1,7 @@
 #!/usr/bin/python
 '''
-UNIX domain sockets.
+UNIX domain sockets
+-------------------
 
 .. autoclass:: UNIX
    :members:

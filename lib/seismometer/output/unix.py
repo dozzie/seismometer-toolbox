@@ -1,6 +1,7 @@
 #!/usr/bin/python
 '''
-UNIX domain socket writer.
+UNIX domain socket writer
+-------------------------
 
 .. autoclass:: UNIX
    :members:
@@ -11,7 +12,7 @@ UNIX domain socket writer.
 import os
 import socket
 import logging
-import seismometer.logging.rate_limit
+import seismometer.rate_limit
 from _connection_output import ConnectionOutput
 
 #-----------------------------------------------------------------------------
@@ -28,7 +29,7 @@ class UNIX(ConnectionOutput):
         self.path = os.path.abspath(path)
         self.conn = None
         # "connection still closed" rate limiter
-        self.conn_still_closed = seismometer.logging.rate_limit.RateLimit()
+        self.conn_still_closed = seismometer.rate_limit.RateLimit()
         super(UNIX, self).__init__(spooler)
 
     def get_logger(self):
@@ -65,10 +66,10 @@ class UNIX(ConnectionOutput):
             self.conn_still_closed.reset()
             return True
         except socket.error, e:
-            if self.conn_still_closed.should_log():
+            if self.conn_still_closed.should_fire():
                 logger.warn("%s: reconnecting failed: %s", self.get_name(),
                             e.strerror)
-                self.conn_still_closed.logged()
+                self.conn_still_closed.fired()
             return False
 
 #-----------------------------------------------------------------------------

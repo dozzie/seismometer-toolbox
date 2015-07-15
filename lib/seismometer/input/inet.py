@@ -1,6 +1,7 @@
 #!/usr/bin/python
 '''
-Network sockets: TCP and UDP.
+Network sockets: TCP and UDP
+----------------------------
 
 .. autoclass:: TCP
    :members:
@@ -75,7 +76,7 @@ class TCP(ConnectionSocket):
 
     def accept(self):
         '''
-        :rtype: TCPConnection
+        :rtype: :class:`TCPConnection`
 
         Accept a connection.
         '''
@@ -89,6 +90,8 @@ class TCP(ConnectionSocket):
 class TCPConnection:
     '''
     TCP connection reader.
+
+    Instances of this class are created by :class:`TCP`.
     '''
     def __init__(self, conn, host):
         '''

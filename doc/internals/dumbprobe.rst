@@ -3,14 +3,8 @@ DumbProbe API
 *************
 
 
-Queueing commands
-=================
+Architecture
+============
 
-.. automodule:: seismometer.dumbprobe.service
-
-
-Running commands
-================
-
-.. automodule:: seismometer.dumbprobe.shell_command
+**TODO**
 

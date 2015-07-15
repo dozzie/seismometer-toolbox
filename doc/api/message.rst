@@ -3,10 +3,10 @@ Seismometer message
 *******************
 
 Examples of use
----------------
+===============
 
 Creating a new message
-^^^^^^^^^^^^^^^^^^^^^^
+----------------------
 
 Very basic message carrying just a single value::
 
@@ -52,7 +52,7 @@ More verbose message carrying information about disk space on :file:`/`::
 
 
 Altering an incoming message
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------
 
 Replace *total* + *free* with *used* + *free* in message about disk space::
 
@@ -99,7 +99,7 @@ Add a location to a message::
 
 
 Checking a message for exceeding thresholds
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------------------------
 
 ::
 
@@ -141,8 +141,8 @@ Checking a message for exceeding thresholds
        print "msg2[value] is unset"
 
 
-API documentation
------------------
+Programming interface
+=====================
 
 .. automodule:: seismometer.message
 

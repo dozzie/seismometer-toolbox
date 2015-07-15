@@ -2,6 +2,9 @@
 
 import sys
 import optparse
+import seismometer.input
+import seismometer.output
+import seismometer.spool
 import seismometer.messenger
 import yaml
 import logging
@@ -66,44 +69,16 @@ if len(options.source) == 0:
 if len(options.destination) == 0:
     options.destination = ["stdout"]
 
-#-----------------------------------------------------------------------------
-# configure logging {{{
-
-if options.logging_config is not None:
-    cf = open(options.logging_config)
-    seismometer.logging.dictConfig(yaml.safe_load(cf))
-else:
-    seismometer.logging.dictConfig({
-        "version": 1,
-        "root": {
-            "level": "WARNING",
-            "handlers": ["console"],
-        },
-        "formatters": {
-            "brief_formatter": {
-                "format": "[%(name)s] %(message)s",
-            },
-        },
-        "handlers": {
-            "console": {
-                "class": "logging.StreamHandler",
-                "formatter": "brief_formatter",
-                "stream": "ext://sys.stderr",
-            },
-        },
-    })
-
+seismometer.logging.configure_from_file(options.logging_config, default = "stderr")
 logger = logging.getLogger()
 
-# }}}
 #-----------------------------------------------------------------------------
 # --source options parsing {{{
 
 def prepare_source(source):
     if source == "stdin":
         logger.info("adding source: STDIN")
-        import seismometer.messenger.net_input.stdin
-        return seismometer.messenger.net_input.stdin.STDIN()
+        return seismometer.input.stdin.STDIN()
 
     if source.startswith("tcp:"):
         if ":" in source[4:]:
@@ -114,8 +89,7 @@ def prepare_source(source):
             host = None
             port = int(source[4:])
             logger.info("adding source: TCP:%s:%d", host, port)
-        import seismometer.messenger.net_input.inet
-        return seismometer.messenger.net_input.inet.TCP(host, port)
+        return seismometer.input.inet.TCP(host, port)
 
     if source.startswith("udp:"):
         if ":" in source[4:]:
@@ -126,22 +100,18 @@ def prepare_source(source):
             host = None
             port = int(source[4:])
             logger.info("adding source: UDP:%s:%d", host, port)
-        import seismometer.messenger.net_input.inet
-        return seismometer.messenger.net_input.inet.UDP(host, port)
+        return seismometer.input.inet.UDP(host, port)
 
     if source.startswith("unix:"):
         path = source[5:]
         logger.info("adding source: UNIX:%s", path)
-        import seismometer.messenger.net_input.unix
-        return seismometer.messenger.net_input.unix.UNIX(path)
+        return seismometer.input.unix.UNIX(path)
 
     import json
     params = json.loads(source)
-    import seismometer.messenger.net_input.plugin
     # TODO: log this
     # TODO: document this
-    return seismometer.messenger.net_input.plugin.Plugin(params['class'],
-                                                         params)
+    return seismometer.input.plugin.Plugin(params['class'], params)
 
 # }}}
 #-----------------------------------------------------------------------------
@@ -165,7 +135,7 @@ def create_spooler():
         # TODO: implement disk spooler
         raise NotImplementedError("spooling to disk not supported yet")
     else:
-        return seismometer.messenger.spool.MemorySpooler(max = max_spool_size)
+        return seismometer.spool.MemorySpooler(max = max_spool_size)
 
 # }}}
 #-----------------------------------------------------------
@@ -173,38 +143,32 @@ def create_spooler():
 def prepare_destination(destination):
     if destination == "stdout":
         logger.info("adding destination: STDOUT")
-        import seismometer.messenger.net_output.stdout
-        return seismometer.messenger.net_output.stdout.STDOUT()
+        return seismometer.output.stdout.STDOUT()
 
     if destination.startswith("tcp:"):
         (host, port) = destination[4:].split(":")
         port = int(port)
         logger.info("adding destination: TCP:%s:%d", host, port)
         spooler = create_spooler()
-        import seismometer.messenger.net_output.inet
-        return seismometer.messenger.net_output.inet.TCP(host, port, spooler)
+        return seismometer.output.inet.TCP(host, port, spooler)
 
     if destination.startswith("udp:"):
         (host, port) = destination[4:].split(":")
         port = int(port)
         logger.info("adding destination: UDP:%s:%d", host, port)
-        import seismometer.messenger.net_output.inet
-        return seismometer.messenger.net_output.inet.UDP(host, port)
+        return seismometer.output.inet.UDP(host, port)
 
     if destination.startswith("unix:"):
         path = destination[5:]
         logger.info("adding destination: UNIX:%s", path)
         spooler = create_spooler()
-        import seismometer.messenger.net_output.unix
-        return seismometer.messenger.net_output.unix.UNIX(path, spooler)
+        return seismometer.output.unix.UNIX(path, spooler)
 
     import json
     params = json.loads(destination)
-    import seismometer.messenger.net_output.plugin
     # TODO: log this
     # TODO: document this
-    return seismometer.messenger.net_output.plugin.Plugin(params['class'],
-                                                          params)
+    return seismometer.output.plugin.Plugin(params['class'], params)
 
 # }}}
 #-----------------------------------------------------------------------------
@@ -212,9 +176,9 @@ def prepare_destination(destination):
 sources      = [prepare_source(o)      for o in options.source]
 destinations = [prepare_destination(o) for o in options.destination]
 
-tag_matcher = seismometer.messenger.tags.TagMatcher(options.tag_file)
-reader = seismometer.messenger.net_input.Reader(tag_matcher)
-writer = seismometer.messenger.net_output.Writer()
+tag_matcher = seismometer.messenger.TagMatcher(options.tag_file)
+reader = seismometer.messenger.MessengerReader(tag_matcher)
+writer = seismometer.output.Writer()
 
 for s in sources:
     reader.add(s)
@@ -252,7 +216,7 @@ try:
 except KeyboardInterrupt:
     logger.info("received signal; shutting down")
     pass
-except seismometer.messenger.net_input.EOF:
+except seismometer.input.EOF:
     # this is somewhat expected: all the input descriptors are closed (e.g.
     # only STDIN was specified)
     pass

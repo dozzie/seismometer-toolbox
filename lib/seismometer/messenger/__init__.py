@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
-import net_input
-import net_output
-import tags
-import spool
+#-----------------------------------------------------------------------------
+
+from input import MessengerReader
+from tags import TagMatcher
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker

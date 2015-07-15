@@ -85,26 +85,9 @@ if command == "daemon_supervisor":
     if options.user is not None or options.group is not None:
         daemonshepherd.setguid(options.user, options.group)
 
-    # configure logging (if applicable) 
-    if options.logging is not None:
-        # JSON is valid YAML, so I can skip loading json module (yaml module
-        # is necessary for daemons spec file anyway)
-        import yaml
-        log_config = yaml.safe_load(open(options.logging))
-    else:
-        log_config = {
-            "version": 1,
-            "root": { "handlers": ["null"] },
-            "handlers": {
-                "null": {
-                    "class": "logging.StreamHandler",
-                    "stream": open('/dev/null', 'w'),
-                }
-            }
-        }
-
+    # configure logging
     import seismometer.logging
-    seismometer.logging.dictConfig(log_config)
+    seismometer.logging.configure_from_file(options.logging, default = "null")
 
     # daemonize (if applicable) 
     if options.background:

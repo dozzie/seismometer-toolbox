@@ -23,7 +23,7 @@ import setguid
 
 class Command:
     '''
-    Class for doing :func:`fork` + :func:`exec` in repeatable manner.
+    Class for doing :func:`fork()` + :func:`exec()` in repeatable manner.
 
     Class has defined operators ``==`` and ``!=``, so objects are compared
     according to command line and its run environment (variables, *CWD*,
@@ -48,7 +48,7 @@ class Command:
         '''
         :param command: command to be run (could be a shell snippet)
         :param environment: environment variables to be added/replaced in
-          current environment
+            current environment
         :type environment: dict with string:string mapping
         :param cwd: directory to run command in
         :param stdout: where to direct output from the command
@@ -166,12 +166,12 @@ class Daemon:
         :param stop_command: command used to stop the daemon instead of signal
         :param stop_signal: signal used to stop the daemon
         :param environment: environment variables to be added/replaced when
-          running commands (start and stop)
+            running commands (start and stop)
         :type environment: dict with string:string mapping
         :param cwd: directory to run commands in (both start and stop)
         :param stdout: where to direct output from the command
         :type stdout: ``"stdout"`` (or ``None``), ``"/dev/null"`` or
-          ``"pipe"``
+            ``"pipe"``
 
         For stopping the daemon, command has the precedence over signal.
         If both :obj:`stop_command` and :obj:`stop_signal` are ``None``,
@@ -272,7 +272,7 @@ class Daemon:
         Return file descriptor for the daemon's pipe (``None`` if daemon's
         output is not intercepted).
 
-        Method intended for :func:`select.poll`.
+        Method intended for :func:`select.poll()`.
         '''
         if self.child_stdout is not None:
             return self.child_stdout.fileno()
