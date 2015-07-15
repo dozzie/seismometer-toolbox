@@ -1,0 +1,15 @@
+version: 1
+root:
+  level: WARNING
+  handlers: [syslog]
+formatters:
+  syslog_formatter:
+    format: "dumbprobe[%(process)d]: [%(name)s] %(message)s"
+handlers:
+  syslog:
+    class: logging.handlers.SysLogHandler
+    formatter: syslog_formatter
+    address: /dev/log
+    facility: cron
+
+# vim:ft=yaml

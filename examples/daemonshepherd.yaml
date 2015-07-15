@@ -8,5 +8,7 @@ daemons:
   messenger:
     start_priority: 1
     start_command: messenger --src=unix:/var/run/messenger.sock --dest=tcp:10.0.0.18:24222 --tagfile=/etc/seismometer/messenger.tags --logging=/etc/seismometer/messenger.logging
+  dumbprobe:
+    start_command: dumb-probe --checks=/etc/seismometer/dumbprobe.py --dest=unix:/var/run/messenger.sock --logging=/etc/seismometer/dumbprobe.logging
 
 # vim:ft=yaml
