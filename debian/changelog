@@ -1,3 +1,9 @@
+seismometer-toolbox (0.1.1-1) unstable; urgency=low
+
+  * Extended seismometer.message interface a little.
+
+ -- Stanislaw Klekot <dozzie@jarowit.net>  Sun, 23 Aug 2015 15:01:59 +0200
+
 seismometer-toolbox (0.1.0-1) unstable; urgency=low
 
   * Python modules made a public interface.
