@@ -5,6 +5,12 @@ Messages are expected to conform to `message schema
 
 .. autodata:: SCHEMA_VERSION
 
+.. autofunction:: is_valid()
+
+.. autofunction:: is_metric()
+
+.. autofunction:: is_state()
+
 Message class
 -------------
 
@@ -869,6 +875,51 @@ class Message(object):
         return message
 
     #-----------------------------------------------------------------
+
+#-----------------------------------------------------------------------------
+
+def is_valid(message):
+    '''
+    :param message: object to check
+    :return: ``True`` if :obj:`message` is a dictionary with Seismometer
+         structure, ``False`` otherwise
+
+    Function to tell dictionary with a Seismometer message from other
+    dictionaries and objects.
+    '''
+    # XXX: this is a simple check, but it will weed out pretty much everything
+    # that is intended to be a metric or state message
+    return isinstance(message, dict) and \
+           message.get("v") == SCHEMA_VERSION and \
+           "event" in message and \
+           isinstance(message["event"].get("name"), (str, unicode)) and \
+           isinstance(message.get("time"), (int, long, float)) and \
+           isinstance(message.get("location", {}), dict)
+
+def is_metric(message):
+    '''
+    :param message: object to check
+    :return: ``True`` if :obj:`message` is a dictionary with Seismometer
+         structure, ``False`` otherwise
+
+    Function to tell dictionary with a Seismometer message and carrying
+    a metric (or metrics) from other dictionaries and objects.
+    '''
+    return is_valid(message) and \
+           isinstance(message["event"].get("vset"), dict)
+
+def is_state(message):
+    '''
+    :param message: object to check
+    :return: ``True`` if :obj:`message` is a dictionary with Seismometer
+         structure and carries state, ``False`` otherwise
+
+    Function to tell dictionary with a Seismometer message and carrying
+    a state from other dictionaries and objects.
+    '''
+    return is_valid(message) and \
+           isinstance(message["event"].get("state"), dict) and \
+           isinstance(message["event"]["state"].get("value"), (str, unicode))
 
 #-----------------------------------------------------------------------------
 # vim:ft=python
