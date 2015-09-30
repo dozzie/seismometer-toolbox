@@ -66,7 +66,13 @@ class SysLogHandler(logging.Handler):
     '''
     Syslog log handler. This one works a little better than
     :mod:`logging.handlers.SysLogHandler` with regard to syslog restarts and
-    is independent from log socket location.
+    is independent from log socket location. On the other hand, it only logs
+    to locally running syslog.
+
+    This handler requires two fields to be provided in configuration:
+    ``"facility"`` (e.g. ``"daemon"``, ``"local0"`` through
+    ``"local7"``, ``"syslog"``, ``"user"``) and ``"process_name"``, which will
+    identify the daemon in logs.
     '''
 
     # some of the facilities happen to be missing in various Python
@@ -178,16 +184,15 @@ def log_config_syslog(procname, facility = "daemon", level = "info"):
         },
         "formatters": {
             "syslog_formatter": {
-                "format": procname.strip() + \
-                          "[%(process)d]: [%(name)s] %(message)s",
+                "format": "[%(name)s] %(message)s",
             },
         },
         "handlers": {
             "syslog": {
-                "class": "logging.handlers.SysLogHandler",
+                "class": "seismometer.logging.SysLogHandler",
                 "formatter": "syslog_formatter",
-                "address": "/dev/log",
                 "facility": facility,
+                "process_name": procname.strip(),
             },
         },
     }
