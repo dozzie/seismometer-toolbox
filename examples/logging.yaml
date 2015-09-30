@@ -8,12 +8,12 @@ root:
   handlers: [console]
 formatters:
   syslog_formatter:
-    format: 'daemonshepherd[%(process)d]: [%(name)s] %(message)s'
+    format: "[%(name)s] %(message)s"
   brief_formatter:
-    format: '%(levelname)-8s %(message)s'
+    format: "%(levelname)-8s %(message)s"
   precise_formatter:
-    format: '%(asctime)s %(levelname)-8s %(name)-15s %(message)s'
-    datefmt: '%Y-%m-%d %H:%M:%S'
+    format: "%(asctime)s %(levelname)-8s %(name)-15s %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
 handlers:
   console:
     class: logging.StreamHandler
@@ -31,8 +31,7 @@ handlers:
   #  #maxBytes: 1024
   #  #backupCount: 3
   syslog:
-    class: logging.handlers.SysLogHandler
+    class: seismometer.logging.SysLogHandler
     formatter: syslog_formatter
-    # path for syslog socket under Linux
-    address: /dev/log
     facility: syslog
+    process_name: daemonshepherd

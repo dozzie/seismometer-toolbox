@@ -43,10 +43,12 @@ Logging config dict
                "formatter": "precise_formatter",
            },
            "syslog": {
-               "class": "logging.handlers.SysLogHandler",
+               "class": "seismometer.logging.SysLogHandler",
                "formatter": "syslog_formatter",
-               "address": "/dev/log", # this path is valid under Linux
                "facility": "daemon",
+               # XXX: change "somethingd" to your daemon name if you plan to use
+               # syslog handler
+               "process_name": "somethingd"
            },
        },
        "formatters": {
@@ -58,9 +60,7 @@ Logging config dict
                "datefmt": "<%Y-%m-%d %H:%M:%S>",
            },
            "syslog_formatter": {
-               # XXX: change "somethingd" to your daemon name if you plan to use
-               # syslog handler
-               "format": "somethingd[%(process)d]: [%(name)s] %(message)s",
+               "format": "[%(name)s] %(message)s",
            },
        },
    }
@@ -83,11 +83,13 @@ Logging config YAML
        stream: ext://sys.stdout
        formatter: precise_formatter
      syslog:
-       class: logging.handlers.SysLogHandler
+       class: seismometer.logging.SysLogHandler
        formatter: syslog_formatter
        # this path is valid under Linux
-       address: /dev/log
        facility: daemon
+       # XXX: change "somethingd" to your daemon name if you plan to use
+       # syslog handler
+       process_name: somethingd
    formatters:
      brief_formatter:
        format: "%(levelname)-8s %(message)s"
@@ -95,9 +97,7 @@ Logging config YAML
        format: "%(asctime)s %(levelname)-8s %(name)-15s %(message)s"
        datefmt: "%Y-%m-%d %H:%M:%S"
      syslog_formatter:
-       # XXX: change "somethingd" to your daemon name if you plan to use
-       # syslog handler
-       format: "somethingd[%(process)d]: [%(name)s] %(message)s"
+       format: "[%(name)s] %(message)s"
 
 
 Programming interface
