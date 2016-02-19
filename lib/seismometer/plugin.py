@@ -79,7 +79,7 @@ class PluginLoader:
 
             # we need a file name under tmpdir, so *.pyc file lands there;
             # let's lie a little to the interpreter
-            dummy_filename = os.path.join(self._tmpdir, file)
+            dummy_filename = os.path.join(self._tmpdir, os.path.basename(file))
             plugin = imp.load_source(name, dummy_filename, open(file))
 
         return plugin
