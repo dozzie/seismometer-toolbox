@@ -16,19 +16,22 @@ import signal
 
 parser = optparse.OptionParser(
     usage = "%prog [options]",
-    description = "TODO"
+    description = "Simple logs and monitoring message forwarder.",
 )
 
 parser.add_option(
     "--destination", "--dest", dest = "destination",
     action = "append", default = [],
-    help = "where to send messages",
+    help = "where to send messages (stdout, tcp:HOST:PORT, udp:HOST:PORT,"
+           " or unix:PATH; stdout is the default)",
     metavar = "ADDR",
 )
 parser.add_option(
     "--source", "--src", dest = "source",
     action = "append", default = [],
-    help = "where to read/expect messages from",
+    help = "where to read/expect messages from (stdin, tcp:PORT,"
+           " tcp:BINDADDR:PORT, udp:PORT, udp:BINDADDR:PORT, or unix:PATH;"
+           " stdin is the default)",
     metavar = "ADDR",
 )
 parser.add_option(

@@ -16,7 +16,8 @@ parser = optparse.OptionParser(
     usage = "\n  %prog [options] --daemons=FILE"
             "\n  %prog [options] reload"
             "\n  %prog [options] ps"
-            "\n  %prog [options] {start|stop|restart|cancel_restart} <daemon_name>"
+            "\n  %prog [options] {start|stop|restart|cancel_restart} <daemon_name>",
+    description = "Daemon supervisor/restarter.",
 )
 
 parser.add_option(
