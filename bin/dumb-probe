@@ -13,7 +13,8 @@ import logging
 # parse command line options {{{
 
 parser = optparse.OptionParser(
-    usage = "%prog --checks=PYFILE [--destination=stdout | --destination=host:port:channel]",
+    usage = "%prog --checks=PYFILE [--destination=ADDR]",
+    description = "Dumb monitoring probe.",
 )
 
 parser.add_option(
@@ -21,10 +22,10 @@ parser.add_option(
     help = "load checks from *.py file", metavar = "PYFILE",
 )
 parser.add_option(
-    "--destination", dest = "destination", default = "stdout",
-    help = "where to submit messages to (host:port:channel or stdout;"
-           " stdout is the default)",
-    metavar = "TARGET",
+    "--destination", "--dest", dest = "destination", default = "stdout",
+    help = "where to submit messages to (stdout, tcp:HOST:PORT,"
+           " udp:HOST:PORT, or unix:PATH; stdout is the default)",
+    metavar = "ADDRESS",
 )
 parser.add_option(
     "--logging", dest = "logging",

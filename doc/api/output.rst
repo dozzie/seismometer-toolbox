@@ -10,8 +10,8 @@ General interface
 .. automodule:: seismometer.spool
 
 
-Specific input modules
-======================
+Specific output modules
+=======================
 
 .. automodule:: seismometer.output.stdout
 
