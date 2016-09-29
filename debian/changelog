@@ -1,3 +1,10 @@
+seismometer-toolbox (0.2.0-1) unstable; urgency=low
+
+  * Added custom syslog logging handler, improved over Python's stock one.
+  * Fixed plugin loader that was leaving *.pyc files.
+
+ -- Stanislaw Klekot <dozzie@jarowit.net>  Thu, 29 Sep 2016 22:38:50 +0200
+
 seismometer-toolbox (0.1.1-1) unstable; urgency=low
 
   * Extended seismometer.message interface a little.
