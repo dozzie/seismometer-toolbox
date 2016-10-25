@@ -15,6 +15,7 @@ UNIX and TCP sockets
 import socket
 import os
 import json
+import _fd
 
 #-----------------------------------------------------------------------------
 
@@ -49,6 +50,7 @@ class ControlSocket:
             self.path = None
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.bind(address)
+        _fd.close_on_exec(self.socket)
         self.socket.listen(1)
 
     def __del__(self):

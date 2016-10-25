@@ -18,6 +18,7 @@ import signal
 import time
 import re
 import setguid
+import _fd
 
 #-----------------------------------------------------------------------------
 
@@ -233,6 +234,8 @@ class Daemon:
             # TODO: raise an error (child is already running)
             return
         (self.child_pid, self.child_stdout) = self.start_command.run()
+        if self.child_stdout is not None:
+            _fd.close_on_exec(self.child_stdout)
 
     def stop(self):
         '''
