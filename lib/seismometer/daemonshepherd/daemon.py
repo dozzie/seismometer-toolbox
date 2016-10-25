@@ -22,6 +22,15 @@ import _fd
 
 #-----------------------------------------------------------------------------
 
+class _Constant:
+    def __init__(self, name):
+        self.name = name
+
+    def __repr__(self):
+        return "<%s>" % (self.name,)
+
+#-----------------------------------------------------------------------------
+
 class Command:
     '''
     Class for doing :func:`fork()` + :func:`exec()` in repeatable manner.
@@ -31,12 +40,12 @@ class Command:
     *STDOUT*).
     '''
 
-    DEVNULL = object()
+    DEVNULL = _Constant("Command.DEVNULL")
     '''
     Constant for directing command's output to :file:`/dev/null`.
     '''
 
-    PIPE = object()
+    PIPE = _Constant("Command.PIPE")
     '''
     Constant for directing command's output through a pipe.
     '''
