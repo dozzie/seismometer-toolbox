@@ -39,7 +39,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Seismometer Toolbox'
-copyright = u'2014, Stanislaw Klekot, Tomasz Radziewicz'
+#copyright = u''
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -90,9 +90,17 @@ modindex_common_prefix = ["seismometer."]
 
 # -- Options for HTML output ---------------------------------------------------
 
-# The theme to use for HTML and HTML Help pages.  Major themes that come with
-# Sphinx are currently 'default' and 'sphinxdoc'.
-html_theme = 'default'
+# The theme to use for HTML and HTML Help pages.  See the documentation for
+# a list of builtin themes.
+
+import sphinx
+def ver(v):
+    return [int(i) for i in v.split('.')]
+
+if ver(sphinx.__version__) >= ver('1.3'):
+    html_theme = 'classic'
+else:
+    html_theme = 'default'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -172,10 +180,7 @@ htmlhelp_basename = 'SeismometerToolboxdoc'
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
-latex_documents = [
-  ('index', 'SeismometerToolbox.tex', u'Seismometer Toolbox Documentation',
-   u'Stanislaw Klekot, Tomasz Radziewicz', 'manual'),
-]
+#latex_documents = []
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
@@ -199,3 +204,5 @@ autoclass_content = 'both'
 
 # Order of class members: "alphabetical" or "groupwise"
 #autodoc_member_order = 'alphabetical'
+
+# vim:ft=python
