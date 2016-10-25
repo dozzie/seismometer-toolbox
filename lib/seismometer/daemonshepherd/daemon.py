@@ -40,7 +40,7 @@ class Command:
     Constant for directing command's output through a pipe.
     '''
 
-    SHELL_META = re.compile('[]\'"$&*()`{}\\\\;<>?[]')
+    SHELL_META = re.compile('[]\'"$&*()`{}\\\\;<|>?[]')
     SPACE = re.compile('[ \t\r\n]+')
 
     def __init__(self, command, environment = None, cwd = None, stdout = None,
