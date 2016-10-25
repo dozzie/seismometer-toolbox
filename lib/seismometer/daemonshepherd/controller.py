@@ -236,7 +236,7 @@ class Controller:
     def __init__(self, daemon_spec_file, socket_address = None):
         '''
         :param daemon_spec_file: name of the file with daemons specification;
-            see :doc:`/commandline/daemonshepherd` for format documentation
+            see :doc:`/manpages/daemonshepherd` for format documentation
         :param socket_address: address of socket for command channel
         '''
         # NOTE: descriptions of attributes moved to top of the module

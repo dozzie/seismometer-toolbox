@@ -205,4 +205,23 @@ autoclass_content = 'both'
 # Order of class members: "alphabetical" or "groupwise"
 #autodoc_member_order = 'alphabetical'
 
+# -- Options for manual page output --------------------------------------------
+
+# One entry per manual page. List of tuples
+# (source start file, name, description, authors, manual section).
+man_pages = [
+    ('manpages/daemonshepherd', 'daemonshepherd',
+     'daemon supervisor',
+     [], 8),
+    ('manpages/dumbprobe', 'dumb-probe',
+     'monitoring probe',
+     [], 8),
+    ('manpages/messenger', 'messenger',
+     'monitoring and log message transporter',
+     [], 8),
+]
+
+# If true, show URL addresses after external links.
+#man_show_urls = False
+
 # vim:ft=python
