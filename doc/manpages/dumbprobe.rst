@@ -30,6 +30,9 @@ Options
 
    Address to send check results to.
 
+   If unix socket is specified, it's datagram type, like
+   :manpage:`messenger(8)` uses.
+
    If no destination was provided, messages are printed to STDOUT.
 
 .. cmdoption:: --logging <config>

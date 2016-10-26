@@ -33,11 +33,15 @@ Options
    Address to receive data on. ``<addr>`` can be in one of two forms:
    ``<host>:<port>`` (bind to ``<host>`` address) or ``<port>``.
 
+   If unix socket is specified, it's datagram type.
+
    If no source was provided, messages are expected on *STDIN*.
 
 .. option:: --destination stdout | tcp:<host>:<port> | udp:<host>:<port> | unix:<path>
 
    Address to send data to.
+
+   If unix socket is specified, it's datagram type.
 
    If no destination was provided, messages are printed to *STDOUT*.
 
