@@ -2,46 +2,33 @@
 DumbProbe
 *********
 
-DumbProbe is a simple tool that checks whether all the services defined in its
-config are healthy and submits the results of the checks to Seismometer.
-
-The checks can be defined as calls to Python functions
-(:class:`seismometer.dumbprobe.Function`) or running external commands, which
-return data using various protocols.
-
-Following protocols for external commands are provided as a built-in classes:
-
-* :class:`seismometer.dumbprobe.ShellOutputMetric` -- number (integer or
-  float) printed to *STDOUT*
-* :class:`seismometer.dumbprobe.ShellOutputState` -- state (see `message
-  schema v3 <http://seismometer.net/message-schema/v3/#structure>`_) printed
-  to *STDOUT*
-* :class:`seismometer.dumbprobe.ShellExitState` -- exit code indicating state
-  (*STDOUT* discarded)
-* :class:`seismometer.dumbprobe.ShellOutputJSON` -- raw JSON messages printed
-  to *STDOUT*
-* :class:`seismometer.dumbprobe.Nagios` -- `Monitoring Plugins
-  <https://www.monitoring-plugins.org/>`_ (including performance data for
-  collecting metrics)
-
-Usage
-=====
+Synopsis
+========
 
 .. code-block:: none
 
-   dumb-probe --checks=./checks.py [--logging=<config>] [--destination=<address>]
+   dumb-probe [options] --checks=<checks-file>
 
+Description
+===========
 
-Command line options
---------------------
+DumbProbe is a simple tool that checks whether all the services defined in its
+config are healthy and submits the results of the checks to monitoring system.
+
+The checks file is a Python module that defines what, how, and how often
+should be checked. Results are packed into a Seismometer message and sent to
+a :manpage:`messenger(8)` (or a compatible router).
+
+Options
+=======
 
 .. cmdoption:: --checks <checks-file>
 
-   See :ref:`config-file`
+   Python module that defines checks. See :ref:`checks-file`.
 
 .. cmdoption:: --destination stdout | tcp:<host>:<port> | udp:<host>:<port> | unix:<path>
 
-   Address to send data to.
+   Address to send check results to.
 
    If no destination was provided, messages are printed to STDOUT.
 
@@ -52,33 +39,63 @@ Command line options
    warnings) are printed to *STDERR*. See :ref:`yaml-logging-config` for
    example config.
 
-.. _config-file:
+.. _checks-file:
 
-Configuration file
-------------------
+Configuration
+=============
 
-Configuration file is a Python script. The only thing expected from the script
-is defining :obj:`CHECKS` object, which may be a list of check objects
-(typically a :class:`seismometer.dumbprobe.BaseCheck` subclass instances) or
-an object that has :meth:`run_next()` method, which will be called with no
-arguments. :class:`seismometer.dumbprobe.Checks` class is an example of what
-is expected.
+Configuration file is a Python module. The only thing expected from the module
+is defining :obj:`CHECKS` object, which usually will be a list of check
+objects (typically a :class:`seismometer.dumbprobe.BaseCheck` subclass
+instances). DumbProbe will take care of scheduling runs of each of the checks
+according to their specified intervals.
 
-Example configuration file
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+If there is a need for any other scheduling logic, :obj:`CHECKS` can be an
+arbitrary Python object that has :meth:`run_next()` method, which is
+responsible for waiting for next check and running it. This method will be
+called with no arguments and should return a sequence (e.g. list) of messages
+that are either :class:`seismometer.message.Message` objects or dictionaries
+(serializable to JSON). These messages will be sent to DumbProbe's
+destination.
 
-::
+Supported check types
+---------------------
+
+The simplest case of a check is a Python function that produces a dictionary,
+:class:`seismometer.message.Message` object, or list of these. Such function
+is wrapped in :class:`seismometer.dumbprobe.Function` object in :obj:`CHECKS`
+list.
+
+There are also several built-in classes that facilitate working with external
+commands and scripts:
+
+* :class:`seismometer.dumbprobe.ShellOutputMetric` -- command that prints
+  a number (integer or float) to *STDOUT*
+* :class:`seismometer.dumbprobe.ShellOutputState` -- command that prints state
+  (see `message schema v3
+  <http://seismometer.net/message-schema/v3/#structure>`_) to *STDOUT*
+* :class:`seismometer.dumbprobe.ShellExitState` -- command that indicates
+  state using exit code (*STDOUT* is discarded)
+* :class:`seismometer.dumbprobe.ShellOutputJSON` -- command that prints raw
+  JSON messages to *STDOUT*
+* :class:`seismometer.dumbprobe.Nagios` -- command that conforms to
+  `Monitoring Plugins <https://www.monitoring-plugins.org/>`_ protocol,
+  including performance data for collecting metrics
+
+Typically, checks file will look somewhat like this:
+
+.. code-block:: python
 
    from seismometer.dumbprobe import *
    from seismometer.message import Message, Value
    import os
 
-   #--------------------------------------------------------------------------
+   #--------------------------------------------------------------------
 
    def hostname():
        return os.uname()[1]
 
-   #--------------------------------------------------------------------------
+   #--------------------------------------------------------------------
 
    def uptime():
        with open("/proc/uptime") as f:
@@ -107,7 +124,7 @@ Example configuration file
        )
        return result
 
-   #--------------------------------------------------------------------------
+   #--------------------------------------------------------------------
 
    CHECKS = [
        # function called every 60s with empty arguments list
@@ -116,7 +133,8 @@ Example configuration file
        Function(df, args = ["/"],     interval = 30 * 60),
        Function(df, args = ["/home"], interval = 30 * 60),
        Function(df, args = ["/tmp"],  interval = 30 * 60),
-       # shell command (`sh -c ...'), prints list of JSON objects to STDOUT
+       # shell command (`sh -c ...'), prints list of JSON objects to
+       # STDOUT
        ShellOutputJSON("/usr/local/bin/read-etc-passwd", interval = 60),
        # external command (run without `sh -c'), prints single number
        ShellOutputMetric(
@@ -135,14 +153,14 @@ Example configuration file
        ),
        # and two Monitoring Plugins
        Nagios(
-           # this one is run without shell
+           # this one runs without shell
            ["/usr/lib/nagios/plugins/check_load", "-w", "0.25", "-c", "0.5"],
            interval = 10,
            aspect = "load average",
            host = hostname(), service = "load",
        ),
        Nagios(
-           # this one is run with shell
+           # this one runs with shell
            "/usr/lib/nagios/plugins/check_users -w 3 -c 5",
            interval = 60,
            aspect = "wtmp",
@@ -154,8 +172,16 @@ Programming interface
 =====================
 
 **NOTE**: User doesn't need to use these classes/functions if they happen to
-not suit the needs. They are merely a proposal, but the authors think they
+not suit the needs. They are merely a proposal, but the author thinks they
 should at least help somewhat in deployment.
 
 .. automodule:: seismometer.dumbprobe
+
+See Also
+========
+
+* message schema v3 <http://seismometer.net/message-schema/v3/>
+* :manpage:`daemonshepherd(8)`
+* :manpage:`messenger(8)`
+* Monitoring Plugins <https://www.monitoring-plugins.org/>
 
