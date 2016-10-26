@@ -16,6 +16,7 @@ html:
 
 man:
 	sphinx-build -b man -d $(SPHINX_DOCTREE) $(SPHINX_SOURCE) $(SPHINX_MANPAGES)
+	doc/bin/postprocess-manpages $(SPHINX_MANPAGES)/*.[1-8]
 
 tarball:
 	python setup.py sdist --formats=zip
