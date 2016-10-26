@@ -211,7 +211,7 @@ autoclass_content = 'both'
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('manpages/daemonshepherd', 'daemonshepherd',
-     'daemon supervisor',
+     'daemon supervisor and restarter',
      [], 8),
     ('manpages/dumbprobe', 'dumb-probe',
      'monitoring probe',
