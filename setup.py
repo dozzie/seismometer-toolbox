@@ -5,7 +5,7 @@ from glob import glob
 
 setup(
     name         = 'seismometer-toolbox',
-    version      = '0.0.0', # unspecified at this branch
+    version      = '0.3.0',
     description  = "Small tools for Seismometer",
     scripts      = glob("bin/*"),
     packages     = find_packages("lib"),
