@@ -60,10 +60,8 @@ Options
 
 .. option:: --logging <logging_config>
 
-   Logging configuration file (YAML or JSON) with dictionary suitable for
-   :func:`logging.config.dictConfig`. If not specified, messages (but only
-   warnings) are printed to *STDERR*. See :ref:`yaml-logging-config` for
-   example config.
+   logging configuration, in JSON or YAML format (see :ref:`messenger-logging`
+   for details); default is to log warnings to *STDERR*
 
 Signals
 =======
@@ -173,6 +171,13 @@ Example pattern file
    service . [nginx, httpd]:service . (*):aspect
 
    (services):service . (*):host . (*):aspect
+
+.. _messenger-logging:
+
+Logging configuration
+=====================
+
+.. include:: logging.rst.common
 
 See Also
 ========

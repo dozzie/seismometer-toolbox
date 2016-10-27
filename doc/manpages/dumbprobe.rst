@@ -37,10 +37,8 @@ Options
 
 .. cmdoption:: --logging <config>
 
-   Logging configuration file (YAML or JSON) with dictionary suitable for
-   :func:`logging.config.dictConfig`. If not specified, messages (but only
-   warnings) are printed to *STDERR*. See :ref:`yaml-logging-config` for
-   example config.
+   logging configuration, in JSON or YAML format (see :ref:`dumbprobe-logging`
+   for details); default is to log warnings to *STDERR*
 
 .. _dumbprobe-checks-file:
 
@@ -170,6 +168,13 @@ Typically, checks file will look somewhat like this:
            host = hostname(), service = "users",
        ),
    ]
+
+.. _dumbprobe-logging:
+
+Logging configuration
+=====================
+
+.. include:: logging.rst.common
 
 Programming interface
 =====================

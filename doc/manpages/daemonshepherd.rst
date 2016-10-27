@@ -78,7 +78,7 @@ administrative socket of a running *daemonshepherd*.
 .. option:: -l <config>, --logging <config>
 
    logging configuration, in JSON or YAML format (see
-   :ref:`yaml-logging-config` for example structure)
+   :ref:`daemonshepherd-logging` for details); default is no logging at all
 
 .. option:: -s <path>, --control-socket <path>
 
@@ -240,6 +240,13 @@ monitoring data (``dumb-probe``), pass messages to another server
        start_command: >-
            /etc/seismometer/bin/count-clients |
            socat - unix:/var/run/collectd/clients.sock
+
+.. _daemonshepherd-logging:
+
+Logging configuration
+=====================
+
+.. include:: logging.rst.common
 
 Signals
 =======
