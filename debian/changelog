@@ -1,3 +1,21 @@
+seismometer-toolbox (0.3.0-1) unstable; urgency=low
+
+  * Added man pages for daemonshepherd, messenger, and DumbProbe.
+  * Added SSL destination support to messenger.
+  * Removed default control socket path from daemonshepherd in supervisor
+    mode.
+  * Added $DAEMON_PID to `stop_command' environment in daemonshepherd's
+    config.
+  * Fixed: pipe operator in daemon spec was not recognized as requiring shell
+    in daemonshepherd's config.
+  * Fixed: seismometer.logging.SysLogHandler didn't recognize "cron" and
+    "authpriv" facilities.
+  * Fixed: daemonshepherd was leaking file descriptors to children.
+  * Fixed: removing a daemon spec was breaking daemonshepherd.
+  * Fixed typos and removed outdated information in documentation.
+
+ -- Stanislaw Klekot <dozzie@jarowit.net>  Fri, 28 Oct 2016 01:15:30 +0200
+
 seismometer-toolbox (0.2.0-1) unstable; urgency=low
 
   * Added custom syslog logging handler, improved over Python's stock one.
