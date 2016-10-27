@@ -30,7 +30,6 @@ parser.add_option(
 )
 parser.add_option(
     "-s", "--control-socket", dest = "control_socket",
-    default = "/var/run/daemonshepherd.sock",
     help = "path to control socket", metavar = "PATH",
 )
 parser.add_option(
@@ -67,6 +66,9 @@ elif len(args) > 0:
         parser.error("unrecognized command: %s" % (command,))
     if len(args) != 1 and command in DAEMON_COMMANDS:
         parser.error("daemon name is required for command %s" % (command,))
+
+if command != "daemon_supervisor" and options.control_socket is None:
+    options.control_socket = "/var/run/daemonshepherd.sock"
 
 # }}}
 #-----------------------------------------------------------------------------
