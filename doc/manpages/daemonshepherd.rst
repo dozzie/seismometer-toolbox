@@ -225,8 +225,14 @@ monitoring data (``dumb-probe``), pass messages to another server
        cwd: /var/lib/statetip
        environment:
          ERL_LIBS: /usr/lib/statetip
-       start_command: statetipd --socket=/var/run/statetip/control start --config=/etc/statetip.conf
-       stop_command: statetipd --socket=/var/run/statetip/control stop
+       # strings folded for readability
+       start_command: >-
+           statetipd start
+           --socket=/var/run/statetip/control
+           --config=/etc/statetip.conf
+       stop_command: >-
+           statetipd stop
+           --socket=/var/run/statetip/control
 
      # custom collectd instance
      collectd:
