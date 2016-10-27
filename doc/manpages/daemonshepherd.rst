@@ -132,8 +132,9 @@ A daemon can have following variables:
   the daemon; defaults to *SIGTERM*
 * ``stop_command`` -- command used to stop running daemon; it will be
   executed with the same environment and working directory as
-  ``start_command``; if both ``stop_signal`` and ``stop_command`` are
-  defined, ``stop_command`` has the precedence
+  ``start_command``, with :envvar:`$DAEMON_PID` set to PID of the daemon; if
+  both ``stop_signal`` and ``stop_command`` are defined, ``stop_command`` has
+  the precedence
 * ``user``, ``group`` -- username and group name to run as (both
   ``start_command`` and ``stop_command`` will be run with these
   credentials); obviously this requires *daemonshepherd* to be run as root

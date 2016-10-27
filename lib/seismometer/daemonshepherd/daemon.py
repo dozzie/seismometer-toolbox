@@ -91,8 +91,10 @@ class Command:
                self.user        == other.user        and \
                self.group       == other.group
 
-    def run(self):
+    def run(self, environment = None):
         '''
+        :type environment: dict with string:string mapping, an addition to
+            :obj:`self.environment`
         :return: ``(pid, read_end)`` or ``(pid, None)``
 
         Run the command within its environment. Child process starts its own
@@ -156,6 +158,9 @@ class Command:
         if self.environment is not None:
             for e in self.environment:
                 os.environ[e] = self.environment[e]
+        if environment is not None:
+            for e in environment:
+                os.environ[e] = environment[e]
 
         # execute command and exit with error if failed
         os.execvp(self.command, self.args)
@@ -257,7 +262,10 @@ class Daemon:
 
         # TODO: make this command asynchronous
         if self.stop_command is not None:
-            (pid, ignore) = self.stop_command.run()
+            stop_env = {
+                "DAEMON_PID": str(self.child_pid),
+            }
+            (pid, ignore) = self.stop_command.run(environment = stop_env)
             os.waitpid(pid, 0) # wait for termination of stop command
         else:
             os.killpg(self.child_pid, self.stop_signal)
