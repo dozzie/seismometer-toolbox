@@ -3,3 +3,6 @@
 /usr/bin/dumb-probe
 /usr/bin/messenger
 /usr/lib/python2.*/site-packages/seismometer*
+/usr/share/man/man8/daemonshepherd.8
+/usr/share/man/man8/dumb-probe.8
+/usr/share/man/man8/messenger.8
