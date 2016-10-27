@@ -85,7 +85,6 @@ Logging config YAML
      syslog:
        class: seismometer.logging.SysLogHandler
        formatter: syslog_formatter
-       # this path is valid under Linux
        facility: daemon
        # XXX: change "somethingd" to your daemon name if you plan to use
        # syslog handler

@@ -236,7 +236,7 @@ class Controller:
     def __init__(self, daemon_spec_file, socket_address = None):
         '''
         :param daemon_spec_file: name of the file with daemons specification;
-            see :doc:`/commandline/daemonshepherd` for format documentation
+            see :doc:`/manpages/daemonshepherd` for format documentation
         :param socket_address: address of socket for command channel
         '''
         # NOTE: descriptions of attributes moved to top of the module
@@ -451,6 +451,12 @@ class Controller:
         def prio_cmp(a, b):
             # XXX: self.start_priorities is fully populated with keys from
             # self.expected
+            if a not in self.start_priorities:
+                # daemon a is running, but not expected (to be shut down)
+                return -1
+            if b not in self.start_priorities:
+                # daemon b is running, but not expected (to be shut down)
+                return 1
             return cmp(self.start_priorities[a], self.start_priorities[b]) or \
                    cmp(a, b)
 

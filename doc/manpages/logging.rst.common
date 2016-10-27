@@ -1,0 +1,107 @@
+Logging config file is a YAML or JSON that encodes dictionary suitable for
+Python's :func:`logging.config.dictConfig()` function. In short, this file
+requires several keys:
+
+* ``"version"``, always set to ``1``
+* ``"root"``, containing configuration for root logger
+
+  * ``"level"``, a minimum severity that will be logged; possible values are
+    ``"DEBUG"``, ``"INFO"``, ``"WARNING"``, ``"ERROR"``, ``"CRITICAL"``, or
+    ``"NOTSET"``
+  * ``"handlers"``, a list of names of log handlers (destinations)
+
+* ``"handlers"``, a dictionary of handlers configuration
+* ``"formatters"``, a dictionary of formatters configuration
+
+Handler configuration is a dictionary that requires keys ``"class"`` (Python
+class of the log handler) and ``"formatter"``, and any keys that handler
+class constructor requires.
+
+Formatter controls how the message is formatted. It's a dictionary with
+``"format"`` field, which is a Python format string. It can also has
+``"datefmt"`` field for ``%(asctime)s`` placeholder.
+
+Some useful placeholders:
+
+.. describe:: %(process)d
+
+   PID of the daemon process
+
+.. describe:: %(name)s
+
+   name of the logger that produced message (daemon's internals)
+
+.. describe:: %(message)s
+
+   log message
+
+.. describe:: %(levelname)s
+
+   log level (INFO, WARNING, ...)
+
+.. describe:: %(asctime)s
+
+   log time, which is formatted according to ``"datefmt"`` field of the
+   formatter (see :manpage:`strftime(3)` for format details)
+
+.. describe:: %(module)s, %(funcName)s, %(lineno)d
+
+   location of the log message origin in the code
+
+Full reference of logging configuration can be found in Python's
+documentation: <https://docs.python.org/2/library/logging.config.html> and
+<https://docs.python.org/2/library/logging.html>.
+
+Example logging config
+----------------------
+
+.. code-block:: yaml
+
+   version: 1
+   root:
+     level: INFO
+     handlers: [syslog]
+   formatters:
+     syslog_formatter:
+       format: "[%(name)s] %(message)s"
+   handlers:
+     syslog:
+       class: seismometer.logging.SysLogHandler
+       formatter: syslog_formatter
+       facility: local0
+       process_name: mydaemon
+
+Log handlers handy reference
+----------------------------
+
+.. describe:: logging.StreamHandler
+
+   Python's built-in handler logging to terminal. Expects ``"stream"`` key,
+   which can be set to ``"ext://sys.stderr"`` or ``"ext://sys.stdout"``.
+
+.. describe:: seismometer.logging.NullHandler
+
+   Seismometer's own handler that ignores all the logs.
+
+.. describe:: logging.handlers.SysLogHandler
+
+   Python's built-in handler logging to syslog. Expects ``"address"`` key,
+   which can specify a path to unix socket that local syslog listens on or an
+   address of a remote syslog.
+
+   Formatter for this handler needs to include daemon's ``name[pid]`` field,
+   e.g. ``"daemonname[%(process)d]: [%(name)s] %(message)s"``.
+
+   *NOTE*: This handler can break the daemon during restart of local syslog,
+   which is a serious drawback.
+
+.. describe:: seismometer.logging.SysLogHandler
+
+   Seismometer's own handler logging to local syslog. Expects ``"facility"``
+   (daemon, local0..local7, user, ...) and ``"process_name"`` keys (formatter
+   doesn't need to include daemon's name).
+
+   This handler handles syslog restarts well, but it's mainly suitable for
+   top-level logger (which usually should be enough).
+
+.. vim:ft=rst

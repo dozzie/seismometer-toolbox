@@ -10,6 +10,7 @@ Managing pid file
 #-----------------------------------------------------------------------------
 
 import os
+import _fd
 
 #-----------------------------------------------------------------------------
 
@@ -26,6 +27,7 @@ class PidFile:
         '''
         self.filename = os.path.abspath(filename)
         self.fd = open(self.filename, 'w', 0) # TODO: atomic create-or-fail
+        _fd.close_on_exec(self.fd)
         self.pid = None
         self.remove_on_close = False
         self.update()

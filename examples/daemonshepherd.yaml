@@ -1,14 +1,53 @@
 defaults:
-  restart: [0, 5, 10, 60, 300]
+  stdout: /dev/null
   environment:
-    PATH: /usr/local/bin:/usr/bin:/bin
-    #PYTHONPATH: lib
+    PYTHONPATH: /usr/lib/seismometer/toolbox
+  user: seismometer
+  group: seismometer
 
 daemons:
+  # Seismometer Toolbox' own daemons: message router and monitoring probe
   messenger:
     start_priority: 1
-    start_command: messenger --src=unix:/var/run/messenger.sock --dest=tcp:10.0.0.18:24222 --tagfile=/etc/seismometer/messenger.tags --logging=/etc/seismometer/messenger.logging
+    # string folded for readability
+    start_command: >-
+        messenger
+        --src=unix:/var/run/messenger.sock
+        --dest=tcp:10.4.5.11:24222
+        --tagfile=/etc/seismometer/messenger.tags
+        --logging=/etc/seismometer/messenger.logging
   dumbprobe:
-    start_command: dumb-probe --checks=/etc/seismometer/dumbprobe.py --dest=unix:/var/run/messenger.sock --logging=/etc/seismometer/dumbprobe.logging
+    # string folded for readability
+    start_command: >-
+        dumb-probe
+        --checks=/etc/seismometer/dumbprobe.py
+        --dest=unix:/var/run/messenger.sock
+        --logging=/etc/seismometer/dumbprobe.logging
 
-# vim:ft=yaml
+  # some daemon that needs to be shut down by command instead of by SIGTERM
+  statetip:
+    start_priority: 1
+    cwd: /var/lib/statetip
+    environment:
+      ERL_LIBS: /usr/lib/statetip
+    # strings folded for readability
+    start_command: >-
+        statetipd start
+        --socket=/var/run/statetip/control
+        --config=/etc/statetip.conf
+    stop_command: >-
+        statetipd stop
+        --socket=/var/run/statetip/control
+
+  # custom collectd instance
+  collectd:
+    start_priority: 1
+    user: collectd
+    start_command: /usr/sbin/collectd -f -C /etc/collectd/clients.conf
+  # a script that counts clients and formats the stats for collectd's
+  # protocol; `socat' tool is obviously necessary here
+  store-clients:
+    # string folded for readability
+    start_command: >-
+        /etc/seismometer/bin/count-clients |
+        socat - unix:/var/run/collectd/clients.sock

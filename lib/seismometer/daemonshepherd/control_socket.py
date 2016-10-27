@@ -1,7 +1,7 @@
 #!/usr/bin/python
 '''
-UNIX and TCP sockets
---------------------
+Unix sockets
+------------
 
 .. autoclass:: ControlSocket
    :members:
@@ -15,40 +15,28 @@ UNIX and TCP sockets
 import socket
 import os
 import json
+import _fd
 
 #-----------------------------------------------------------------------------
 
 class ControlSocket:
     '''
-    Create listening socket, binding to :obj:`address`. If it is a string,
-    UNIX socket is created. For integer or tuple, TCP socket is used. With
-    tuple, the socket is bound to IP address specified as the string part.
+    Create unix stream listening socket, binding to :obj:`address`.
     '''
 
     def __init__(self, address):
         '''
         :param address: address to bind to
-        :type address: string, integer or tuple (string, integer)
+        :type address: string
         '''
-        # address = "path"
-        # address = int(port)
-        # address = (bindaddr, port)
-        if isinstance(address, str): # UNIX
-            self.path = os.path.abspath(address)
-            self.socket = None
-            conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            conn.bind(self.path)
-            # only set self.socket it after bind(), so the file won't get
-            # removed when it's not ours (e.g. existed already)
-            self.socket = conn
-        elif isinstance(address, int): # *:port
-            self.path = None
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.bind(('', address))
-        else:
-            self.path = None
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.bind(address)
+        self.path = os.path.abspath(address)
+        self.socket = None
+        conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        conn.bind(self.path)
+        # only set self.socket it after bind(), so the file won't get removed
+        # when it's not ours (e.g. existed already)
+        self.socket = conn
+        _fd.close_on_exec(self.socket)
         self.socket.listen(1)
 
     def __del__(self):
@@ -73,7 +61,7 @@ class ControlSocket:
 
     def close(self):
         '''
-        Close the socket, possibly removing the file (UNIX socket).
+        Close the socket, possibly removing the file (unix socket).
         '''
         if self.socket is not None:
             self.socket.close()

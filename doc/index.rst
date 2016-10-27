@@ -15,7 +15,7 @@ Table of contents
 .. toctree::
    :maxdepth: 2
 
-   commandline/index
+   manpages/index
    api/index
    internals/index
 

@@ -21,6 +21,12 @@ should be run with shell (``/bin/sh -c ...``), and if it's specified as
 a list, it is run without invoking :file:`/bin/sh`. The latter is especially
 important when the command is provided with calculated arguments.
 
+.. autoclass:: BaseCheck
+   :members:
+
+.. autoclass:: Function
+   :members:
+
 .. autoclass:: ShellOutputJSON
    :members:
 
@@ -34,12 +40,6 @@ important when the command is provided with calculated arguments.
    :members:
 
 .. autoclass:: Nagios
-   :members:
-
-.. autoclass:: Function
-   :members:
-
-.. autoclass:: BaseCheck
    :members:
 
 '''

@@ -3,11 +3,9 @@
 from setuptools import setup, find_packages
 from glob import glob
 
-version = open('version').readline().strip().replace('v', '')
-
 setup(
     name         = 'seismometer-toolbox',
-    version      = version,
+    version      = '0.3.0',
     description  = "Small tools for Seismometer",
     scripts      = glob("bin/*"),
     packages     = find_packages("lib"),

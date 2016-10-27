@@ -2,63 +2,74 @@
 *messenger*
 ***********
 
-*messenger* is a tool that receives messages for Seismometer and passes them
-over to another *messenger* or to Streem.
-
-Usage
-=====
+Synopsis
+========
 
 .. code-block:: none
 
-   messenger [--tagfile=<pattern_file>] [--source=<address> ...] [--destination=<address> ...]
+   messenger [options] [--source=<addr> ...] [--destination=<addr> ...]
 
+Description
+===========
 
-*messenger* can also be used as a simple message converter:
+*messenger* is a message forwarder. It receives JSON messages and passes them
+over to another *messenger*, `Fluentd <http://fluentd.org/>`_, or any other
+daemon that accepts linewise JSON.
 
-.. code-block:: sh
+*messenger*'s main purpose is to isolate monitoring agents like
+:manpage:`dumb-probe(8)` from network failures, which allows them to be
+simpler. *messenger* makes this by spooling messages in case of network
+failure, dropping the oldest ones when spool grows too large.
 
-   TAG=$(uname -n).uptime
-   VALUE=$(cut -f1 -d' ' /proc/uptime)
-   date +"$TAG $VALUE %s" | messenger
+Typically *messenger* will be running under :manpage:`daemonshepherd(8)` or
+some other daemon supervisor. In this case *messenger* listens on one or more
+source sockets and sends them to one or more destinations.
 
-Command line options
---------------------
+Options
+=======
 
-.. cmdoption:: --source stdin | tcp:<addr> | udp:<addr> | unix:<path>
+.. option:: --source stdin | tcp:<addr> | udp:<addr> | unix:<path>
 
    Address to receive data on. ``<addr>`` can be in one of two forms:
    ``<host>:<port>`` (bind to ``<host>`` address) or ``<port>``.
 
-   If no destination was provided, messages are printed to STDOUT.
+   If unix socket is specified, it's datagram type.
 
-.. cmdoption:: --destination stdout | tcp:<host>:<port> | udp:<host>:<port> | unix:<path>
+   If no source was provided, messages are expected on *STDIN*.
+
+.. option:: --destination stdout | tcp:<host>:<port> | ssl:<host>:<port> | udp:<host>:<port> | unix:<path>
 
    Address to send data to.
 
-   If no destination was provided, messages are printed to STDOUT.
+   If unix socket is specified, it's datagram type.
 
-.. cmdoption:: --tagfile <pattern_file>
+   If no destination was provided, messages are printed to *STDOUT*.
+
+.. option:: --tagfile <pattern_file>
 
    File with patterns to convert tags to location and aspect name. See
    :ref:`messenger-tag-file`.
 
-.. cmdoption:: --spool <directory>
+.. option:: --ssl-ca-file <ca-file>
 
-   Spool directory. By default data is spooled in memory.
+   File with CA certificates for SSL connection. If not specified, any server
+   certificate is accepted.
 
-.. cmdoption:: --max-spool <size>
+.. option:: --spool <directory>
+
+   Spool directory. By default data is spooled in memory. (**TODO**)
+
+.. option:: --max-spool <size>
 
    Spool size. Affects on-disk and in-memory spooling.
 
-.. cmdoption:: --logging <logging_config>
+.. option:: --logging <logging_config>
 
-   Logging configuration file (YAML or JSON) with dictionary suitable for
-   :func:`logging.config.dictConfig`. If not specified, messages (but only
-   warnings) are printed to *STDERR*. See :ref:`yaml-logging-config` for
-   example config.
+   logging configuration, in JSON or YAML format (see :ref:`messenger-logging`
+   for details); default is to log warnings to *STDERR*
 
 Signals
--------
+=======
 
 *messenger* recognizes following signals:
 
@@ -68,7 +79,7 @@ Signals
 .. _messenger-protocol:
 
 Communication protocol
-----------------------
+======================
 
 The protocol used by *messenger* encodes single message per line. Message can
 be specified directly as JSON, in which case it's forwarded as-is, or be in
@@ -92,10 +103,13 @@ Tags are converted to location fields and aspect name according to
 with field ``host`` filled with local hostname and aspect name filled with
 whole tag.
 
+Exact structure of :class:`seismometer.message.Message` is described in
+`message schema v3 <http://seismometer.net/message-schema/v3/>`_.
+
 .. _messenger-tag-file:
 
 Tag pattern file
-----------------
+================
 
 Pattern file contains patterns, according to which tags from Graphite-like
 input are decomposed to location and aspect name for
@@ -150,7 +164,7 @@ location and the limitation above will be addressed in the future, aspect name
 is a required part of the message.
 
 Example pattern file
-^^^^^^^^^^^^^^^^^^^^
+--------------------
 
 .. code-block:: none
 
@@ -162,3 +176,17 @@ Example pattern file
    service . [nginx, httpd]:service . (*):aspect
 
    (services):service . (*):host . (*):aspect
+
+.. _messenger-logging:
+
+Logging configuration
+=====================
+
+.. include:: logging.rst.common
+
+See Also
+========
+
+* message schema v3 <http://seismometer.net/message-schema/v3/>
+* :manpage:`daemonshepherd(8)`
+* Fluentd <http://fluentd.org/>
