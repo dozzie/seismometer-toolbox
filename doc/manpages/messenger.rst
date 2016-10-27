@@ -37,7 +37,7 @@ Options
 
    If no source was provided, messages are expected on *STDIN*.
 
-.. option:: --destination stdout | tcp:<host>:<port> | udp:<host>:<port> | unix:<path>
+.. option:: --destination stdout | tcp:<host>:<port> | ssl:<host>:<port> | udp:<host>:<port> | unix:<path>
 
    Address to send data to.
 
@@ -49,6 +49,11 @@ Options
 
    File with patterns to convert tags to location and aspect name. See
    :ref:`messenger-tag-file`.
+
+.. option:: --ssl-ca-file <ca-file>
+
+   File with CA certificates for SSL connection. If not specified, any server
+   certificate is accepted.
 
 .. option:: --spool <directory>
 

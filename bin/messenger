@@ -22,8 +22,8 @@ parser = optparse.OptionParser(
 parser.add_option(
     "--destination", "--dest", dest = "destination",
     action = "append", default = [],
-    help = "where to send messages (stdout, tcp:HOST:PORT, udp:HOST:PORT,"
-           " or unix:PATH; stdout is the default)",
+    help = "where to send messages (stdout, tcp:HOST:PORT, ssl:HOST:PORT,"
+           " udp:HOST:PORT, or unix:PATH; stdout is the default)",
     metavar = "ADDR",
 )
 parser.add_option(
@@ -39,6 +39,12 @@ parser.add_option(
     help = "definitions used to convert Graphite-like tags to \"location\" for"
            " Seismometer Message",
     metavar = "TAGFILE",
+)
+parser.add_option(
+    "--ssl-ca-file", dest = "ssl_ca_file",
+    help = "file with CA certificates for SSL connection"
+           " (without this option no server verification is performed)",
+    metavar = "CA_FILE",
 )
 parser.add_option(
     "--spool", dest = "spool_dir",
@@ -154,6 +160,14 @@ def prepare_destination(destination):
         logger.info("adding destination: TCP:%s:%d", host, port)
         spooler = create_spooler()
         return seismometer.output.inet.TCP(host, port, spooler)
+
+    if destination.startswith("ssl:"):
+        (host, port) = destination[4:].split(":")
+        port = int(port)
+        ca_file = options.ssl_ca_file
+        logger.info("adding destination: SSL:%s:%d", host, port)
+        spooler = create_spooler()
+        return seismometer.output.inet.SSL(host, port, ca_file, spooler)
 
     if destination.startswith("udp:"):
         (host, port) = destination[4:].split(":")
