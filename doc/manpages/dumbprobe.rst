@@ -24,7 +24,7 @@ Options
 
 .. cmdoption:: --checks <checks-file>
 
-   Python module that defines checks. See :ref:`checks-file`.
+   Python module that defines checks. See :ref:`dumbprobe-checks-file`.
 
 .. cmdoption:: --destination stdout | tcp:<host>:<port> | udp:<host>:<port> | unix:<path>
 
@@ -42,7 +42,7 @@ Options
    warnings) are printed to *STDERR*. See :ref:`yaml-logging-config` for
    example config.
 
-.. _checks-file:
+.. _dumbprobe-checks-file:
 
 Configuration
 =============

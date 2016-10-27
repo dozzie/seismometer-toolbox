@@ -72,7 +72,8 @@ administrative socket of a running *daemonshepherd*.
 
 .. option:: -f <specfile>, --daemons <specfile>
 
-   specification of daemons to start (see :ref:`specfile` for details)
+   specification of daemons to start (see :ref:`daemonshepherd-specfile` for
+   details)
 
 .. option:: -l <config>, --logging <config>
 
@@ -99,7 +100,7 @@ administrative socket of a running *daemonshepherd*.
 
    group to run as
 
-.. _specfile:
+.. _daemonshepherd-specfile:
 
 Configuration
 =============
@@ -147,8 +148,8 @@ A daemon can have following variables:
   * ``log`` -- intercept *STDOUT*/*STDERR* and log it with :mod:`logging`
     module (**TODO**)
 
-* ``restart`` -- restart strategy; see :ref:`restart-strategy` section for
-  details
+* ``restart`` -- restart strategy; see :ref:`daemonshepherd-restart-strategy`
+  section for details
 * ``start_priority`` -- start priority (lower number starts earlier);
   defaults to 10
 
@@ -158,7 +159,7 @@ hash.
 **NOTE**: ``environment`` key will be *replaced* by daemon's value, not
 *merged*. It's not possible to add just one environment variable.
 
-.. _restart-strategy:
+.. _daemonshepherd-restart-strategy:
 
 Restart strategy
 ----------------

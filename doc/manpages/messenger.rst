@@ -161,7 +161,7 @@ location and the limitation above will be addressed in the future, aspect name
 is a required part of the message.
 
 Example pattern file
-^^^^^^^^^^^^^^^^^^^^
+--------------------
 
 .. code-block:: none
 
