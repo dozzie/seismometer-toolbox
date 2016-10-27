@@ -1,0 +1,15 @@
+version: 1
+root:
+  level: WARNING
+  handlers: [syslog]
+formatters:
+  syslog_formatter:
+    format: "[%(name)s] %(message)s"
+handlers:
+  syslog:
+    class: seismometer.logging.SysLogHandler
+    formatter: syslog_formatter
+    facility: cron
+    process_name: dumbprobe
+
+# vim:ft=yaml

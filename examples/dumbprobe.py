@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 from seismometer.dumbprobe import *
 from seismometer.message import Message, Value
 import os
@@ -78,3 +80,6 @@ CHECKS = [
         host = hostname(), service = "users",
     ),
 ]
+
+#--------------------------------------------------------------------------
+# vim:ft=python

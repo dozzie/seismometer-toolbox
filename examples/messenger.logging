@@ -1,0 +1,15 @@
+version: 1
+root:
+  level: INFO
+  handlers: [syslog]
+formatters:
+  syslog_formatter:
+    format: "[%(name)s] %(message)s"
+handlers:
+  syslog:
+    class: seismometer.logging.SysLogHandler
+    formatter: syslog_formatter
+    facility: daemon
+    process_name: messenger
+
+# vim:ft=yaml
