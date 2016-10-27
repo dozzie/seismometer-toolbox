@@ -3,20 +3,11 @@
 %:
 	dh $@
 
-version:
-	$(error ./version file should be prepared outside of Debian package build system)
-
-# ensure that the source package includes this file, as it is required to
-# build binary package outside git checkout
-clean: version
-
 override_dh_auto_build:
 	make build doc
 
 override_dh_auto_install:
 	make install DESTDIR=$(CURDIR)/debian/tmp
-	install -d $(CURDIR)/debian/tmp/usr/share/doc/seismometer-toolbox/html
-	cp -R doc/html/* $(CURDIR)/debian/tmp/usr/share/doc/seismometer-toolbox/html
 
 override_dh_installinit:
 	dh_installinit --name=daemonshepherd
