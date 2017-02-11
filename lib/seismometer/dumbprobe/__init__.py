@@ -73,6 +73,14 @@ class RunQueue:
         self.queue = elements[:] # XXX: shallow copy of array
         heapq.heapify(self.queue)
 
+    def __len__(self):
+        '''
+        :rtype: integer
+
+        Return the size of the queue.
+        '''
+        return len(self.queue)
+
     def empty(self):
         '''
         :rtype: Boolean
@@ -113,17 +121,29 @@ class Checks:
 
     def __init__(self, checks = None):
         self.q = RunQueue()
+        self.check_ids = {}
         if checks is not None:
             for c in checks:
                 self.add(c)
 
-    @staticmethod
-    def check_id(check):
-        return "C-%08X/%s.%s" % (
-            id(check),
-            check.__class__.__module__,
-            check.__class__.__name__,
-        )
+    def check_name(self, check):
+        '''
+        :rtype: (integer, string)
+        :return: check's index and name
+
+        Return check's identity for logging.
+        '''
+        check_id = self.check_ids[id(check)]
+        if hasattr(check, "check_name"):
+            check_name = check.check_name()
+        else:
+            check_name = "C-%08X/%s.%s" % (
+                id(check),
+                check.__class__.__module__,
+                check.__class__.__name__,
+            )
+
+        return (check_id, check_name)
 
     def add(self, check):
         '''
@@ -134,11 +154,16 @@ class Checks:
         '''
         logger = logging.getLogger("checks_queue")
         next_run = check.next_run()
+        # XXX: since there's no `delete()' operation and the queue can only
+        # grow at this point, length of the queue before adding the check is
+        # the position of the check in the incoming list
+        self.check_ids[id(check)] = len(self.q)
+        (check_id, check_name) = self.check_name(check)
         if next_run < time.time():
-            logger.info("adding check %s to run now", Checks.check_id(check))
+            logger.info("adding check #%d %s to run now", check_id, check_name)
         else:
-            logger.info("adding check %s to run at @%d",
-                        Checks.check_id(check), next_run)
+            logger.info("adding check #%d %s to run at @%d",
+                        check_id, check_name, next_run)
         self.q.add(next_run, check)
 
     def run_next(self):
@@ -153,18 +178,20 @@ class Checks:
         result = None
         while result is None:
             (next_run, check) = self.q.get()
-            logger.info("sleeping %ds to run %s",
-                        max(next_run - time.time(), 0), Checks.check_id(check))
+            (check_id, check_name) = self.check_name(check)
+            logger.info("sleeping %ds to run check #%d %s",
+                        max(next_run - time.time(), 0), check_id, check_name)
             self.sleep_until(next_run)
             try:
                 result = check.run()
             except Exception, e:
-                logger.warn("%s raised exception: %s",
-                            Checks.check_id(check), str(e))
+                logger.warn("check #%d %s raised exception: %s",
+                            check_id, check_name, str(e))
                 self.q.add(check.next_run(), check)
                 continue
             if result is None:
-                logger.info("%s has returned nothing", Checks.check_id(check))
+                logger.info("check #%d %s has returned nothing",
+                            check_id, check_name)
             self.q.add(check.next_run(), check)
         if isinstance(result, list):
             return result

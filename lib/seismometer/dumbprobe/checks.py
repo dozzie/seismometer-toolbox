@@ -84,6 +84,16 @@ class BaseCheck(object):
 
            location to be set (dict ``str => str``)
 
+        .. method:: check_name()
+
+           :return: check's name
+           :rtype: string
+
+           Method not really defined in this class. If a subclass defines this
+           method, it will be called to get a name of a check the object
+           represents. If left undefined, default name composed of class name,
+           module, and object's :func:`id()` will be used.
+
         '''
         self.interval = interval
         self.aspect = aspect
@@ -448,6 +458,16 @@ class Function(BaseCheck):
         self.function = function
         self.args = args
         self.kwargs = kwargs
+
+    def check_name(self):
+        if hasattr(self.function, "func_name"):
+            return self.function.func_name + "()"
+        else:
+            return "F-%08X/%s.%s" % (
+                id(self.function),
+                self.function.__class__.__module__,
+                self.function.__class__.__name__,
+            )
 
     def run(self):
         self.mark_run()
