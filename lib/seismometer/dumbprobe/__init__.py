@@ -161,6 +161,7 @@ class Checks:
             except Exception, e:
                 logger.warn("%s raised exception: %s",
                             Checks.check_id(check), str(e))
+                self.q.add(check.next_run(), check)
                 continue
             if result is None:
                 logger.info("%s has returned nothing", Checks.check_id(check))
