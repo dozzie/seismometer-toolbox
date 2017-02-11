@@ -128,6 +128,9 @@ A daemon can have following variables:
 
 * ``start_command`` -- command used to start the daemon (can be a shell
   command, too); daemon should not try to detach from terminal
+* ``argv0`` -- custom process name (``argv[0]``), though under Linux it's
+  a little less useful than it sounds (only shows with some :manpage:`ps(1)`
+  invocations, like ``ps -f``)
 * ``stop_signal`` -- signal (number or name, like SIGTERM or TERM) to stop
   the daemon; defaults to *SIGTERM*
 * ``stop_command`` -- command used to stop running daemon; it will be

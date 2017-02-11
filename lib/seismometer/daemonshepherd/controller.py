@@ -428,6 +428,7 @@ class Controller:
             self.expected[dname] = daemon.Daemon(
                 daemon_name   = dname,
                 start_command = var(dname, 'start_command'),
+                command_name  = var(dname, 'argv0'),
                 stop_command  = var(dname, 'stop_command'),
                 stop_signal   = var(dname, 'stop_signal'),
                 environment   = var(dname, 'environment'),
