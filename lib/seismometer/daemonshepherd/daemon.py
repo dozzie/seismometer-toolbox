@@ -127,12 +127,11 @@ class Command:
         if pid != 0:
             # in parent: close writing end of pipe (if any), make reading end
             # a file handle (if any), return PID + read file handle
-            if read_end is None:
-                return (pid, None)
-            else:
-                read_end = os.fdopen(read_end, 'r')
+            if write_end is not None:
                 os.close(write_end)
-                return (pid, read_end)
+            if read_end is not None:
+                read_end = os.fdopen(read_end, 'r')
+            return (pid, read_end)
 
         # XXX: child process
 
