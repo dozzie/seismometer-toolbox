@@ -182,7 +182,7 @@ class Daemon:
     '''
 
     def __init__(self, start_command, stop_command = None, stop_signal = None,
-                 command_name = None,
+                 command_name = None, daemon_name = None,
                  environment = None, cwd = None, stdout = None,
                  user = None, group = None):
         '''
@@ -191,6 +191,8 @@ class Daemon:
         :param stop_signal: signal used to stop the daemon
         :param command_name: command name (``argv[0]``) to be passed to
             :func:`exec()`
+        :param daemon_name: name of this daemon (metadata purely for caller's
+            convenience)
         :param environment: environment variables to be added/replaced when
             running commands (start and stop)
         :type environment: dict with string:string mapping
@@ -203,6 +205,8 @@ class Daemon:
         If both :obj:`stop_command` and :obj:`stop_signal` are ``None``,
         ``SIGTERM`` is used.
         '''
+
+        self.daemon_name = daemon_name
 
         if stdout is None or stdout == 'stdout':
             stdout = None
@@ -304,6 +308,12 @@ class Daemon:
         self.child_stdout = other.child_stdout
         other.child_pid = None
         other.child_stdout = None
+
+    def name(self):
+        '''
+        Return name of this daemon, as set in the constructor.
+        '''
+        return self.daemon_name
 
     #-------------------------------------------------------------------
     # filehandle methods

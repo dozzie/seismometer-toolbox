@@ -144,10 +144,11 @@ A daemon can have following variables:
 * ``stdout`` -- what to do with daemon's *STDOUT* and *STDERR*; following
   values are recognized:
 
-  * ``stdout`` or undefined -- pass the output to terminal
+  * ``console`` or undefined -- pass the output directly to terminal
   * ``/dev/null`` -- redirect output to :file:`/dev/null`
   * ``log`` -- intercept *STDOUT*/*STDERR* and log it with :mod:`logging`
-    module (**TODO**)
+    module; output will be logged by logger ``daemon.<name>``, so it can be
+    filtered in logging configuration
 
 * ``restart`` -- restart strategy; see :ref:`daemonshepherd-restart-strategy`
   section for details
