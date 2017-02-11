@@ -48,6 +48,8 @@ important when the command is provided with calculated arguments.
 import heapq
 import time
 import logging
+import seismometer.poll
+import signal
 
 from checks import *
 __all__ = [
@@ -111,6 +113,77 @@ class RunQueue:
         (time, command) = heapq.heappop(self.queue)
         return (time, command)
 
+    def peek(self):
+        '''
+        :rtype: tuple (time, command)
+
+        Return command that has earliest run time without removing it from the
+        queue.
+
+        :obj:`command` is the same object as it was passed to :meth:`add()`.
+        '''
+        (time, command) = self.queue[0]
+        return (time, command)
+
+# }}}
+#-----------------------------------------------------------------------------
+# Alarm {{{
+
+class Alarm:
+    '''
+    :manpage:`alarm(2)`-based notifier.
+    '''
+
+    def __init__(self):
+        self.alarm_fired = False
+        self.alarm_set = False
+
+    def install_handler(self):
+        '''
+        Install :signal:`SIGALRM` handler of this object.
+        '''
+        signal.signal(signal.SIGALRM, self.handle_alarm)
+
+    def set_alarm(self, when):
+        '''
+        :param when: timestamp to fire alarm on
+
+        Set an alarm to be fired. If :obj:`when` is in the past, the alarm is
+        considered to be fired already.
+        '''
+        when = int(when)
+        now = int(time.time())
+        if now < when:
+            self.alarm_fired = False
+            self.alarm_set = True
+            signal.alarm(when - now)
+        else:
+            self.alarm_fired = True
+            self.alarm_set = False
+
+    def handle_alarm(self, sig, stack_trace):
+        '''
+        :signal:`SIGALRM` handler.
+        '''
+        self.alarm_fired = True
+        self.alarm_set = False
+
+    def is_set(self):
+        '''
+        :rtype: bool
+
+        Check whether the alarm was set. Alarm that fired is unset.
+        '''
+        return self.alarm_set
+
+    def fired(self):
+        '''
+        :rtype: bool
+
+        Check whether the alarm has fired or not.
+        '''
+        return self.alarm_fired
+
 # }}}
 #-----------------------------------------------------------------------------
 
@@ -121,6 +194,9 @@ class Checks:
 
     def __init__(self, checks = None):
         self.q = RunQueue()
+        self.poll = seismometer.poll.Poll()
+        self.alarm = Alarm()
+        self.alarm.install_handler()
         self.check_ids = {}
         if checks is not None:
             for c in checks:
@@ -177,11 +253,29 @@ class Checks:
         # loop until the first check encountered returns something meaningful
         result = None
         while result is None:
-            (next_run, check) = self.q.get()
+            # XXX: if some messages were read from descriptors and returned
+            # and the alarm has fired when the messages were being processed,
+            # `next_run' will be a time in the past and alarm will immediately
+            # report that it has fired
+            (next_run, check) = self.q.peek()
             (check_id, check_name) = self.check_name(check)
-            logger.info("sleeping %ds to run check #%d %s",
-                        max(next_run - time.time(), 0), check_id, check_name)
-            self.sleep_until(next_run)
+            if not self.alarm.is_set():
+                self.alarm.set_alarm(next_run)
+                logger.info("sleeping %ds to run check #%d %s",
+                            max(next_run - time.time(), 0),
+                            check_id, check_name)
+
+            while not self.alarm.fired():
+                # TODO: read whatever came from the polled handles and return
+                # it to the caller; for now it's just SIGALRM-safe sleep
+                # NOTE: poll() is interrupted by SIGALRM
+                self.poll.poll(timeout = None)
+
+            # XXX: alarm has fired and nothing was read from polled
+            # descriptors
+
+            self.q.get() # drop the check, as it's now to be run
+
             try:
                 result = check.run()
             except Exception, e:
