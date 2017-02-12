@@ -340,6 +340,9 @@ class Checks:
         # no handles to read, so poll() must have been interrupted with
         # SIGALRM or the check was already due
 
+        if self.q.empty():
+            return None
+
         (next_run, check) = self.q.peek()
         if int(next_run) > int(time.time()):
             # this could be SIGALRM sent to the DumbProbe manually, or maybe
@@ -374,13 +377,14 @@ class Checks:
         for reading. If the time for running next check from the schedule has
         come, ``None`` is returned.
         '''
-        (next_run, check) = self.q.peek()
-        if int(next_run) <= int(time.time()):
-            self.alarm.reset_alarm()
-            return None
+        if not self.q.empty():
+            (next_run, check) = self.q.peek()
+            if int(next_run) <= int(time.time()):
+                self.alarm.reset_alarm()
+                return None
 
-        if not self.alarm.is_set():
-            self.alarm.set_alarm(next_run)
+            if not self.alarm.is_set():
+                self.alarm.set_alarm(next_run)
 
         handles = self.poll.poll(timeout = None)
         if len(handles) == 0:
