@@ -42,6 +42,23 @@ important when the command is provided with calculated arguments.
 .. autoclass:: Nagios
    :members:
 
+Available handle classes
+------------------------
+
+These classes are for receiving check results from external sources,
+especially from command line tools that write status information in regular
+intervals and don't exit on their own (a good example is ``vmstat 60``, which
+prints OS statistics every 60 seconds).
+
+.. autoclass:: BaseHandle
+   :members:
+
+.. autoclass:: ShellStream
+   :members:
+
+.. autoexception:: HandleEOF
+   :members:
+
 '''
 #-----------------------------------------------------------------------------
 
@@ -52,6 +69,7 @@ import seismometer.poll
 import signal
 
 from checks import *
+from handles import *
 __all__ = [
     'Checks',
     # XXX: all the classes from `checks' module
@@ -59,6 +77,9 @@ __all__ = [
     'ShellOutputJSON', 'ShellOutputMetric', 'ShellOutputState',
     'ShellExitState', 'Nagios',
     'Function',
+    # XXX: all the classes from `handles' module
+    'BaseHandle', 'HandleEOF',
+    'ShellStream',
 ]
 
 #-----------------------------------------------------------------------------
@@ -144,6 +165,14 @@ class Alarm:
         '''
         signal.signal(signal.SIGALRM, self.handle_alarm)
 
+    def reset_alarm(self):
+        '''
+        Reset alarm's state, cancelling any schedule.
+        '''
+        self.alarm_fired = False
+        self.alarm_set = False
+        signal.alarm(0)
+
     def set_alarm(self, when):
         '''
         :param when: timestamp to fire alarm on
@@ -195,6 +224,7 @@ class Checks:
     def __init__(self, checks = None):
         self.q = RunQueue()
         self.poll = seismometer.poll.Poll()
+        self.start_handles = []
         self.alarm = Alarm()
         self.alarm.install_handler()
         self.check_ids = {}
@@ -204,6 +234,7 @@ class Checks:
 
     def check_name(self, check):
         '''
+        :param check: a check or a handle
         :rtype: (integer, string)
         :return: check's index and name
 
@@ -228,13 +259,21 @@ class Checks:
 
         Add an entry to the list of checks to be run periodically.
         '''
-        logger = logging.getLogger("checks_queue")
-        next_run = check.next_run()
         # XXX: since there's no `delete()' operation and the queue can only
         # grow at this point, length of the queue before adding the check is
         # the position of the check in the incoming list
         self.check_ids[id(check)] = len(self.q)
         (check_id, check_name) = self.check_name(check)
+
+        logger = logging.getLogger("checks_queue")
+
+        if isinstance(check, BaseHandle):
+            self.start_handles.append(check)
+            return
+
+        # it's a regular check with a schedule
+
+        next_run = check.next_run()
         if next_run < time.time():
             logger.info("adding check #%d %s to run now", check_id, check_name)
         else:
@@ -242,71 +281,196 @@ class Checks:
                         check_id, check_name, next_run)
         self.q.add(next_run, check)
 
+    def setup_handles(self):
+        '''
+        Open all added handles.
+        '''
+        logger = logging.getLogger("checks_queue")
+        for handle in self.start_handles:
+            (check_id, check_name) = self.check_name(handle)
+
+            try:
+                handle.open()
+            except Exception, e:
+                # schedule a reopen
+                reopen_time = int(time.time()) + 60 # FIXME: hardcoded
+                logger.warn("handle #%d %s start failed: %s; reopening at @%d",
+                            check_id, check_name, str(e), reopen_time)
+                self.q.add(reopen_time, handle)
+                continue
+
+            logger.info("adding handle #%d %s to poll queue",
+                        check_id, check_name)
+            self.poll.add(handle)
+        del self.start_handles[:]
+
     def run_next(self):
         '''
         :return: non-empty list of dicts and
             :class:`seismometer.message.Message` instances
 
-        Sleep until next check is expected to be run and run the check.
+        Sleep until next check is expected to be run and run the check, or
+        read messages from polled handles, if any are available.
         '''
-        logger = logging.getLogger("checks_queue")
-        # loop until the first check encountered returns something meaningful
         result = None
         while result is None:
-            # XXX: if some messages were read from descriptors and returned
-            # and the alarm has fired when the messages were being processed,
-            # `next_run' will be a time in the past and alarm will immediately
-            # report that it has fired
-            (next_run, check) = self.q.peek()
-            (check_id, check_name) = self.check_name(check)
-            if not self.alarm.is_set():
-                self.alarm.set_alarm(next_run)
-                logger.info("sleeping %ds to run check #%d %s",
-                            max(next_run - time.time(), 0),
-                            check_id, check_name)
+            result = self._run_next_once()
+        return result
 
-            while not self.alarm.fired():
-                # TODO: read whatever came from the polled handles and return
-                # it to the caller; for now it's just SIGALRM-safe sleep
-                # NOTE: poll() is interrupted by SIGALRM
-                self.poll.poll(timeout = None)
+    def _run_next_once(self):
+        '''
+        :return: list of dicts and :class:`seismometer.message.Message`
+            instances, or ``None`` if no messages were read
 
-            # XXX: alarm has fired and nothing was read from polled
-            # descriptors
+        Sleep until next check is expected to be run and run the check, or
+        read messages from polled handles, if any are available.
 
-            self.q.get() # drop the check, as it's now to be run
+        Function may return ``None`` when some handles needed maintenance
+        (closing or reopening), or when a check returned ``None`` or empty
+        list of messages.
+        '''
+        read_handles = self.poll_handles()
 
-            try:
-                result = check.run()
-            except Exception, e:
-                logger.warn("check #%d %s raised exception: %s",
-                            check_id, check_name, str(e))
-                self.q.add(check.next_run(), check)
-                continue
-            if result is None:
-                logger.info("check #%d %s has returned nothing",
-                            check_id, check_name)
-            self.q.add(check.next_run(), check)
-        if isinstance(result, list):
+        if read_handles is not None:
+            result = self.read_handles(read_handles)
+            if len(result) == 0:
+                return None
             return result
+
+        # no handles to read, so poll() must have been interrupted with
+        # SIGALRM or the check was already due
+
+        (next_run, check) = self.q.peek()
+        if int(next_run) > int(time.time()):
+            # this could be SIGALRM sent to the DumbProbe manually, or maybe
+            # some other scenario I haven't thought about
+            return None
+        self.q.get() # remove the check from the queue
+
+        if isinstance(check, BaseHandle):
+            # this wasn't a check, but a handle that needs being reopened
+            self.reopen_handle(check)
+            return None
+
+        # XXX: `check' is a check object, possibly BaseCheck instance, but not
+        # necessarily
+        result = self.run_check(check)
+        self.q.add(int(check.next_run()), check)
+
+        if isinstance(result, (list, tuple)) and len(result) == 0:
+            return None
         elif isinstance(result, tuple):
             return list(result)
-        else: # either seismometer.message.Message or dict
+        elif isinstance(result, list):
+            return result
+        else: # dict or seismometer.message.Message
             return [result]
 
-    def sleep_until(self, when):
+    def poll_handles(self):
         '''
-        :param when: epoch timestamp of point to wake from sleep
+        :return: list of :class:`BaseHandle` or ``None``
 
-        Sleep until it is the specified time.
-
-        Method works fine when the time to sleep until is in the past.
+        Poll the watched handles for input and return a list of the ones ready
+        for reading. If the time for running next check from the schedule has
+        come, ``None`` is returned.
         '''
-        now = time.time()
-        while now < when:
-            # it may be interrupted by some ignored signal
-            time.sleep(when - now)
-            now = time.time()
+        (next_run, check) = self.q.peek()
+        if int(next_run) <= int(time.time()):
+            self.alarm.reset_alarm()
+            return None
+
+        if not self.alarm.is_set():
+            self.alarm.set_alarm(next_run)
+
+        handles = self.poll.poll(timeout = None)
+        if len(handles) == 0:
+            # poll() was interrupted, most probably by SIGALRM
+            return None
+        return handles
+
+    def read_handles(self, handles):
+        '''
+        :param handles: list of :class:`BaseHandle` objects to read
+        :return: list (possibly empty) of dicts and
+            :class:`seismometer.message.Message` instances
+
+        Read all messages from passed handles and return them as a single,
+        flat list.
+
+        Handles that encountered EOF are closed (:meth:`BaseHandle.close()`),
+        removed from poll queue, and scheduled for reopen
+        (:meth:`BaseHandle.open()`).
+        '''
+        logger = logging.getLogger("checks_queue")
+
+        result = []
+        for handle in handles:
+            (check_id, check_name) = self.check_name(handle)
+            try:
+                result.extend(handle.read_messages())
+            except HandleEOF, e:
+                # EOF; remove from polling and schedule reopen
+                reopen_time = int(time.time()) + 60 # FIXME: hardcoded
+                logger.warn("handle #%d %s returned EOF: %s; reopening at @%d",
+                            check_id, check_name, str(e), reopen_time)
+                self.poll.remove(handle)
+                handle.close()
+                self.q.add(reopen_time, handle)
+            except Exception, e:
+                # probably a processing error; log the message and continue
+                logger.warn("handle #%d %s raised a read exception: %s",
+                            check_id, check_name, str(e))
+
+        return result
+
+    def reopen_handle(self, handle):
+        '''
+        :param handle: :class:`BaseHandle` to be reopened
+
+        Reopen a handle and add it to poll list. If reopen fails, the handle
+        is scheduled for another one.
+        '''
+        logger = logging.getLogger("checks_queue")
+        (check_id, check_name) = self.check_name(handle)
+
+        try:
+            handle.open()
+        except Exception, e:
+            # schedule next reopen
+            reopen_time = int(time.time()) + 60 # FIXME: hardcoded
+            logger.warn("handle #%d %s reopen failed: %s; reopening at @%d",
+                        check_id, check_name, str(e), reopen_time)
+            self.q.add(reopen_time, handle)
+            return
+        self.poll.add(handle)
+        logger.info("handle #%d %s reopened", check_id, check_name)
+
+    def run_check(self, check):
+        '''
+        :param check: check (:class:`BaseCheck` or compatible) to be run
+        :return: list or tuple of messages, a single message (dict or
+            :class:`seismometer.message.Message`), or ``None``
+
+        Run a check and return its result. If the check raised an exception,
+        the exception is logged and ``None`` is returned.
+        '''
+        logger = logging.getLogger("checks_queue")
+        (check_id, check_name) = self.check_name(check)
+        result = None
+        try:
+            result = check.run()
+        except Exception, e:
+            logger.warn("check #%d %s raised exception: %s",
+                        check_id, check_name, str(e))
+            return None
+
+        if result is None:
+            # a check is not really expected to return `None', because it may
+            # mean that a "return" was forgotten somewhere; if a check needs
+            # to return "no results", then it may return an empty list/tuple
+            logger.info("check #%d %s has returned nothing",
+                        check_id, check_name)
+        return result
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker

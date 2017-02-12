@@ -82,6 +82,11 @@ commands and scripts:
 * :class:`seismometer.dumbprobe.Nagios` -- command that conforms to
   `Monitoring Plugins <https://www.monitoring-plugins.org/>`_ protocol,
   including performance data for collecting metrics
+* :class:`seismometer.dumbprobe.ShellStream` -- command that writes statistics
+  to *STDOUT*, line by line, in a continuous fashion (like
+  :manpage:`vmstat(8)` and :manpage:`iostat(1)` do); such lines are parsed by
+  a Python function (default: :func:`json.loads()`) to produce useful
+  monitoring data
 
 Typically, checks file will look somewhat like this:
 
@@ -179,8 +184,8 @@ Logging configuration
 Programming interface
 =====================
 
-**NOTE**: User doesn't need to use these classes/functions if they happen to
-not suit the needs. They are merely a proposal, but the author thinks they
+**NOTE**: User doesn't need to use these classes/functions if they happen not
+to suit the needs. They are merely a proposal, but the author thinks they
 should at least help somewhat in deployment.
 
 .. automodule:: seismometer.dumbprobe
