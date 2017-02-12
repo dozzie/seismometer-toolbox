@@ -1,3 +1,16 @@
+seismometer-toolbox (0.4.0-1) stable; urgency=low
+
+  * Added logging uncaught exceptions to all tools.
+  * Added option to set argv[0] for a daemon in daemonshepherd.
+  * Added logging daemon's STDOUT/STDERR in daemonshepherd.
+  * Added support for continuously running commands (like vmstat or iostat) as
+    DumbProbe's checks.
+  * Added "--once" operation mode to DumbProbe.
+  * Extended DumbProbe's logs with check's index and possibly a proper name.
+  * Fixed: DumbProbe was losing checks that raised an exception.
+
+ -- Stanislaw Klekot <dozzie@jarowit.net>  Sun, 12 Feb 2017 23:48:56 +0100
+
 seismometer-toolbox (0.3.0-1) unstable; urgency=low
 
   * Added man pages for daemonshepherd, messenger, and DumbProbe.
