@@ -28,7 +28,7 @@ def df(mountpoint):
             "filesystem": mountpoint,
         },
     )
-    result["free"]  = Value(
+    result["free"] = Value(
         stat.f_bfree  * stat.f_bsize / 1024.0 / 1024.0,
         unit = "MB",
     )
@@ -36,6 +36,22 @@ def df(mountpoint):
         stat.f_blocks * stat.f_bsize / 1024.0 / 1024.0,
         unit = "MB",
     )
+    return result
+
+def parse_iostat(line):
+    if not line.startswith("sd") and not line.startswith("dm-"):
+        return ()
+    (device, tps, rspeed, wspeed, rbytes, wbytes) = line.split()
+    result = Message(
+        aspect = "disk I/O",
+        location = {
+            "host": hostname(),
+            "device": device,
+        },
+    )
+    result["read_speed"] = Value(float(rspeed), unit = "kB/s")
+    result["write_speed"] = Value(float(wspeed), unit = "kB/s")
+    result["transactions"] = Value(float(tps), unit = "tps")
     return result
 
 #--------------------------------------------------------------------------
@@ -66,19 +82,22 @@ CHECKS = [
     ),
     # and two Monitoring Plugins
     Nagios(
-        # this one is run without shell
+        # this one runs without shell
         ["/usr/lib/nagios/plugins/check_load", "-w", "0.25", "-c", "0.5"],
         interval = 10,
         aspect = "load average",
         host = hostname(), service = "load",
     ),
     Nagios(
-        # this one is run with shell
+        # this one runs with shell
         "/usr/lib/nagios/plugins/check_users -w 3 -c 5",
         interval = 60,
         aspect = "wtmp",
         host = hostname(), service = "users",
     ),
+    # spawn iostat(1), make it print statistics every 20s, and make them
+    # proper Seismometer messages
+    ShellStream(["/usr/bin/iostat", "-p", "20"], parse = parse_iostat),
 ]
 
 #--------------------------------------------------------------------------
