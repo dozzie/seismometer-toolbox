@@ -53,15 +53,21 @@ class Command:
     SHELL_META = re.compile('[]\'"$&*()`{}\\\\;<|>?[]')
     SPACE = re.compile('[ \t\r\n]+')
 
-    def __init__(self, command, environment = None, cwd = None, stdout = None,
+    def __init__(self, command, command_name = None,
+                 environment = None, cwd = None, stdout = None,
                  user = None, group = None):
         '''
         :param command: command to be run (could be a shell snippet)
         :param environment: environment variables to be added/replaced in
             current environment
         :type environment: dict with string:string mapping
+        :param command_name: command name (``argv[0]``) to be passed to
+            :func:`exec()`
         :param cwd: directory to run command in
         :param stdout: where to direct output from the command
+        :param user: user to run as
+        :param group: group to run as (defaults to primary group of
+            :obj:`user`)
 
         Command's output could be sent as it is for parent process
         (:obj:`stdout` set to ``None``), silenced out (:const:`DEVNULL`) or
@@ -78,6 +84,8 @@ class Command:
         else:
             self.args = Command.SPACE.split(command)
             self.command = self.args[0]
+        if command_name is not None:
+            self.args[0] = command_name
 
     def __ne__(self, other):
         return not (self == other)
@@ -119,12 +127,11 @@ class Command:
         if pid != 0:
             # in parent: close writing end of pipe (if any), make reading end
             # a file handle (if any), return PID + read file handle
-            if read_end is None:
-                return (pid, None)
-            else:
-                read_end = os.fdopen(read_end, 'r')
+            if write_end is not None:
                 os.close(write_end)
-                return (pid, read_end)
+            if read_end is not None:
+                read_end = os.fdopen(read_end, 'r')
+            return (pid, read_end)
 
         # XXX: child process
 
@@ -174,12 +181,17 @@ class Daemon:
     '''
 
     def __init__(self, start_command, stop_command = None, stop_signal = None,
+                 command_name = None, daemon_name = None,
                  environment = None, cwd = None, stdout = None,
                  user = None, group = None):
         '''
         :param start_command: command used to start the daemon
         :param stop_command: command used to stop the daemon instead of signal
         :param stop_signal: signal used to stop the daemon
+        :param command_name: command name (``argv[0]``) to be passed to
+            :func:`exec()`
+        :param daemon_name: name of this daemon (metadata purely for caller's
+            convenience)
         :param environment: environment variables to be added/replaced when
             running commands (start and stop)
         :type environment: dict with string:string mapping
@@ -193,21 +205,33 @@ class Daemon:
         ``SIGTERM`` is used.
         '''
 
+        self.daemon_name = daemon_name
+
         if stdout is None or stdout == 'stdout':
-            self.start_command = Command(start_command, environment, cwd,
-                                         user = user, group = group)
+            stdout = None
         elif stdout == '/dev/null':
-            self.start_command = Command(
-                start_command, environment, cwd, Command.DEVNULL, user, group
-            )
+            stdout = Command.DEVNULL
         elif stdout == 'pipe':
-            self.start_command = Command(
-                start_command, environment, cwd, Command.PIPE, user, group
-            )
+            stdout = Command.PIPE
+
+        self.start_command = Command(
+            command = start_command,
+            command_name = command_name,
+            environment = environment,
+            cwd = cwd,
+            stdout = stdout,
+            user = user,
+            group = group,
+        )
 
         if stop_command is not None:
             self.stop_command = Command(
-                stop_command, environment, cwd, Command.DEVNULL, user, group
+                command = stop_command,
+                environment = environment,
+                cwd = cwd,
+                stdout = Command.DEVNULL,
+                user = user,
+                group = group,
             )
             self.stop_signal = None
         else:
@@ -283,6 +307,12 @@ class Daemon:
         self.child_stdout = other.child_stdout
         other.child_pid = None
         other.child_stdout = None
+
+    def name(self):
+        '''
+        Return name of this daemon, as set in the constructor.
+        '''
+        return self.daemon_name
 
     #-------------------------------------------------------------------
     # filehandle methods

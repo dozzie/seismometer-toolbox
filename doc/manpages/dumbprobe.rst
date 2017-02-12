@@ -26,6 +26,15 @@ Options
 
    Python module that defines checks. See :ref:`dumbprobe-checks-file`.
 
+.. cmdoption:: --once
+
+   Go through the checks immediately and just once and exit, instead of usual
+   infinite loop with a schedule.
+
+   This mode of operation is only supported if :obj:`CHECKS` in checks file is
+   a list or tuple, and it ignores any
+   :class:`seismometer.dumbprobe.BaseHandle` checks that were defined.
+
 .. cmdoption:: --destination stdout | tcp:<host>:<port> | udp:<host>:<port> | unix:<path>
 
    Address to send check results to.
@@ -82,6 +91,11 @@ commands and scripts:
 * :class:`seismometer.dumbprobe.Nagios` -- command that conforms to
   `Monitoring Plugins <https://www.monitoring-plugins.org/>`_ protocol,
   including performance data for collecting metrics
+* :class:`seismometer.dumbprobe.ShellStream` -- command that writes statistics
+  to *STDOUT*, line by line, in a continuous fashion (like
+  :manpage:`vmstat(8)` and :manpage:`iostat(1)` do); such lines are parsed by
+  a Python function (default: :func:`json.loads()`) to produce useful
+  monitoring data
 
 Typically, checks file will look somewhat like this:
 
@@ -115,7 +129,7 @@ Typically, checks file will look somewhat like this:
                "filesystem": mountpoint,
            },
        )
-       result["free"]  = Value(
+       result["free"] = Value(
            stat.f_bfree  * stat.f_bsize / 1024.0 / 1024.0,
            unit = "MB",
        )
@@ -123,6 +137,22 @@ Typically, checks file will look somewhat like this:
            stat.f_blocks * stat.f_bsize / 1024.0 / 1024.0,
            unit = "MB",
        )
+       return result
+
+   def parse_iostat(line):
+       if not line.startswith("sd") and not line.startswith("dm-"):
+           return ()
+       (device, tps, rspeed, wspeed, rbytes, wbytes) = line.split()
+       result = Message(
+           aspect = "disk I/O",
+           location = {
+               "host": hostname(),
+               "device": device,
+           },
+       )
+       result["read_speed"] = Value(float(rspeed), unit = "kB/s")
+       result["write_speed"] = Value(float(wspeed), unit = "kB/s")
+       result["transactions"] = Value(float(tps), unit = "tps")
        return result
 
    #--------------------------------------------------------------------
@@ -167,6 +197,9 @@ Typically, checks file will look somewhat like this:
            aspect = "wtmp",
            host = hostname(), service = "users",
        ),
+       # spawn iostat(1), make it print statistics every 20s, and make
+       # them proper Seismometer messages
+       ShellStream(["/usr/bin/iostat", "-p", "20"], parse = parse_iostat),
    ]
 
 .. _dumbprobe-logging:
@@ -179,8 +212,8 @@ Logging configuration
 Programming interface
 =====================
 
-**NOTE**: User doesn't need to use these classes/functions if they happen to
-not suit the needs. They are merely a proposal, but the author thinks they
+**NOTE**: User doesn't need to use these classes/functions if they happen not
+to suit the needs. They are merely a proposal, but the author thinks they
 should at least help somewhat in deployment.
 
 .. automodule:: seismometer.dumbprobe

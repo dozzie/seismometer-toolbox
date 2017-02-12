@@ -385,9 +385,8 @@ class Controller:
             self.poll.remove(daemon)
             daemon.close()
         else:
-            # TODO: process the line (JSON-decode and forward it or log using
-            # logging module)
-            pass
+            logger = logging.getLogger("daemon." + daemon.name())
+            logger.info(line.rstrip("\n"))
 
     #-------------------------------------------------------------------
 
@@ -411,6 +410,15 @@ class Controller:
                 return spec['daemons'][daemon][varname]
             return defaults.get(varname, default)
 
+        def stdout_option(daemon):
+            value = var(daemon, 'stdout')
+            if value is None or value == 'console':
+                return None
+            elif value == '/dev/null':
+                return '/dev/null'
+            else: # assume it's `value == "log"'
+                return 'pipe'
+
         self.expected = {}
         self.start_priorities = {}
         self.restart_queue.clear()
@@ -418,12 +426,14 @@ class Controller:
             self.restart_queue.add(dname, var(dname, 'restart'))
             self.start_priorities[dname] = var(dname, 'start_priority', 10)
             self.expected[dname] = daemon.Daemon(
+                daemon_name   = dname,
                 start_command = var(dname, 'start_command'),
+                command_name  = var(dname, 'argv0'),
                 stop_command  = var(dname, 'stop_command'),
                 stop_signal   = var(dname, 'stop_signal'),
                 environment   = var(dname, 'environment'),
                 cwd           = var(dname, 'cwd'),
-                stdout        = var(dname, 'stdout'),
+                stdout        = stdout_option(dname),
                 user          = var(dname, 'user'),
                 group         = var(dname, 'group'),
             )

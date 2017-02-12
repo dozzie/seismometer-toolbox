@@ -128,6 +128,9 @@ A daemon can have following variables:
 
 * ``start_command`` -- command used to start the daemon (can be a shell
   command, too); daemon should not try to detach from terminal
+* ``argv0`` -- custom process name (``argv[0]``), though under Linux it's
+  a little less useful than it sounds (only shows with some :manpage:`ps(1)`
+  invocations, like ``ps -f``)
 * ``stop_signal`` -- signal (number or name, like SIGTERM or TERM) to stop
   the daemon; defaults to *SIGTERM*
 * ``stop_command`` -- command used to stop running daemon; it will be
@@ -144,10 +147,11 @@ A daemon can have following variables:
 * ``stdout`` -- what to do with daemon's *STDOUT* and *STDERR*; following
   values are recognized:
 
-  * ``stdout`` or undefined -- pass the output to terminal
+  * ``console`` or undefined -- pass the output directly to terminal
   * ``/dev/null`` -- redirect output to :file:`/dev/null`
   * ``log`` -- intercept *STDOUT*/*STDERR* and log it with :mod:`logging`
-    module (**TODO**)
+    module; output will be logged by logger ``daemon.<name>``, so it can be
+    filtered in logging configuration
 
 * ``restart`` -- restart strategy; see :ref:`daemonshepherd-restart-strategy`
   section for details
