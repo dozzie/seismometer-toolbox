@@ -130,6 +130,22 @@ Typically, checks file will look somewhat like this:
        )
        return result
 
+   def parse_iostat(line):
+       if not line.startswith("sd") and not line.startswith("dm-"):
+           return ()
+       (device, tps, rspeed, wspeed, rbytes, wbytes) = line.split()
+       result = Message(
+           aspect = "disk I/O",
+           location = {
+               "host": hostname(),
+               "device": device,
+           },
+       )
+       result["read_speed"] = Value(float(rspeed), unit = "kB/s")
+       result["write_speed"] = Value(float(wspeed), unit = "kB/s")
+       result["transactions"] = Value(float(tps), unit = "tps")
+       return result
+
    #--------------------------------------------------------------------
 
    CHECKS = [
@@ -172,6 +188,9 @@ Typically, checks file will look somewhat like this:
            aspect = "wtmp",
            host = hostname(), service = "users",
        ),
+       # spawn iostat(1), make it print statistics every 20s, and make them
+       # proper Seismometer messages
+       ShellStream(["/usr/bin/iostat", "-p", "20"], parse = parse_iostat),
    ]
 
 .. _dumbprobe-logging:
