@@ -8,6 +8,7 @@ import seismometer.message
 import seismometer.dumbprobe
 import seismometer.logging
 import logging
+import traceback
 
 #-----------------------------------------------------------------------------
 # parse command line options {{{
@@ -45,6 +46,15 @@ if options.checks is None:
 
 seismometer.logging.configure_from_file(options.logging, default = "stderr")
 logger = logging.getLogger()
+
+def exception_logger(exctype, value, tb):
+    logger.critical("Uncaught exception: %s", value)
+    for chunk in traceback.format_exception(exctype, value, tb):
+        for line in chunk.split("\n"):
+            if line == "": continue
+            logger.critical(line)
+
+sys.excepthook = exception_logger
 
 #-----------------------------------------------------------------------------
 # --destination options parsing {{{
