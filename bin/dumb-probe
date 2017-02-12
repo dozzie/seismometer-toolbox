@@ -23,6 +23,12 @@ parser.add_option(
     help = "load checks from *.py file", metavar = "PYFILE",
 )
 parser.add_option(
+    "--once", dest = "once",
+    action = "store_true", default = False,
+    help = "don't run checks in a loop with schedule, instead run each of them"
+           " just once and exit",
+)
+parser.add_option(
     "--destination", "--dest", dest = "destination", default = "stdout",
     help = "where to submit messages to (stdout, tcp:HOST:PORT,"
            " udp:HOST:PORT, or unix:PATH; stdout is the default)",
@@ -98,6 +104,32 @@ if isinstance(checks, (list, tuple)):
 output = prepare_destination(options.destination)
 if output is None:
     parser.error("invalid --destination")
+
+if options.once:
+    if not isinstance(checks, seismometer.dumbprobe.Checks):
+        print >>sys.stderr, "CHECKS not being a list or tuple is" \
+                            " not supported with --once option"
+        sys.exit(1)
+
+    # we still have original checks list around, and with original checks
+    # order, too
+    for check in checks_mod.CHECKS:
+        if isinstance(check, seismometer.dumbprobe.BaseHandle):
+            continue
+        # run the check through container, for logging and stuff
+        result = checks.run_check(check)
+
+        if result is None:
+            continue
+        elif isinstance(result, (dict, seismometer.message.Message)):
+            result = [result]
+
+        for msg in result:
+            if isinstance(msg, seismometer.message.Message):
+                output.send(msg.to_dict())
+            else: # dict
+                output.send(msg)
+    sys.exit(0)
 
 #-----------------------------------------------------------------------------
 # main loop

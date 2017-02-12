@@ -26,6 +26,15 @@ Options
 
    Python module that defines checks. See :ref:`dumbprobe-checks-file`.
 
+.. cmdoption:: --once
+
+   Go through the checks immediately and just once and exit, instead of usual
+   infinite loop with a schedule.
+
+   This mode of operation is only supported if :obj:`CHECKS` in checks file is
+   a list or tuple, and it ignores any
+   :class:`seismometer.dumbprobe.BaseHandle` checks that were defined.
+
 .. cmdoption:: --destination stdout | tcp:<host>:<port> | udp:<host>:<port> | unix:<path>
 
    Address to send check results to.
