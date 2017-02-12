@@ -120,7 +120,7 @@ Typically, checks file will look somewhat like this:
                "filesystem": mountpoint,
            },
        )
-       result["free"]  = Value(
+       result["free"] = Value(
            stat.f_bfree  * stat.f_bsize / 1024.0 / 1024.0,
            unit = "MB",
        )
@@ -188,8 +188,8 @@ Typically, checks file will look somewhat like this:
            aspect = "wtmp",
            host = hostname(), service = "users",
        ),
-       # spawn iostat(1), make it print statistics every 20s, and make them
-       # proper Seismometer messages
+       # spawn iostat(1), make it print statistics every 20s, and make
+       # them proper Seismometer messages
        ShellStream(["/usr/bin/iostat", "-p", "20"], parse = parse_iostat),
    ]
 
