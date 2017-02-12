@@ -139,15 +139,11 @@ class ShellStream(BaseHandle):
     :manpage:`vmstat(8)` or :manpage:`iostat(1)`) and parsing them to messages
     for further processing.
     '''
-    def __init__(self, command, use_shell = False, parse = None):
+    def __init__(self, command, parse = None):
         '''
-        :param command: command to be executed
-        :type command: a string or a list of strings (command + arguments)
-        :param use_shell: whether the command should be interpreted with shell
-            or not
-        :type use_shell: boolean
+        :param command: command to run (string for shell command, or list of
+            strings for direct command to run)
         :param parse: function to parse a line read from the command
-        :type parse: one-argument function
 
         If :obj:`parse` argument is ``None``, :func:`json.loads()` is used,
         meaning that the command prints JSON objects, one per line.
@@ -159,7 +155,6 @@ class ShellStream(BaseHandle):
         '''
         super(ShellStream, self).__init__()
         self.command = command
-        self.use_shell = use_shell
         self.parse = parse if parse is not None else json.loads
         self.child = None
 
@@ -168,12 +163,13 @@ class ShellStream(BaseHandle):
 
     def open(self):
         self.close() # make sure we don't lose any subprocess
+        use_shell = not isinstance(self.command, (list, tuple))
         # TODO: raise an exception if spawning a child fails
         self.child = subprocess.Popen(
             self.command,
             stdin = open("/dev/null"),
             stdout = subprocess.PIPE,
-            shell = self.use_shell,
+            shell = use_shell,
         )
         # close-on-exec is necessary for the descriptor not to leak to another
         # subprocesses
