@@ -24,7 +24,8 @@ class Poll:
 
     def __init__(self):
         self._poll = select.poll()
-        self._object_map = {}
+        self._known_fds = {}
+        self._object_fds = {}
 
     def add(self, handle):
         '''
@@ -35,28 +36,33 @@ class Poll:
         the handle is not added. The same stands for objects that already were
         added (check is based on file descriptor).
         '''
-        if handle.fileno() is None:
-            return
-        if handle.fileno() in self._object_map:
+        fd = handle.fileno()
+        if fd is None or fd in self._known_fds:
             return
 
         # remember for later
-        self._object_map[handle.fileno()] = handle
-        self._poll.register(handle, select.POLLIN | select.POLLERR)
+        self._known_fds[fd] = handle
+        self._object_fds[id(handle)] = fd
+        self._poll.register(fd, select.POLLIN | select.POLLERR)
 
     def remove(self, handle):
         '''
         :param handle: file handle, the same as for :meth:`add`
 
         Remove file handle from poll list. Handle must still return valid file
-        descriptor on ``handle.fileno()`` call.
+        descriptor on ``handle.fileno()`` call or be the same object as passed
+        to :meth:`add()` method.
         '''
-        if handle.fileno() is None:
+        fd = handle.fileno()
+        if fd is None:
+            fd = self._object_fds.get(id(handle))
+            if fd is None:
+                return
+        if fd not in self._known_fds:
             return
-        if handle.fileno() not in self._object_map:
-            return
-        del self._object_map[handle.fileno()]
-        self._poll.unregister(handle)
+        del self._known_fds[fd]
+        del self._object_fds[id(handle)]
+        self._poll.unregister(fd)
 
     def poll(self, timeout = 100):
         '''
@@ -72,7 +78,7 @@ class Poll:
         '''
         try:
             result = self._poll.poll(timeout)
-            return [self._object_map[r[0]] for r in result]
+            return [self._known_fds[r[0]] for r in result]
         except select.error, e:
             if e.args[0] == errno.EINTR: # in case some signal arrives
                 return []
@@ -83,13 +89,13 @@ class Poll:
         '''
         Count the descriptors added to the poll.
         '''
-        return len(self._object_map)
+        return len(self._known_fds)
 
     def empty(self):
         '''
         Check if the poll is empty (no descriptors).
         '''
-        return (len(self._object_map) == 0)
+        return (len(self._known_fds) == 0)
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker
