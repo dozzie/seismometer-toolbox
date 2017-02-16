@@ -384,7 +384,7 @@ class Controller:
         if line == '': # EOF, but this doesn't mean that the daemon died yet
             self.poll.remove(daemon)
             daemon.close()
-        else:
+        elif line is not None:
             logger = logging.getLogger("daemon." + daemon.name())
             logger.info(line.rstrip("\n"))
 
