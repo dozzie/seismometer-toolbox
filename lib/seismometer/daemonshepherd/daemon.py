@@ -353,9 +353,15 @@ class Daemon:
                 "DAEMON_PID": str(self.child_pid),
             }
             (pid, ignore) = self.stop_command.run(environment = stop_env)
-            os.waitpid(pid, 0) # wait for termination of stop command
+            try:
+                os.waitpid(pid, 0) # wait for termination of stop command
+            except OSError:
+                pass # errno ECHILD, child already reaped
         else:
-            os.killpg(self.child_pid, self.stop_signal)
+            try:
+                os.killpg(self.child_pid, self.stop_signal)
+            except OSError:
+                pass # errno ESRCH, child has died already
         self.reap()
 
     #-------------------------------------------------------------------
@@ -454,12 +460,16 @@ class Daemon:
         '''
         Close our end of daemon's *STDOUT* and wait for daemon's termination.
         '''
-        if self.child_pid is None:
-            self.close() # in case it was still opened
+        # in case it was still opened
+        self.close() # TODO: read self.child_stdout (and discard? return?)
+
+        if self.child_pid is not None:
             return
 
-        self.close() # TODO: read self.child_stdout (and discard?)
-        os.waitpid(self.child_pid, 0)
+        try:
+            os.waitpid(self.child_pid, 0)
+        except OSError:
+            pass # errno ECHILD, child already reaped
         self.child_pid = None
 
 #-----------------------------------------------------------------------------
