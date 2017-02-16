@@ -31,6 +31,8 @@ Controlling child processes
 
 .. automodule:: seismometer.daemonshepherd.control_socket
 
+.. automodule:: seismometer.daemonshepherd.filehandle
+
 .. automodule:: seismometer.daemonshepherd.daemon
 
 Administrative control channel

@@ -336,6 +336,7 @@ class Daemon:
         (self.child_pid, self.child_stdout) = self.start_command.run()
         if self.child_stdout is not None:
             filehandle.set_close_on_exec(self.child_stdout)
+            filehandle.set_nonblocking(self.child_stdout)
 
     def stop(self):
         '''
@@ -393,13 +394,29 @@ class Daemon:
 
     def readline(self):
         '''
-        Read a single line from daemon's output (``None`` if daemon's output
-        is not intercepted).
+        Read a single line from daemon's output. If nothing is ready to be
+        read, also when daemon's output is not intercepted, ``None`` is
+        returned (the call is non-blocking).
+
+        Method returns :obj:`seismometer.daemonshepherd.filehandle.EOF` when
+        the child or terminated or otherwise closed its *STDOUT*.
         '''
-        if self.child_stdout is not None:
-            return self.child_stdout.readline()
-        else:
+        if self.child_stdout is None:
             return None
+
+        try:
+            line = self.child_stdout.readline()
+        except IOError, e:
+            if e.errno == errno.EWOULDBLOCK or e.errno == errno.EAGAIN:
+                # nothing more to read at the moment
+                return None
+            else:
+                raise
+
+        if line == "":
+            return filehandle.EOF
+        else:
+            return line
 
     def close(self):
         '''

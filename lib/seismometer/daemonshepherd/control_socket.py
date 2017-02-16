@@ -9,8 +9,6 @@ Unix sockets
 .. autoclass:: ControlSocketClient
    :members:
 
-.. autodata:: EOF
-
 '''
 #-----------------------------------------------------------------------------
 
@@ -19,21 +17,6 @@ import os
 import errno
 import json
 import filehandle
-
-#-----------------------------------------------------------------------------
-
-class _Constant:
-    def __init__(self, name):
-        self.name = name
-
-    def __repr__(self):
-        return "<%s>" % (self.name,)
-
-EOF = _Constant("EOF")
-'''
-Marker to be returned by :meth:`ControlSocketClient.read()` when the
-connection was closed.
-'''
 
 #-----------------------------------------------------------------------------
 
@@ -110,8 +93,11 @@ class ControlSocketClient:
         This method is non-blocking; if no more data is ready for reading, the
         method returns immediately ``None``.
 
-        When connection was closed, this method returns :obj:`EOF`.
+        When connection was closed, this method returns
+        :obj:`seismometer.daemonshepherd.filehandle.EOF`.
         '''
+        if self.socket is None:
+            return filehandle.EOF
         try:
             line = self.socket.recv(4096, socket.MSG_DONTWAIT)
         except socket.error, e:
@@ -122,15 +108,15 @@ class ControlSocketClient:
                 raise
 
         if line == '':
-            return EOF
+            return filehandle.EOF
         try:
             result = json.loads(line)
             if isinstance(result, dict):
                 return result
             else:
-                return EOF # TODO: report a protocol error
+                return filehandle.EOF # TODO: report a protocol error
         except:
-            return EOF # TODO: report a protocol error
+            return filehandle.EOF # TODO: report a protocol error
 
     def send(self, message):
         '''

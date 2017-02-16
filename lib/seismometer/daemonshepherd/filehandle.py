@@ -1,17 +1,34 @@
 #!/usr/bin/python
 '''
-Close-on-exec flag
-------------------
+File handle routines and constants
+----------------------------------
 
 .. autofunction:: set_close_on_exec()
 
 .. autofunction:: set_nonblocking()
+
+.. autodata:: EOF
 
 '''
 #-----------------------------------------------------------------------------
 
 import fcntl
 import os
+
+#-----------------------------------------------------------------------------
+
+class _Constant:
+    def __init__(self, name):
+        self.name = name
+
+    def __repr__(self):
+        return "<%s>" % (self.name,)
+
+EOF = _Constant("EOF")
+'''
+Marker to be returned by ``read()`` methods when the connection or pipe is
+closed.
+'''
 
 #-----------------------------------------------------------------------------
 
