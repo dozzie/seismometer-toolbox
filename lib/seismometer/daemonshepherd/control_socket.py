@@ -9,13 +9,31 @@ Unix sockets
 .. autoclass:: ControlSocketClient
    :members:
 
+.. autodata:: EOF
+
 '''
 #-----------------------------------------------------------------------------
 
 import socket
 import os
+import errno
 import json
 import filehandle
+
+#-----------------------------------------------------------------------------
+
+class _Constant:
+    def __init__(self, name):
+        self.name = name
+
+    def __repr__(self):
+        return "<%s>" % (self.name,)
+
+EOF = _Constant("EOF")
+'''
+Marker to be returned by :meth:`ControlSocketClient.read()` when the
+connection was closed.
+'''
 
 #-----------------------------------------------------------------------------
 
@@ -49,6 +67,7 @@ class ControlSocket:
         Accept new connection on this socket.
         '''
         (conn, addr) = self.socket.accept()
+        filehandle.set_close_on_exec(conn)
         return ControlSocketClient(conn)
 
     def fileno(self):
@@ -87,18 +106,31 @@ class ControlSocketClient:
         :rtype: dict, list or scalar
 
         Read single line of JSON and decode it.
+
+        This method is non-blocking; if no more data is ready for reading, the
+        method returns immediately ``None``.
+
+        When connection was closed, this method returns :obj:`EOF`.
         '''
-        line = self.socket.recv(4096)
+        try:
+            line = self.socket.recv(4096, socket.MSG_DONTWAIT)
+        except socket.error, e:
+            if e.errno == errno.EWOULDBLOCK or e.errno == errno.EAGAIN:
+                # nothing more to read at the moment
+                return None
+            else:
+                raise
+
         if line == '':
-            return None
+            return EOF
         try:
             result = json.loads(line)
             if isinstance(result, dict):
                 return result
             else:
-                return None
+                return EOF # TODO: report a protocol error
         except:
-            return None
+            return EOF # TODO: report a protocol error
 
     def send(self, message):
         '''
