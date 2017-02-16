@@ -358,8 +358,8 @@ class Controller:
             logger.warning('unknown command: %s', json.dumps(cmd))
             return
 
-        method_name = "command_%s" % (cmd["command"],)
-        if method_name not in self.__class__.__dict__:
+        method = getattr(self, "command_%s" % (cmd["command"],), None)
+        if method is None:
             logger.warning('command not implemented: %s', cmd["command"])
             client.send(
                 {"status": "error", "message": "command not implemented"}
@@ -367,9 +367,7 @@ class Controller:
             return
 
         # TODO: signal errors: {"status": "error", "reason": "..."}
-        # XXX: self.__class__.__dict__ gives unbound methods -- I need to pass
-        # `self' manually
-        result = self.__class__.__dict__[method_name](self, **cmd)
+        result = method(**cmd)
         if result is None:
             client.send({"status": "ok"})
         else:
