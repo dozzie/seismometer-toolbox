@@ -33,8 +33,6 @@ Controlling child processes
 
 .. automodule:: seismometer.daemonshepherd.daemon
 
-.. automodule:: seismometer.daemonshepherd.output_log
-
 Administrative control channel
 ==============================
 
