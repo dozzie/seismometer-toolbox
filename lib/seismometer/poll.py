@@ -78,7 +78,11 @@ class Poll:
         '''
         try:
             result = self._poll.poll(timeout)
-            return [self._known_fds[r[0]] for r in result]
+            return [
+                self._known_fds[r[0]]
+                for r in result
+                if r[0] in self._known_fds
+            ]
         except select.error, e:
             if e.args[0] == errno.EINTR: # in case some signal arrives
                 return []

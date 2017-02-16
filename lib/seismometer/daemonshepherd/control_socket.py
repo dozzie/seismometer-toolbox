@@ -84,22 +84,28 @@ class ControlSocketClient:
         '''
         self.socket = socket
 
-    def read(self):
+    def read(self, blocking = False):
         '''
-        :rtype: dict, list or scalar
+        :rtype: dict
 
-        Read single line of JSON and decode it.
+        Read single line of JSON hash and decode it.
 
-        This method is non-blocking; if no more data is ready for reading, the
-        method returns immediately ``None``.
+        This method by default is non-blocking; if no more data is ready for
+        reading, the method returns immediately ``None``.
 
         When connection was closed, this method returns
         :obj:`seismometer.daemonshepherd.filehandle.EOF`.
         '''
         if self.socket is None:
             return filehandle.EOF
+
+        if not blocking:
+            options = socket.MSG_DONTWAIT
+        else:
+            options = 0
+
         try:
-            line = self.socket.recv(4096, socket.MSG_DONTWAIT)
+            line = self.socket.recv(4096, options)
         except socket.error, e:
             if e.errno == errno.EWOULDBLOCK or e.errno == errno.EAGAIN:
                 # nothing more to read at the moment

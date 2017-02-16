@@ -6,9 +6,11 @@ import logging
 import traceback
 import socket
 import json
+import yaml
 
 from seismometer import daemonshepherd
 from seismometer.daemonshepherd.control_socket import ControlSocketClient
+from seismometer.daemonshepherd.filehandle import EOF
 
 #-----------------------------------------------------------------------------
 # parse command line options {{{
@@ -30,7 +32,7 @@ parser.add_option(
     help = "YAML/JSON file with logging configuration", metavar = "FILE",
 )
 parser.add_option(
-    "-s", "--control-socket", dest = "control_socket",
+    "-s", "--control-socket", dest = "socket",
     help = "path to control socket", metavar = "PATH",
 )
 parser.add_option(
@@ -68,8 +70,8 @@ elif len(args) > 0:
     if len(args) != 1 and command in DAEMON_COMMANDS:
         parser.error("daemon name is required for command %s" % (command,))
 
-if command != "daemon_supervisor" and options.control_socket is None:
-    options.control_socket = "/var/run/daemonshepherd.sock"
+if command != "daemon_supervisor" and options.socket is None:
+    options.socket = "/var/run/daemonshepherd.sock"
 
 # }}}
 #-----------------------------------------------------------------------------
@@ -103,6 +105,17 @@ if command == "daemon_supervisor":
                 logger.critical(line)
     sys.excepthook = exception_logger
 
+    def load_config():
+        with open(options.daemons) as f:
+            config = yaml.safe_load(f)
+            defaults = config.get("defaults", {})
+            daemons = config.get("daemons", {})
+            for daemon in daemons.values():
+                for key in defaults:
+                    if key not in daemon:
+                        daemon[key] = defaults[key]
+            return daemons
+
     # daemonize (if applicable) 
     if options.background:
         daemonshepherd.detach("/")
@@ -114,8 +127,7 @@ if command == "daemon_supervisor":
 
     # create controller thread 
     try:
-        controller = daemonshepherd.Controller(options.daemons,
-                                               options.control_socket)
+        controller = daemonshepherd.Controller(load_config, options.socket)
     except Exception, e:
         print >>sys.stderr, str(e)
         sys.exit(1)
@@ -124,12 +136,8 @@ if command == "daemon_supervisor":
     if options.background:
         daemonshepherd.detach_succeeded()
 
-    # main loop 
-    try:
-        controller.loop()
-    except KeyboardInterrupt:
-        pass
-
+    # main loop
+    controller.loop() # NOTE: SIGINT handler is set by the controller
     controller.shutdown()
     sys.exit()
 
@@ -138,7 +146,7 @@ if command == "daemon_supervisor":
 else:
     conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     try:
-        conn.connect(options.control_socket)
+        conn.connect(options.socket)
     except socket.error, e:
         print >>sys.stderr, e
         sys.exit(1)
@@ -149,8 +157,13 @@ else:
         supervisor.send({"command": command})
     elif command in DAEMON_COMMANDS:
         supervisor.send({"command": command, "daemon": args[0]})
-    reply = supervisor.read()
+    reply = supervisor.read(blocking = True)
     supervisor.close()
+
+    if reply is EOF:
+        print >>sys.stderr, \
+              "Empty reply from daemonshepherd, probably a server bug."
+        sys.exit(1)
 
     if reply.get("status") != "ok":
         print >>sys.stderr, json.dumps(reply)

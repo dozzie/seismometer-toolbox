@@ -184,8 +184,7 @@ restart strategy), restart strategy is reset.
 
 If no restart strategy is defined (neither specific to daemon nor in
 ``defaults``), assumed default is ``[0, 5, 15, 30, 60]`` (see
-:mod:`seismometer.daemonshepherd.controller.RestartQueue` Python class for
-reference).
+:mod:`seismometer.daemonshepherd.controller` module for reference).
 
 Example daemon spec file
 ------------------------

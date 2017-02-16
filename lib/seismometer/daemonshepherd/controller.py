@@ -6,10 +6,12 @@ Daemon starter and data dispatcher
 .. autoclass:: Controller
    :members:
 
-   .. attribute:: daemon_spec_file
+   .. attribute:: load_config
 
-      Name of the file with daemons specification. This file is reloaded on
-      ``reload`` command from command channel.
+      Zero-argument function that loads daemons specification file and returns
+      a dictionary with keys being daemons' names and values being daemons'
+      parameters. This function is called on ``reload`` command from command
+      channel.
 
    .. attribute:: restart_queue
 
@@ -20,54 +22,58 @@ Daemon starter and data dispatcher
       Poll object to check for input from command channel or daemons.
       :class:`seismometer.poll.Poll` instance.
 
+   .. attribute:: daemons
+
+      Dictionary with all defined daemons (running, waiting for restart, and
+      stopped). Keys are daemons' names and values are
+      :class:`seismometer.daemonshepherd.daemon.Daemon` instances.
+
    .. attribute:: socket
 
       Socket on which command channel works.
       :class:`seismometer.daemonshepherd.control_socket.ControlSocket`
       instance.
 
-   .. attribute:: running
-
-      List of currently running daemons. It's a dictionary with mapping
-      daemons' names to :class:`seismometer.daemonshepherd.daemon.Daemon`
-      instances.
-
-   .. attribute:: expected
-
-      List of daemons that are *expected* to be running. It's a dictionary
-      with mapping daemons' names to
-      :class:`seismometer.daemonshepherd.daemon.Daemon` instances.
-
-   .. attribute:: start_priorities
-
-      Mapping between daemons' names and their start priorities (lower
-      priority starts earlier).
-
-      Only used for starting daemons when booting or reloading config.
-
    .. attribute:: keep_running
 
-      Marker to terminate :meth:`loop` gracefully from inside of signal
+      Marker to terminate :meth:`loop()` gracefully from inside of signal
       handlers.
 
 .. autoclass:: RestartQueue
    :members:
 
+.. autodata:: DEFAULT_BACKOFF
+
 '''
 #-----------------------------------------------------------------------------
 
-import yaml
 import daemon
 import time
 import heapq
 import logging
 import control_socket
+import filehandle
 import signal
 import json
+import os
 
 import seismometer.poll
 
 #-----------------------------------------------------------------------------
+
+DEFAULT_BACKOFF = [0, 5, 15, 30, 60]
+'''
+List of backoff times for default restart strategy.
+'''
+
+SIGNAL_NAMES = dict([
+    (signal.__dict__[name], name)
+    for name in signal.__dict__
+    if name.startswith("SIG") and name != "SIG_DFL" and name != "SIG_IGN"
+])
+
+#-----------------------------------------------------------------------------
+# RestartQueue {{{
 
 class RestartQueue:
     '''
@@ -105,7 +111,7 @@ class RestartQueue:
         self.backoff_pos = {}
         self.restart_time = {}
 
-    def add(self, daemon_name, backoff = None):
+    def add(self, daemon_name, backoff):
         '''
         :param daemon_name: name of daemon to add
         :type daemon_name: string
@@ -113,15 +119,25 @@ class RestartQueue:
         :type backoff: list of integers
 
         Register daemon with its restart strategy.
-
-        If :obj:`backoff` is ``None``, default restart strategy is
-        ``[0, 5, 15, 30, 60]``.
         '''
-        if backoff is None:
-            backoff = [0, 5, 15, 30, 60]
         self.backoff[daemon_name] = backoff
         self.backoff_pos[daemon_name] = 0
         self.restart_time[daemon_name] = None
+
+    def remove(self, daemon_name):
+        '''
+        :param daemon_name: name of daemon to remove
+        :type daemon_name: string
+
+        Unregister daemon from the queue.
+        '''
+        if name not in self.backoff:
+            return # ignore unknown daemons
+
+        self.cancel_restart(daemon_name)
+        del self.backoff[daemon_name]
+        del self.backoff_pos[daemon_name]
+        del self.restart_time[daemon_name]
 
     # the daemon has just been started (or is going to be in a second)
     def daemon_started(self, name):
@@ -130,6 +146,9 @@ class RestartQueue:
 
         Notify restart queue that a daemon has just been started.
         '''
+        if name not in self.backoff:
+            return # ignore unknown daemons
+
         self.restart_time[name] = time.time()
         logger = logging.getLogger("restart_queue")
         logger.info("daemon %s started", name)
@@ -142,23 +161,33 @@ class RestartQueue:
         Notify restart queue that a daemon has just been stopped. Method
         resets backoff time for the daemon.
         '''
+        if name not in self.backoff:
+            return # ignore unknown daemons
+
         self.restart_time[name] = None
         self.backoff_pos[name] = 0
         logger = logging.getLogger("restart_queue")
         logger.info("daemon %s stopped", name)
 
     # the daemon has just died
-    def daemon_died(self, name):
+    def daemon_died(self, name, exit_code = None, signame = None):
         '''
         :param name: daemon that has died
+        :param exit_code: exit code of the daemon or ``None`` if it died on
+            signal
+        :param signame: signal name that terminated the daemon or ``None`` if
+            the daemon exited
 
         Notify restart queue that a daemon has just died. The queue schedules
         the daemon for restart according to the restart strategy (see
-        :meth:`add`).
+        :meth:`add()`).
 
         List of daemons ready to restart can be retrieved using
-        :meth:`restart`.
+        :meth:`restart()`.
         '''
+        if name not in self.backoff:
+            return # ignore unknown daemons
+
         backoff_pos = self.backoff_pos[name]
         restart_backoff = self.backoff[name][backoff_pos]
         if restart_backoff < 1: # minimum backoff: 1s
@@ -174,7 +203,15 @@ class RestartQueue:
                 restart_backoff = self.backoff[name][0]
 
         logger = logging.getLogger("restart_queue")
-        logger.warning("daemon %s died, sleeping %d", name, restart_backoff)
+        if exit_code is None and signame is None:
+            logger.warning("daemon %s died, sleeping %d",
+                           name, restart_backoff)
+        elif exit_code is not None:
+            logger.warning("daemon %s exited with code %d, sleeping %d",
+                           name, exit_code, restart_backoff)
+        else: # signame is not None
+            logger.warning("daemon %s died on signal %s, sleeping %d",
+                           name, signame, restart_backoff)
 
         if self.backoff_pos[name] + 1 < len(self.backoff[name]):
             # advance to next backoff on next restart
@@ -182,20 +219,23 @@ class RestartQueue:
         schedule = time.time() + restart_backoff
         heapq.heappush(self.restart_queue, (schedule, name))
 
-    def cancel_restart(self, daemon_name):
+    def cancel_restart(self, name):
         '''
-        :param daemon_name: daemon, for which restart is cancelled
+        :param name: daemon, for which restart is cancelled
 
         Abort any pending restart of a daemon.
         '''
+        if name not in self.backoff:
+            return # ignore unknown daemons
+
         # find where in the queue is the daemon placed
         for di in range(len(self.restart_queue)):
-            if self.restart_queue[di][1] == daemon_name:
+            if self.restart_queue[di][1] == name:
                 # this is heap queue, so removing arbitrary element is
                 # difficult; let's just leave `None` as a marker
                 self.restart_queue[di] = (self.restart_queue[di][0], None)
-        self.backoff_pos[daemon_name] = 0
-        self.restart_time[daemon_name] = None
+        self.backoff_pos[name] = 0
+        self.restart_time[name] = None
         self._remove_cancelled()
 
     # retrieve list of daemons suitable for restart
@@ -222,6 +262,7 @@ class RestartQueue:
         while len(self.restart_queue) > 0 and self.restart_queue[0][1] is None:
             heapq.heappop(self.restart_queue)
 
+# }}}
 #-----------------------------------------------------------------------------
 
 class Controller:
@@ -230,282 +271,331 @@ class Controller:
 
     The controller responds to commands issued on command channel. Commands
     include reloading daemons specification and listing status of controlled
-    daemons. See :meth:`command_*` descriptions for details.
+    daemons. See :meth:`command_*()` descriptions for details.
     '''
 
-    def __init__(self, daemon_spec_file, socket_address = None):
+    def __init__(self, load_config, socket_address = None):
         '''
-        :param daemon_spec_file: name of the file with daemons specification;
-            see :doc:`/manpages/daemonshepherd` for format documentation
+        :param load_config: function that loads the file with daemons
+            specification; see :doc:`/manpages/daemonshepherd` for format
+            documentation
         :param socket_address: address of socket for command channel
         '''
         # NOTE: descriptions of attributes moved to top of the module
-        self.daemon_spec_file = daemon_spec_file
+        self.load_config = load_config
         self.restart_queue = RestartQueue()
         self.poll = seismometer.poll.Poll()
-        self.running  = {} # name => daemon.Daemon
-        self.expected = {} # name => daemon.Daemon
-        self.start_priorities = {} # name => int
+        self.daemons = {} # name => daemon.Daemon
+        # daemons' metadata:
+        #   "name": string
+        #   "running": True | False
+        #   "start_priority": integer
+        #   "restart": list of integers
+
         self.keep_running = True
         if socket_address is not None:
             self.socket = control_socket.ControlSocket(socket_address)
             self.poll.add(self.socket)
+        else:
+            self.socket = None
+        signal.signal(signal.SIGHUP, self.signal_reload)
+        signal.signal(signal.SIGINT, self.signal_shutdown)
+        signal.signal(signal.SIGTERM, self.signal_shutdown)
+        signal.signal(signal.SIGCHLD, self.signal_child_died)
         self.reload()
-        signal.signal(signal.SIGHUP, self.signal_handler)
-        signal.signal(signal.SIGINT, self.signal_handler)
-        signal.signal(signal.SIGTERM, self.signal_handler)
 
     def __del__(self):
         self.shutdown()
+
+    #-------------------------------------------------------------------
+    # child daemon management: _start(), _stop(), _died() {{{
+
+    def _stop(self, name):
+        self.restart_queue.daemon_stopped(name)
+        self.poll.remove(self.daemons[name])
+        # FIXME: this can loose some of the daemon's output
+        self.daemons[name].stop()
+        self.daemons[name]["running"] = False
+
+    def _died(self, name, exit_code = None, signame = None):
+        self.restart_queue.daemon_died(name, exit_code, signame)
+        self.poll.remove(self.daemons[name])
+        # FIXME: this can loose some of the daemon's output
+        self.daemons[name].reap()
+        self.daemons[name]["running"] = False
+
+    def _start(self, name):
+        self.restart_queue.daemon_started(name)
+        self.daemons[name].start()
+        self.daemons[name]["running"] = True
+        self.poll.add(self.daemons[name])
+
+    # }}}
+    #-------------------------------------------------------------------
+    # signal handlers {{{
+
+    def signal_shutdown(self, signum, stack_frame):
+        '''
+        Signal handler that shuts down the controller.
+        '''
+        logger = logging.getLogger("controller")
+        signame = SIGNAL_NAMES.get(signum, str(signum))
+        logger.info("got signal %s, shutting down", signame)
+        self.keep_running = False # let the loop terminate gracefully
+
+    def signal_reload(self, signum, stack_frame):
+        '''
+        Signal handler that reloads daemons specification file.
+        '''
+        logger = logging.getLogger("controller")
+        signame = SIGNAL_NAMES.get(signum, str(signum))
+        logger.info("got signal %s, reloading config", signame)
+        self.reload()
+
+    def signal_child_died(self, signum, stack_frame):
+        '''
+        *SIGCHLD* signal handler to mark dead children and put them to the
+        restart queue.
+        '''
+        logger = logging.getLogger("controller")
+
+        while True:
+            # reap all the terminated children
+            try:
+                (pid, status) = os.waitpid(-1, os.WNOHANG)
+            except OSError:
+                return # ECHILD errno, no more children
+            if pid == 0:
+                return # there are some children, but none has terminated
+
+            if os.WIFEXITED(status):
+                exit_code = os.WEXITSTATUS(status)
+                signame = None
+            else: # os.WIFSIGNALED(status)
+                exit_code = None
+                signum = os.WTERMSIG(status)
+                signame = SIGNAL_NAMES.get(signum, str(signum))
+
+            # FIXME: this is quite ineffective search, but should be good
+            # enough for now (also, list of supervised daemons should be quite
+            # short)
+            handle = None
+            for name in self.daemons:
+                if self.daemons[name].pid() == pid:
+                    handle = self.daemons[name]
+                    break
+
+            if handle is not None:
+                self._died(handle["name"], exit_code, signame)
+            elif exit_code is not None:
+                logger.warning("untracked child PID=%d exited with code %d",
+                               pid, exit_code)
+            else:
+                logger.warning("untracked child PID=%d died on signal %s",
+                               pid, signame)
+
+    # }}}
+    #-------------------------------------------------------------------
 
     def shutdown(self):
         '''
         Shutdown the controller along with all the running daemons.
         '''
-        logger = logging.getLogger("controller")
-        for daemon in self.running.keys():
-            logger.info('stopping daemon %s', daemon)
-            self.running[daemon].stop()
-            self.poll.remove(self.running[daemon])
-            del self.running[daemon]
-
-    def check_children(self):
-        '''
-        Check for output from command channels and daemons, remove daemons
-        that died from list of running ones and place them in restart queue.
-        '''
-        for daemon in self.poll.poll():
-            if isinstance(daemon, control_socket.ControlSocket):
-                client = daemon.accept()
-                self.poll.add(client)
-                continue
-
-            if isinstance(daemon, control_socket.ControlSocketClient):
-                self.handle_command(daemon)
-                continue
-
-            # isinstance(daemon, daemon.Daemon)
-            self.handle_daemon_output(daemon)
-
-        # check if all the daemons are still running
-        for dname in self.running.keys(): # self.running can change
-            daemon = self.running[dname]
-            if not daemon.is_alive():
-                # close daemon's pipe, in case it was still opened
-                # FIXME: this can loose some of the daemon's output
-                self.poll.remove(daemon)
-                daemon.close()
-                del self.running[dname]
-                self.restart_queue.daemon_died(dname)
+        for name in self.daemons.keys():
+            self._stop(name)
+            del self.daemons[name]
+        self.restart_queue.clear()
+        # delete self.poll entries?
 
     def loop(self):
         '''
         Main operation loop: check output from daemons or command channels,
         restart daemons that died according to their restart strategy.
 
-        Exits (without stopping children) when :attr:`keep_running` instance
-        attribute changes to ``False``.
+        Returns when :attr:`keep_running` instance attribute changes to
+        ``False``, but does not stop its children. To do this use
+        :meth:`shutdown()`.
         '''
         while self.keep_running:
-            self.check_children()
-            # start all daemons suitable for restart
-            for daemon in self.restart_queue.get_restart_ready():
-                # TODO: move these four operations to a separate function
-                self.restart_queue.daemon_started(daemon)
-                self.expected[daemon].start()
-                self.running[daemon] = self.expected[daemon]
-                self.poll.add(self.running[daemon])
+            for handle in self.poll.poll(timeout = 100):
+                if isinstance(handle, control_socket.ControlSocket):
+                    client = handle.accept()
+                    self.poll.add(client)
+                elif isinstance(handle, control_socket.ControlSocketClient):
+                    command = handle.read()
+                    if command is filehandle.EOF:
+                        self.poll.remove(handle)
+                        handle.close()
+                    else:
+                        self.handle_command(command, handle)
+                else: # isinstance(handle, daemon.Daemon)
+                    self.handle_daemon_output(handle)
+            # process due restarts
+            for name in self.restart_queue.get_restart_ready():
+                self._start(name)
 
     #-------------------------------------------------------------------
+    # handle_command() {{{
 
-    def signal_handler(self, sig, stack_frame):
+    def handle_command(self, command, client):
         '''
-        Signal handler. On *SIGTERM* or *SIGINT* shuts down the controller, on
-        *SIGHUP* reloads daemons specification file.
-        '''
-        logger = logging.getLogger("controller")
-        signal_names = dict([
-            (signal.__dict__[name], name)
-            for name in signal.__dict__
-            if name.startswith("SIG") and name not in ("SIG_DFL", "SIG_IGN")
-        ])
-        signame = signal_names[sig]
-        if signame in ("SIGTERM", "SIGINT"):
-            logger.info('got signal %s, shutting down', signame)
-            self.keep_running = False # let the loop terminate gracefully
-        elif signame == "SIGHUP":
-            logger.info('got signal %s, reloading config', signame)
-            self.reload()
-        else:
-            logger.warning('got unknown signal %s (%d)', signame, sig)
-            pass # or something else?
+        :param command: dictionary with command to execute
+        :param client: :class:`control_socket.ControlSocketClient` to send
+            response to
 
-    #-------------------------------------------------------------------
-
-    def handle_command(self, client):
-        '''
-        Handle a command from command channel. See :meth:`command_*` methods
+        Handle a command from command channel. See :meth:`command_*()` methods
         for details on particular commands.
         '''
-        cmd = client.read()
-        if cmd is None: # EOF
-            self.poll.remove(client)
-            client.close()
-            return
-
         logger = logging.getLogger("controller")
-        if "command" not in cmd:
-            logger.warning('unknown command: %s', json.dumps(cmd))
+        if "command" not in command or \
+           not isinstance(command["command"], (str, unicode)):
+            logger.warning("unknown command: %s", json.dumps(command))
             return
 
-        method = getattr(self, "command_%s" % (cmd["command"],), None)
+        method = getattr(self, "command_" + command["command"], None)
         if method is None:
-            logger.warning('command not implemented: %s', cmd["command"])
+            logger.warning("command not implemented: %s", command["command"])
             client.send(
                 {"status": "error", "message": "command not implemented"}
             )
             return
 
-        # TODO: signal errors: {"status": "error", "reason": "..."}
-        result = method(**cmd)
-        if result is None:
-            client.send({"status": "ok"})
-        else:
-            client.send({"status": "ok", "result": result})
+        try:
+            # TODO: signal errors: {"status": "error", "reason": "..."}
+            result = method(**command)
+        except:
+            logger.exception("exception in running command %s",
+                             command["command"])
+            return
 
-    def handle_daemon_output(self, daemon):
-        '''
-        Handle output from a daemon according to daemon's definition: either
-        log it or forward it as a message.
-        '''
-        line = daemon.readline()
-        if line == '': # EOF, but this doesn't mean that the daemon died yet
-            self.poll.remove(daemon)
-            daemon.close()
-        elif line is not None:
-            logger = logging.getLogger("daemon." + daemon.name())
-            logger.info(line.rstrip("\n"))
+        try:
+            if result is None:
+                client.send({"status": "ok"})
+            else:
+                client.send({"status": "ok", "result": result})
+        except IOError, e:
+            pass # TODO: maybe log this exception?
 
+    # }}}
+    #-------------------------------------------------------------------
+    # handle_daemon_output() {{{
+
+    def handle_daemon_output(self, handle):
+        '''
+        Handle output from a daemon according to daemon's definition: read it
+        all and log it.
+        '''
+        daemon_logger = logging.getLogger("daemon." + handle["name"])
+        line = handle.readline()
+        while line is not None and line is not filehandle.EOF:
+            daemon_logger.info(line.rstrip("\n"))
+            line = handle.readline()
+
+        if line is filehandle.EOF:
+            # it's perfectly OK for daemon not to use its STDOUT/STDERR,
+            # closing it doesn't mean that the daemon has died
+            self.poll.remove(handle)
+            handle.close()
+
+    # }}}
     #-------------------------------------------------------------------
 
     def reload(self):
         '''
-        Reload daemon specifications from :attr:`daemon_spec_file` and
-        converge list of running daemons with expectations list (see
-        :meth:`converge()`).
+        Reload daemon specifications from configuration and converge list of
+        running daemons with expectations list.
 
         Method resets the restart queue, trying to start all the missing
         daemons now.
         '''
         logger = logging.getLogger("controller")
-        logger.info("reloading configuration from %s", self.daemon_spec_file)
+        logger.info("reloading configuration")
 
-        spec = yaml.safe_load(open(self.daemon_spec_file))
-        defaults = spec.get('defaults', {})
+        # TODO: catch and report load errors
+        specs = self.load_config()
 
-        def var(daemon, varname, default = None):
-            if varname in spec['daemons'][daemon]:
-                return spec['daemons'][daemon][varname]
-            return defaults.get(varname, default)
+        # just daemon names
+        daemons_to_stop = [name for name in self.daemons if name not in specs]
 
-        def stdout_option(daemon):
-            value = var(daemon, 'stdout')
-            if value is None or value == 'console':
-                return None
-            elif value == '/dev/null':
-                return '/dev/null'
-            else: # assume it's `value == "log"'
-                return 'pipe'
+        # name => daemon.Daemon
+        daemons_to_start = {}
+        daemons_to_restart = {}
+        for (name, spec) in specs.items():
+            handle = daemon.build(spec)
+            handle["name"] = name
+            handle["running"] = False
+            handle["restart"] = spec.get("restart", DEFAULT_BACKOFF)
+            handle["start_priority"] = spec.get("start_priority", 10)
+            if name not in self.daemons:
+                daemons_to_start[name] = handle
+            elif handle != self.daemons[name]:
+                # FIXME: if only stop signal or command changes, this is
+                # executed, too; maybe it should only matter if the start
+                # stuff differs?
+                daemons_to_restart[name] = handle
+            else: # handle == self.daemons[name]
+                # update daemon's metadata coming from config with new values
+                self.daemons[name]["restart"] = handle["restart"]
+                self.daemons[name]["start_priority"] = handle["start_priority"]
 
-        self.expected = {}
-        self.start_priorities = {}
+        def priority_cmp(a, b):
+            return cmp(a["start_priority"], b["start_priority"]) or \
+                   cmp(a["name"], b["name"])
+
+        for name in sorted(daemons_to_stop):
+            logger.info("stopping %s", name)
+            self.restart_queue.remove(name)
+            self._stop(name)
+            del self.daemons[name]
+
+        # repopulate the restart queue anew, so it doesn't accumulate cruft
+        # over time; a side effect is resetting all positions in strategies
         self.restart_queue.clear()
-        for dname in spec['daemons']:
-            self.restart_queue.add(dname, var(dname, 'restart'))
-            self.start_priorities[dname] = var(dname, 'start_priority', 10)
-            self.expected[dname] = daemon.Daemon(
-                daemon_name   = dname,
-                start_command = var(dname, 'start_command'),
-                command_name  = var(dname, 'argv0'),
-                stop_command  = var(dname, 'stop_command'),
-                stop_signal   = var(dname, 'stop_signal'),
-                environment   = var(dname, 'environment'),
-                cwd           = var(dname, 'cwd'),
-                stdout        = stdout_option(dname),
-                user          = var(dname, 'user'),
-                group         = var(dname, 'group'),
-            )
-        self.converge()
+        for (name, handle) in daemons_to_start.iteritems():
+            self.restart_queue.add(name, handle["restart"])
+        for (name, handle) in self.daemons.iteritems():
+            # NOTE: some daemons will be added twice, but the later data wins,
+            # and we don't know here which daemons_to_restart have different
+            # restart strategy
+            self.restart_queue.add(name, handle["restart"])
+        for (name, handle) in daemons_to_restart.iteritems():
+            self.restart_queue.add(name, handle["restart"])
 
-    def converge(self):
-        '''
-        Stop the excessive daemons, start missing ones and restart daemons
-        which have changed their configuration (command or any of the initial
-        environment).
-        '''
-        logger = logging.getLogger("controller")
-
-        # check for daemons that are running, but have changed commands or
-        # environment
-        for daemon in self.expected:
-            if daemon in self.running and \
-               self.expected[daemon] != self.running[daemon]:
-                # just stop the changed ones, they'll get started just after
-                # this loop
-                logger.info("changed config: %s, stopping current instance",
-                            daemon)
-                self._stop(daemon)
-
-        def prio_cmp(a, b):
-            # XXX: self.start_priorities is fully populated with keys from
-            # self.expected
-            if a not in self.start_priorities:
-                # daemon a is running, but not expected (to be shut down)
-                return -1
-            if b not in self.start_priorities:
-                # daemon b is running, but not expected (to be shut down)
-                return 1
-            return cmp(self.start_priorities[a], self.start_priorities[b]) or \
-                   cmp(a, b)
-
-        # start daemons that are expected to be running but aren't doing so
+        # NOTE: restarting has _an_ order, not some specific one; this one
+        # just happens to be easy to use
         recent_priority = None
-        for daemon in sorted(self.expected, cmp = prio_cmp):
-            if recent_priority != self.start_priorities[daemon]:
+        for handle in sorted(daemons_to_restart.values(), cmp = priority_cmp):
+            logger.info("changed definition of %s, stopping current instance",
+                        handle["name"])
+            self._stop(handle["name"])
+            logger.info("starting %s", handle["name"])
+            self.daemons[handle["name"]] = handle
+            self._start(handle["name"])
+            if recent_priority != handle["start_priority"]:
+                time.sleep(0.1) # delay between different priorities
+                recent_priority = handle["start_priority"]
+
+        recent_priority = None
+        for handle in sorted(daemons_to_start.values(), cmp = priority_cmp):
+            logger.info("starting %s", handle["name"])
+            self.daemons[handle["name"]] = handle
+            self._start(handle["name"])
+            if recent_priority != handle["start_priority"]:
                 # FIXME: how should daemon signal that it has started
                 # successfully and we can move to starting other daemons?
-                time.sleep(0.1) # 100ms delay between different priorities
-            if daemon in self.running:
-                # replace the old object with new one, so `command_ps' doesn't
-                # lose PID
-                self.expected[daemon].take_over_child(self.running[daemon])
-                self.running[daemon] = self.expected[daemon]
-            else:
-                logger.info("starting %s", daemon)
-                self._start(daemon)
+                time.sleep(0.1) # delay between different priorities
+                recent_priority = handle["start_priority"]
 
-        # stop daemons that are running but are not supposed to
-        for daemon in sorted(self.running, cmp = prio_cmp, reverse = True):
-            if daemon not in self.expected:
-                # shouldn't be present in self.restart_queue
-                logger.info("stopping %s", daemon)
-                self._stop(daemon)
+        # and this is for all the daemons from the restart queue that we
+        # forgot about
+        for handle in self.daemons.values():
+            if not handle["running"]:
+                logger.info("starting %s", handle["name"])
+                self.daemons[handle["name"]] = handle
+                self._start(handle["name"])
 
     #-------------------------------------------------------------------
-
-    def _stop(self, daemon):
-        self.restart_queue.daemon_stopped(daemon)
-        self.running[daemon].stop()
-        self.poll.remove(self.running[daemon])
-        del self.running[daemon]
-
-    def _start(self, daemon):
-        self.restart_queue.daemon_started(daemon)
-        self.expected[daemon].start()
-        self.running[daemon] = self.expected[daemon]
-        self.poll.add(self.running[daemon])
-
-    #-------------------------------------------------------------------
+    # command_start(daemon) {{{
 
     def command_start(self, **kwargs):
         '''
@@ -514,22 +604,24 @@ class Controller:
 
         Input data needs to contain ``"daemon"`` key specifying daemon's name.
         '''
-        if not isinstance(kwargs.get('daemon'), (str, unicode)):
-            # TODO: signal error (unrecognized arguments)
-            return
+        name = kwargs.get("daemon")
+        if not isinstance(name, (str, unicode)):
+            return # TODO: signal error (unrecognized arguments)
 
-        if not kwargs['daemon'] in self.expected:
-            # TODO: signal error (unknown daemon)
-            return
+        handle = self.daemons.get(name)
+        if handle is None:
+            return # TODO: signal error (unknown daemon)
 
         logger = logging.getLogger("controller")
 
-        if kwargs['daemon'] not in self.running:
-            logger.info("manually starting %s", kwargs['daemon'])
-            self._start(kwargs['daemon'])
-        self.restart_queue.cancel_restart(kwargs['daemon'])
+        if not handle["running"]:
+            logger.info("manually starting %s", name)
+            self._start(name)
+        self.restart_queue.cancel_restart(name)
 
+    # }}}
     #-------------------------------------------------------------------
+    # command_stop(daemon) {{{
 
     def command_stop(self, **kwargs):
         '''
@@ -538,22 +630,24 @@ class Controller:
 
         Input data needs to contain ``"daemon"`` key specifying daemon's name.
         '''
-        if not isinstance(kwargs.get('daemon'), (str, unicode)):
-            # TODO: signal error (unrecognized arguments)
-            return
+        name = kwargs.get("daemon")
+        if not isinstance(name, (str, unicode)):
+            return # TODO: signal error (unrecognized arguments)
 
-        if not kwargs['daemon'] in self.expected:
-            # TODO: signal error (unknown daemon)
-            return
+        handle = self.daemons.get(name)
+        if handle is None:
+            return # TODO: signal error (unknown daemon)
 
         logger = logging.getLogger("controller")
 
-        if kwargs['daemon'] in self.running:
-            logger.info("manually stopping %s", kwargs['daemon'])
-            self._stop(kwargs['daemon'])
-        self.restart_queue.cancel_restart(kwargs['daemon'])
+        if handle["running"]:
+            logger.info("manually stopping %s", name)
+            self._stop(name)
+        self.restart_queue.cancel_restart(name)
 
+    # }}}
     #-------------------------------------------------------------------
+    # command_restart(daemon) {{{
 
     def command_restart(self, **kwargs):
         '''
@@ -563,27 +657,28 @@ class Controller:
 
         Input data needs to contain ``"daemon"`` key specifying daemon's name.
         '''
-        if not isinstance(kwargs.get('daemon'), (str, unicode)):
-            # TODO: signal error (unrecognized arguments)
-            return
+        name = kwargs.get("daemon")
+        if not isinstance(name, (str, unicode)):
+            return # TODO: signal error (unrecognized arguments)
 
-        if not kwargs['daemon'] in self.expected:
-            # TODO: signal error (unknown daemon)
-            return
+        handle = self.daemons.get(name)
+        if handle is None:
+            return # TODO: signal error (unknown daemon)
 
         logger = logging.getLogger("controller")
 
-        if kwargs['daemon'] in self.running:
-            logger.info("manually restarting %s", kwargs['daemon'])
-            self._stop(kwargs['daemon'])
-            self._start(kwargs['daemon'])
+        if handle["running"]:
+            logger.info("manually restarting %s", name)
+            self._stop(name)
+            self._start(name)
         else:
-            logger.info("manually restarting %s (was stopped)",
-                        kwargs['daemon'])
-            self._start(kwargs['daemon'])
-        self.restart_queue.cancel_restart(kwargs['daemon'])
+            logger.info("manually restarting %s (was stopped)", name)
+            self._start(name)
+        self.restart_queue.cancel_restart(name)
 
+    # }}}
     #-------------------------------------------------------------------
+    # command_cancel_restart(daemon) {{{
 
     def command_cancel_restart(self, **kwargs):
         '''
@@ -593,25 +688,26 @@ class Controller:
 
         Input data needs to contain ``"daemon"`` key specifying daemon's name.
         '''
-        if not isinstance(kwargs.get('daemon'), (str, unicode)):
-            # TODO: signal error (unrecognized arguments)
-            return
+        name = kwargs.get("daemon")
+        if not isinstance(name, (str, unicode)):
+            return # TODO: signal error (unrecognized arguments)
 
-        if not kwargs['daemon'] in self.expected:
-            # TODO: signal error (unknown daemon)
-            return
+        handle = self.daemons.get(name)
+        if handle is None:
+            return # TODO: signal error (unknown daemon)
 
         logger = logging.getLogger("controller")
 
-        if kwargs['daemon'] in self.running:
-            logger.info("restart cancel for already running %s",
-                        kwargs['daemon'])
+        if handle["running"]:
+            logger.info("restart cancel for already running %s", name)
         else:
-            logger.info("restart cancel for awaiting %s", kwargs['daemon'])
-        self.restart_queue.cancel_restart(kwargs['daemon'])
+            logger.info("restart cancel for awaiting %s", name)
+        self.restart_queue.cancel_restart(name)
         # TODO: return indicator of whether daemon is running or not
 
+    # }}}
     #-------------------------------------------------------------------
+    # command_ps() {{{
 
     def command_ps(self, **kwargs):
         '''
@@ -628,36 +724,42 @@ class Controller:
            }
         '''
         result = []
+        # XXX: there is a small possibility that a daemon will die just after
+        # we build restarts dictionary, so it's not in the restart queue yet;
+        # it's basically a race condition
         restarts = dict([
             (r["name"], r["restart_at"])
             for r in self.restart_queue.list_restarts()
         ])
-        # should self.running be included here? probably not, since it's
-        # supposed to be a subset of the self.expected
-        for name in sorted(self.expected):
+        for name in sorted(self.daemons):
+            # XXX: I want here to return a consistent(ish) view of the
+            # daemon's state at some point, so I won't check if the daemon is
+            # alive, just if it was supposed to be alive recently
+            # (daemon.is_alive() vs. daemon.pid() != None)
+            pid = self.daemons[name].pid()
             result.append({
                 "daemon": name,
                 #"command": ..., # TODO: command used to start the daemon
-                "pid":     self.expected[name].pid(),
-                # there is a small possibility that daemon has just died, so
-                # it's not in the restart queue yet (it's basically a race
-                # condition); I want here to return a consistent view of the
-                # system at some point, so I won't check if the daemon is
-                # alive, just if it was supposed to be alive recently
-                # (daemon.is_alive() vs. daemon.pid() != None)
-                "running": (self.expected[name].pid() is not None),
+                "pid": pid,
+                "running": (pid is not None),
                 "restart_at": restarts.get(name),
             })
         return result
 
+    # }}}
     #-------------------------------------------------------------------
+    # command_reload() {{{
 
     def command_reload(self, **kwargs):
         '''
         Reload daemon specifications. This command calls :meth:`reload()`
         method.
         '''
+        # TODO: return reload errors
         self.reload()
+
+    # }}}
+    #-------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker

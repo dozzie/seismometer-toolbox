@@ -16,6 +16,7 @@ Running external program as daemon
 
 import os
 import sys
+import errno
 import signal
 import time
 import re
@@ -39,9 +40,9 @@ def build(spec):
     if stdout_option == "console":
         stdout_option = None
     elif stdout_option == "/dev/null":
-        stdout_option = Daemon.DEVNULL
+        pass
     else: # assume it's `stdout_option == "log"'
-        stdout_option = Daemon.PIPE
+        stdout_option = "pipe"
 
     return Daemon(
         start_command = spec.get("start_command"),
@@ -365,25 +366,6 @@ class Daemon:
         self.reap()
 
     #-------------------------------------------------------------------
-
-    def take_over_child(self, other):
-        '''
-        Take the operational information about the child (PID and STDOUT) over
-        from another :class:`Daemon` instance, effectively taking the child
-        ownership.
-        '''
-        self.child_pid = other.child_pid
-        self.child_stdout = other.child_stdout
-        other.child_pid = None
-        other.child_stdout = None
-
-    def name(self):
-        '''
-        Return name of this daemon, as set in the constructor.
-        '''
-        return self.daemon_name
-
-    #-------------------------------------------------------------------
     # filehandle methods
 
     def fileno(self):
@@ -446,10 +428,16 @@ class Daemon:
         Check if the daemon is still alive.
         '''
         if self.child_pid is None:
-            # no child was started
+            # no child was started or child was already reaped
             return False
-        if os.waitpid(self.child_pid, os.WNOHANG) != (0,0):
-            # child was started, but has just exited
+        try:
+            if os.waitpid(self.child_pid, os.WNOHANG) != (0,0):
+                # child was started, but has just exited
+                self.child_pid = None
+                return False
+        except OSError:
+            # ECHILD errno, no more children (somebody reaped the child before
+            # this check)
             self.child_pid = None
             return False
 
@@ -463,7 +451,7 @@ class Daemon:
         # in case it was still opened
         self.close() # TODO: read self.child_stdout (and discard? return?)
 
-        if self.child_pid is not None:
+        if self.child_pid is None:
             return
 
         try:
