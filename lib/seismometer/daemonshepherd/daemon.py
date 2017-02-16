@@ -18,7 +18,7 @@ import signal
 import time
 import re
 import setguid
-import _fd
+import filehandle
 
 #-----------------------------------------------------------------------------
 
@@ -273,7 +273,7 @@ class Daemon:
             return
         (self.child_pid, self.child_stdout) = self.start_command.run()
         if self.child_stdout is not None:
-            _fd.close_on_exec(self.child_stdout)
+            filehandle.set_close_on_exec(self.child_stdout)
 
     def stop(self):
         '''

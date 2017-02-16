@@ -15,7 +15,7 @@ Unix sockets
 import socket
 import os
 import json
-import _fd
+import filehandle
 
 #-----------------------------------------------------------------------------
 
@@ -36,7 +36,7 @@ class ControlSocket:
         # only set self.socket it after bind(), so the file won't get removed
         # when it's not ours (e.g. existed already)
         self.socket = conn
-        _fd.close_on_exec(self.socket)
+        filehandle.set_close_on_exec(self.socket)
         self.socket.listen(1)
 
     def __del__(self):
