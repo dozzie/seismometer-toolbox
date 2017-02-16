@@ -178,10 +178,14 @@ class Command:
 class Daemon:
     '''
     Class representing single daemon, which can be started or stopped.
+
+    To set or read metadata (opaque to this class), use dictionary operations
+    (get value, set value, ``del``, ``in`` to check key existence, ``len()``,
+    iteration over keys).
     '''
 
     def __init__(self, start_command, stop_command = None, stop_signal = None,
-                 command_name = None, daemon_name = None,
+                 command_name = None, metadata = None,
                  environment = None, cwd = None, stdout = None,
                  user = None, group = None):
         '''
@@ -190,8 +194,7 @@ class Daemon:
         :param stop_signal: signal used to stop the daemon
         :param command_name: command name (``argv[0]``) to be passed to
             :func:`exec()`
-        :param daemon_name: name of this daemon (metadata purely for caller's
-            convenience)
+        :param metadata: additional information about daemon
         :param environment: environment variables to be added/replaced when
             running commands (start and stop)
         :type environment: dict with string:string mapping
@@ -205,7 +208,7 @@ class Daemon:
         ``SIGTERM`` is used.
         '''
 
-        self.daemon_name = daemon_name
+        self.metadata = metadata if metadata is not None else {}
 
         if stdout is None or stdout == 'stdout':
             stdout = None
@@ -260,6 +263,30 @@ class Daemon:
         return self.start_command == other.start_command and \
                self.stop_command  == other.stop_command  and \
                self.stop_signal   == other.stop_signal
+
+    #-------------------------------------------------------------------
+    # daemon metadata
+
+    def __getitem__(self, name):
+        if name not in self.metadata:
+            raise KeyError('no such key: %s' % (name,))
+        return self.metadata[name]
+
+    def __setitem__(self, name, value):
+        self.metadata[name] = value
+
+    def __delitem__(self, name):
+        if name in self.metadata:
+            del self.metadata[name]
+
+    def __contains__(self, name):
+        return (name in self.metadata)
+
+    def __len__(self):
+        return len(self.metadata)
+
+    def __iter__(self):
+        return self.metadata.__iter__()
 
     #-------------------------------------------------------------------
     # starting and stopping daemon
@@ -382,8 +409,6 @@ class Daemon:
         self.close() # TODO: read self.child_stdout (and discard?)
         os.waitpid(self.child_pid, 0)
         self.child_pid = None
-
-    #-------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker
