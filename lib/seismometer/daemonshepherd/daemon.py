@@ -3,6 +3,8 @@
 Running external program as daemon
 ----------------------------------
 
+.. autofunction:: build()
+
 .. autoclass:: Daemon
    :members:
 
@@ -19,6 +21,39 @@ import time
 import re
 import setguid
 import filehandle
+
+#-----------------------------------------------------------------------------
+
+def build(spec):
+    '''
+    :spec: dictionary with daemon specification
+    :return: :class:`Daemon`
+
+    Build a :class:`Daemon` instance according to specification.
+
+    **TODO**: Describe how this specification looks like (it comes from
+    config file).
+    '''
+
+    stdout_option = spec.get("stdout")
+    if stdout_option == "console":
+        stdout_option = None
+    elif stdout_option == "/dev/null":
+        stdout_option = Daemon.DEVNULL
+    else: # assume it's `stdout_option == "log"'
+        stdout_option = Daemon.PIPE
+
+    return Daemon(
+        start_command = spec.get("start_command"),
+        command_name  = spec.get("argv0"),
+        stop_command  = spec.get("stop_command"),
+        stop_signal   = spec.get("stop_signal"),
+        environment   = spec.get("environment"),
+        cwd           = spec.get("cwd"),
+        stdout        = stdout_option,
+        user          = spec.get("user"),
+        group         = spec.get("group"),
+    )
 
 #-----------------------------------------------------------------------------
 
