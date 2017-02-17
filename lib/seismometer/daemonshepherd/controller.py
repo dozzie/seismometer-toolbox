@@ -302,7 +302,8 @@ class Controller:
         signal.signal(signal.SIGINT, self.signal_shutdown)
         signal.signal(signal.SIGTERM, self.signal_shutdown)
         signal.signal(signal.SIGCHLD, self.signal_child_died)
-        self.reload()
+        if not self.reload():
+            raise Exception("configuration loading error")
 
     def __del__(self):
         self.shutdown()
@@ -502,6 +503,8 @@ class Controller:
 
     def reload(self):
         '''
+        :return: ``True`` when reload was successful, ``False`` on error
+
         Reload daemon specifications from configuration and converge list of
         running daemons with expectations list.
 
@@ -511,8 +514,14 @@ class Controller:
         logger = logging.getLogger("controller")
         logger.info("reloading configuration")
 
-        # TODO: catch and report load errors
-        specs = self.load_config()
+        try:
+            specs = self.load_config()
+        except:
+            logger.exception("error when loading config file")
+            return False
+        if not isinstance(specs, dict):
+            logger.error("config loading returned invalid data type")
+            return False
 
         # just daemon names
         daemons_to_stop = [name for name in self.daemons if name not in specs]
@@ -520,7 +529,9 @@ class Controller:
         # name => daemon.Daemon
         daemons_to_start = {}
         daemons_to_restart = {}
-        for (name, spec) in specs.items():
+        daemons_to_update = {}
+        for (name, spec) in specs.iteritems():
+            # TODO: intercept daemon building errors
             handle = daemon.build(spec)
             handle["name"] = name
             handle["running"] = False
@@ -529,14 +540,19 @@ class Controller:
             if name not in self.daemons:
                 daemons_to_start[name] = handle
             elif handle != self.daemons[name]:
-                # FIXME: if only stop signal or command changes, this is
+                # FIXME: if only stop signal or stop command changes, this is
                 # executed, too; maybe it should only matter if the start
                 # stuff differs?
                 daemons_to_restart[name] = handle
             else: # handle == self.daemons[name]
-                # update daemon's metadata coming from config with new values
-                self.daemons[name]["restart"] = handle["restart"]
-                self.daemons[name]["start_priority"] = handle["start_priority"]
+                # NOTE: daemons could be update here, but I'd rather do it
+                # after processing data from config file is finished
+                daemons_to_update[name] = handle
+
+        for (name, handle) in daemons_to_update.iteritems():
+            # update daemons' metadata coming from config with new values
+            self.daemons[name]["restart"] = handle["restart"]
+            self.daemons[name]["start_priority"] = handle["start_priority"]
 
         def priority_cmp(a, b):
             return cmp(a["start_priority"], b["start_priority"]) or \
@@ -593,6 +609,9 @@ class Controller:
                 logger.info("starting %s", handle["name"])
                 self.daemons[handle["name"]] = handle
                 self._start(handle["name"])
+
+        # report that loading and parsing config was generally successful
+        return True
 
     #-------------------------------------------------------------------
     # command_start(daemon) {{{

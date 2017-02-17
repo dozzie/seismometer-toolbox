@@ -44,6 +44,8 @@ def build(spec):
     else: # assume it's `stdout_option == "log"'
         stdout_option = "pipe"
 
+    # TODO: some small data validation, especially presence of required fields
+
     return Daemon(
         start_command = spec.get("start_command"),
         command_name  = spec.get("argv0"),
