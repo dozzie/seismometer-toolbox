@@ -3,7 +3,7 @@
 Running external program as daemon
 ----------------------------------
 
-.. autofunction:: build()
+.. autofunction:: build
 
 .. autoclass:: Daemon
    :members:
@@ -27,7 +27,7 @@ import filehandle
 
 def build(spec):
     '''
-    :spec: dictionary with daemon specification
+    :param spec: dictionary with daemon specification
     :return: :class:`Daemon`
 
     Build a :class:`Daemon` instance according to specification.
@@ -71,7 +71,8 @@ class _Constant:
 
 class Command:
     '''
-    Class for doing :func:`fork()` + :func:`exec()` in repeatable manner.
+    External command representation for doing :func:`fork()` + :func:`exec()`
+    in a repeatable manner.
 
     Class has defined operators ``==`` and ``!=``, so objects are compared
     according to command line and its run environment (variables, *CWD*,
@@ -215,7 +216,8 @@ class Command:
 
 class Daemon:
     '''
-    Class representing single daemon, which can be started or stopped.
+    Single daemon representation and interaction channel. A daemon can be
+    started or stopped.
 
     To set or read metadata (opaque to this class), use dictionary operations
     (get value, set value, ``del``, ``in`` to check key existence, ``len()``,
@@ -232,7 +234,7 @@ class Daemon:
         :param stop_signal: signal used to stop the daemon
         :param command_name: command name (``argv[0]``) to be passed to
             :func:`exec()`
-        :param metadata: additional information about daemon
+        :param metadata: dictionary with additional information about daemon
         :param environment: environment variables to be added/replaced when
             running commands (start and stop)
         :type environment: dict with string:string mapping

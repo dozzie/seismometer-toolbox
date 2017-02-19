@@ -49,5 +49,5 @@ daemons:
   store-clients:
     # string folded for readability
     start_command: >-
-        /etc/seismometer/bin/count-clients |
-        socat - unix:/var/run/collectd/clients.sock
+        /etc/seismometer/bin/count-clients
+        | socat - unix:/var/run/collectd/clients.sock

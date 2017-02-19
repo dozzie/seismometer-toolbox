@@ -169,8 +169,8 @@ hash.
 Restart strategy
 ----------------
 
-When a daemon dies, it's restarted after backoff time. If it dies again, next
-backoff interval will be used. A list of backoff intervals (expressed as
+When a daemon dies, it's restarted after a backoff time. If it dies again,
+next backoff interval will be used. A list of backoff intervals (expressed as
 number of seconds before next try) is called a *restart strategy*. Typically
 it would be a increasing list of integers, so on first death daemon is
 restarted soon, but if it keeps dying, it will be restarted less often to
@@ -248,8 +248,8 @@ monitoring data (``dumb-probe``), pass messages to another server
      store-clients:
        # string folded for readability
        start_command: >-
-           /etc/seismometer/bin/count-clients |
-           socat - unix:/var/run/collectd/clients.sock
+           /etc/seismometer/bin/count-clients
+           | socat - unix:/var/run/collectd/clients.sock
 
 .. _daemonshepherd-logging:
 

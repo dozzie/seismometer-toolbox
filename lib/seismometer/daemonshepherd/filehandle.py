@@ -3,9 +3,9 @@
 File handle routines and constants
 ----------------------------------
 
-.. autofunction:: set_close_on_exec()
+.. autofunction:: set_close_on_exec
 
-.. autofunction:: set_nonblocking()
+.. autofunction:: set_nonblocking
 
 .. autodata:: EOF
 

@@ -1,17 +1,5 @@
 #!/usr/bin/python
 '''
-DumbProbe config interface
---------------------------
-
-This interface is intended for use in script specified with :option:`--checks`
-option, may also be useful as a basis for custom implementation.
-
-.. autoclass:: Checks
-   :members:
-
-.. autoclass:: RunQueue
-   :members:
-
 Available check classes
 -----------------------
 
@@ -59,6 +47,18 @@ prints OS statistics every 60 seconds).
 .. autoexception:: HandleEOF
    :members:
 
+DumbProbe config interface
+--------------------------
+
+This interface is intended for use in script specified with :option:`--checks`
+option, may also be useful as a basis for custom implementation.
+
+.. autoclass:: Checks
+   :members:
+
+.. autoclass:: RunQueue
+   :members:
+
 '''
 #-----------------------------------------------------------------------------
 
@@ -81,8 +81,6 @@ __all__ = [
     'BaseHandle', 'HandleEOF',
     'ShellStream',
 ]
-
-#-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
 # RunQueue {{{

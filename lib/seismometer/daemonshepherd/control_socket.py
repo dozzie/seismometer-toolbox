@@ -22,7 +22,8 @@ import filehandle
 
 class ControlSocket:
     '''
-    Create unix stream listening socket, binding to :obj:`address`.
+    Unix stream listening socket, bound to :obj:`address`. Connections process
+    (encode and decode) line-based JSON messages.
     '''
 
     def __init__(self, address):

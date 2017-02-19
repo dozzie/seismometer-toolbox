@@ -6,6 +6,8 @@ Daemon starter and data dispatcher
 .. autoclass:: Controller
    :members:
 
+   Available attributes:
+
    .. attribute:: load_config
 
       Zero-argument function that loads daemons specification file and returns
@@ -77,7 +79,7 @@ SIGNAL_NAMES = dict([
 
 class RestartQueue:
     '''
-    Container for daemons to restart.
+    Schedule for daemon restarts.
     '''
 
     def __init__(self):
