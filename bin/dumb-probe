@@ -106,7 +106,7 @@ if output is None:
     parser.error("invalid --destination")
 
 if options.once:
-    if not isinstance(checks, seismometer.dumbprobe.Checks):
+    if not isinstance(checks_mod.CHECKS, (list, tuple)):
         print >>sys.stderr, "CHECKS not being a list or tuple is" \
                             " not supported with --once option"
         sys.exit(1)
