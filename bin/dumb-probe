@@ -99,7 +99,6 @@ checks = checks_mod.CHECKS
 ploader.close()
 if isinstance(checks, (list, tuple)):
     checks = seismometer.dumbprobe.Checks(checks)
-    checks.setup_handles()
 
 output = prepare_destination(options.destination)
 if output is None:
@@ -133,6 +132,9 @@ if options.once:
 
 #-----------------------------------------------------------------------------
 # main loop
+
+if isinstance(checks, seismometer.dumbprobe.Checks):
+    checks.setup_handles()
 
 try:
     while True:
