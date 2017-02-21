@@ -1,6 +1,6 @@
-***********************************************
-Welcome to Seismometer Toolbox's documentation!
-***********************************************
+*******************
+Seismometer Toolbox
+*******************
 
 Seismometer Toolbox is a set of small tools created around Python library, all
 written to facilitate building monitoring systems.
