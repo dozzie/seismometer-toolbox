@@ -131,20 +131,27 @@ if options.once:
     sys.exit(0)
 
 #-----------------------------------------------------------------------------
+
+def quit_daemon(sig, stack_frame):
+    logger.info("received signal; shutting down")
+    sys.exit(0)
+
+signal.signal(signal.SIGHUP, quit_daemon)
+signal.signal(signal.SIGINT, quit_daemon)
+signal.signal(signal.SIGTERM, quit_daemon)
+
+#-----------------------------------------------------------------------------
 # main loop
 
 if isinstance(checks, seismometer.dumbprobe.Checks):
     checks.setup_handles()
 
-try:
-    while True:
-        for msg in checks.run_next():
-            if isinstance(msg, seismometer.message.Message):
-                output.send(msg.to_dict())
-            else: # dict
-                output.send(msg)
-except KeyboardInterrupt:
-    pass
+while True:
+    for msg in checks.run_next():
+        if isinstance(msg, seismometer.message.Message):
+            output.send(msg.to_dict())
+        else: # dict
+            output.send(msg)
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker
