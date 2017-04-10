@@ -6,16 +6,7 @@ Available checks
 .. autoclass:: BaseCheck
    :members:
 
-.. autoclass:: ShellOutputJSON
-   :members:
-
-.. autoclass:: ShellOutputMetric
-   :members:
-
-.. autoclass:: ShellOutputState
-   :members:
-
-.. autoclass:: ShellExitState
+.. autoclass:: ShellCommand
    :members:
 
 .. autoclass:: Nagios
@@ -37,18 +28,9 @@ import seismometer.message
 
 __all__ = [
     'BaseCheck',
-    'ShellOutputJSON', 'ShellOutputMetric', 'ShellOutputState',
-    'ShellExitState', 'Nagios',
+    'ShellCommand', 'Nagios',
     'Function',
 ]
-
-# XXX: this should be a field of `ShellExitState' class, but caused Sphinx to
-# include unexpected parts of `signal' module documentation
-_SIGNALS = dict([
-    (num, name.lower())
-    for (name, num) in signal.__dict__.items()
-    if name.startswith("SIG") and not name.startswith("SIG_")
-])
 
 #-----------------------------------------------------------------------------
 # base class for checks {{{
@@ -151,183 +133,33 @@ class BaseCheck(object):
 #-----------------------------------------------------------------------------
 # plugins that call external commands {{{
 
-class ShellOutputJSON(BaseCheck):
+class ShellCommand(BaseCheck):
     '''
-    Plugin to run external command and collect its *STDOUT* as a message.
-
-    The command is expected to print JSON, and this JSON is returned
-    unmodified. Command may output more than one JSON object, all of them will
-    be returned as check results.
+    Plugin to run external command and process its *STDOUT* and exit code with
+    a separate function.
     '''
-    def __init__(self, command, **kwargs):
+    def __init__(self, command, parse, **kwargs):
         '''
         :param command: command to run (string for shell command, or list of
             strings for direct command to run)
+        :param parse: function to process command's output
+        :param kwargs: keyword arguments to pass to :class:`BaseCheck`
+            constructor
+
+        :obj:`parse` should be a function (or callable) that accepts two
+        positional arguments: first one will be command's *STDOUT*, the second
+        will be command's exit code (or termination signal, if negative).
         '''
-        super(ShellOutputJSON, self).__init__(**kwargs)
+        super(ShellCommand, self).__init__(**kwargs)
         self.command = command
-        self.use_shell = not isinstance(command, (list, tuple))
-        self.json = json.JSONDecoder()
-
-    def run(self):
-        self.mark_run()
-
-        (exitcode, stdout) = run(self.command, self.use_shell)
-        if exitcode != 0:
-            logger = logging.getLogger("check.shell.json")
-            if exitcode > 0:
-                logger.warn("exit code %d when running %s",
-                            exitcode, json.dumps(self.command))
-            else: # exitcode < 0
-                logger.warn("signal %d when running %s",
-                            -exitcode, json.dumps(self.command))
-            return None
-
-        def skip_spaces(string, offset = 0):
-            while offset < len(string) and \
-                  string[offset] in (' ', '\t', '\r', '\n'):
-                offset += 1
-            return offset
-
-        messages = []
-        offset = skip_spaces(stdout)
-        while offset < len(stdout):
-            (msg, offset) = self.json.raw_decode(stdout, offset)
-            messages.append(self._populate(msg))
-            offset = skip_spaces(stdout, offset)
-
-        return messages
-
-class ShellOutputMetric(BaseCheck):
-    '''
-    Plugin to collect metric from *STDOUT* of a command.
-
-    The command is expected to print just a number (integer or floating
-    point).
-    '''
-    def __init__(self, command, aspect, **kwargs):
-        '''
-        :param command: command to run (string for shell command, or list of
-            strings for direct command to run)
-        :param aspect: aspect name, as in :class:`seismometer.message.Message`
-        '''
-        super(ShellOutputMetric, self).__init__(aspect = aspect, **kwargs)
-        self.command = command
+        self.parse = parse
         self.use_shell = not isinstance(command, (list, tuple))
 
     def run(self):
         self.mark_run()
-
         (exitcode, stdout) = run(self.command, self.use_shell)
-        if exitcode != 0:
-            logger = logging.getLogger("check.shell.metric")
-            if exitcode > 0:
-                logger.warn("exit code %d when running %s",
-                            exitcode, json.dumps(self.command))
-            else: # exitcode < 0
-                logger.warn("signal %d when running %s",
-                            -exitcode, json.dumps(self.command))
-            return None
-
-        metric = stdout.strip().lower()
-        if '.' in metric or 'e' in metric:
-            metric = float(metric)
-        else:
-            metric = int(metric)
-
-        return seismometer.message.Message(
-            value = metric,
-            aspect = self.aspect,
-            location = self.location,
-        )
-
-class ShellOutputState(BaseCheck):
-    '''
-    Plugin to collect state from *STDOUT* of a command.
-
-    The command should print the state as a single word. The state is then
-    checked against expected states to determine its severity.
-    '''
-    def __init__(self, command, expected, aspect, **kwargs):
-        '''
-        :param command: command to run (string for shell command, or list of
-            strings for direct command to run)
-        :param expected: list of states of severity *expected*; all the others
-            are considered *error*
-        :param aspect: aspect name, as in :class:`seismometer.message.Message`
-        '''
-        super(ShellOutputState, self).__init__(aspect = aspect, **kwargs)
-        self.command = command
-        self.use_shell = not isinstance(command, (list, tuple))
-        self.expected = set(expected)
-
-    def run(self):
-        self.mark_run()
-
-        (exitcode, stdout) = run(self.command, self.use_shell)
-        if exitcode != 0:
-            logger = logging.getLogger("check.shell.state")
-            if exitcode > 0:
-                logger.warn("exit code %d when running %s",
-                            exitcode, json.dumps(self.command))
-            else: # exitcode < 0
-                logger.warn("signal %d when running %s",
-                            -exitcode, json.dumps(self.command))
-            return None
-
-        state = stdout.strip()
-        if state in self.expected:
-            severity = 'expected'
-        else:
-            severity = 'error'
-
-        return seismometer.message.Message(
-            state = state, severity = severity,
-            aspect = self.aspect,
-            location = self.location,
-        )
-
-class ShellExitState(BaseCheck):
-    '''
-    Plugin to collect state from exit code of a command.
-
-    Exit code of 0 renders ``ok, expected`` message, any other renders
-    ``exit_$?, error`` or ``$signame, error`` (``$?`` being the actual exit
-    code and ``$signame`` name of signal, like ``sighup`` or ``sigsegv``).
-    '''
-    def __init__(self, command, aspect, **kwargs):
-        '''
-        :param command: command to run (string for shell command, or list of
-            strings for direct command to run)
-        :param aspect: aspect name, as in :class:`seismometer.message.Message`
-        '''
-        super(ShellExitState, self).__init__(aspect = aspect, **kwargs)
-        self.command = command
-        self.use_shell = not isinstance(command, (list, tuple))
-
-    def run(self):
-        self.mark_run()
-
-        (exitcode, stdout) = run(self.command, self.use_shell)
-        if exitcode == 0:
-            state = 'ok'
-            severity = 'expected'
-        elif exitcode > 0:
-            state = 'exit_%d' % (exitcode,)
-            severity = 'error'
-        else: # exitcode < 0
-            signum = -exitcode
-            if signum in _SIGNALS:
-                state = _SIGNALS[signum]
-            else:
-                state = 'signal_%d' % (signum,)
-            severity = 'error'
-
-        return seismometer.message.Message(
-            state = state, severity = severity,
-            aspect = self.aspect,
-            location = self.location,
-        )
+        result = self.parse(stdout, exitcode)
+        return [self._populate(m) for m in each(result)]
 
 class Nagios(BaseCheck):
     '''

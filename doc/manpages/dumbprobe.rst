@@ -79,15 +79,9 @@ list.
 There are also several built-in classes that facilitate working with external
 commands and scripts:
 
-* :class:`seismometer.dumbprobe.ShellOutputMetric` -- command that prints
-  a number (integer or float) to *STDOUT*
-* :class:`seismometer.dumbprobe.ShellOutputState` -- command that prints state
-  (see `message schema v3
-  <http://seismometer.net/message-schema/v3/#structure>`_) to *STDOUT*
-* :class:`seismometer.dumbprobe.ShellExitState` -- command that indicates
-  state using exit code (*STDOUT* is discarded)
-* :class:`seismometer.dumbprobe.ShellOutputJSON` -- command that prints raw
-  JSON messages to *STDOUT*
+* :class:`seismometer.dumbprobe.ShellCommand` -- a command whose *STDOUT*
+  output and exit code are passed to a Python function, which in turn produces
+  above-mentioned messages
 * :class:`seismometer.dumbprobe.Nagios` -- command that conforms to
   `Monitoring Plugins <https://www.monitoring-plugins.org/>`_ protocol,
   including performance data for collecting metrics
@@ -104,6 +98,7 @@ Typically, checks file will look somewhat like this:
    from seismometer.dumbprobe import *
    from seismometer.message import Message, Value
    import os
+   import json
 
    #--------------------------------------------------------------------
 
@@ -166,21 +161,22 @@ Typically, checks file will look somewhat like this:
        Function(df, args = ["/tmp"],  interval = 30 * 60),
        # shell command (`sh -c ...'), prints list of JSON objects to
        # STDOUT
-       ShellOutputJSON("/usr/local/bin/read-etc-passwd", interval = 60),
-       # external command (run without `sh -c'), prints single number
-       ShellOutputMetric(
-           ["/usr/local/bin/random", "0.5"],
-           interval = 30,
-           aspect = "random",
-           host = hostname(),
+       ShellCommand(
+           "/usr/local/bin/read-etc-passwd",
+           parse = lambda stdout,code: [
+               json.loads(l) for l in stdout.strip().split("\n")
+           ],
+           interval = 60
        ),
-       # external command, prints "missing" (expected) or anything else
-       # (error)
-       ShellOutputState(
-           ["/usr/local/bin/file_exists", "/etc/nologin"],
-           expected = ["missing"],
-           interval = 60,
-           aspect = "nologin marker",
+       # external command (run without `sh -c'), prints single number
+       ShellCommand(
+           ["/usr/local/bin/random", "0.5"],
+           parse = lambda stdout,code: Message(
+             aspect = "random",
+             value = float(stdout),
+           ),
+           interval = 30,
+           host = hostname(),
        ),
        # and two Monitoring Plugins
        Nagios(

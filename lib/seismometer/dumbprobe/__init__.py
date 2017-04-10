@@ -3,7 +3,7 @@
 Available check classes
 -----------------------
 
-The classes that work with external commands (e.g. :class:`ShellOutputJSON` or
+The classes that work with external commands (e.g. :class:`ShellCommand` or
 :class:`Nagios`) assume that if the command is specified as simple string, it
 should be run with shell (``/bin/sh -c ...``), and if it's specified as
 a list, it is run without invoking :file:`/bin/sh`. The latter is especially
@@ -15,16 +15,7 @@ important when the command is provided with calculated arguments.
 .. autoclass:: Function
    :members:
 
-.. autoclass:: ShellOutputJSON
-   :members:
-
-.. autoclass:: ShellOutputMetric
-   :members:
-
-.. autoclass:: ShellOutputState
-   :members:
-
-.. autoclass:: ShellExitState
+.. autoclass:: ShellCommand
    :members:
 
 .. autoclass:: Nagios
@@ -74,9 +65,7 @@ __all__ = [
     'Checks',
     # XXX: all the classes from `checks' module
     'BaseCheck',
-    'ShellOutputJSON', 'ShellOutputMetric', 'ShellOutputState',
-    'ShellExitState', 'Nagios',
-    'Function',
+    'ShellCommand', 'Nagios', 'Function',
     # XXX: all the classes from `handles' module
     'BaseHandle', 'HandleEOF',
     'ShellStream',
