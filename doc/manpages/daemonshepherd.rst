@@ -14,7 +14,7 @@ Synopsis
    daemonshepherd [options] stop <daemon-name>
    daemonshepherd [options] restart <daemon-name>
    daemonshepherd [options] cancel_restart <daemon-name>
-   daemonshepherd [options] command <daemon-name> <command-name> [...]
+   daemonshepherd [options] command <daemon-name> <command-name>
 
 Description
 ===========
@@ -64,7 +64,7 @@ success.
 
    cancels pending restart of specified daemon
 
-.. describe:: daemonshepherd command <daemon-name> <command-name> [...]
+.. describe:: daemonshepherd command <daemon-name> <command-name>
 
    runs an administrative command defined for specified daemon
 
@@ -183,12 +183,13 @@ daemon specification.
 A command can specify either a command to run or a signal to send. Some of the
 variables that can be set for daemon itself can also be set for a command, and
 if unset, the command inherits the value from daemon. Allowed variables are:
-``user``, ``group``, ``cwd``, ``environment``.
+``user``, ``group``, ``cwd``, ``environment``, ``argv0``.
 
-Command's environment will have :envvar:`$DAEMON_PID` set to daemon's PID.
-Any additional positional arguments passed to *daemonshepherd* will be passed
-to the command, so usual means of accessing these are available (e.g. shell's
-``$1``, ``$2``, ... or Python's :obj:`sys.argv`).
+Command's environment will have :envvar:`$DAEMON_PID` set to daemon's PID (or
+empty string, if the daemon is not running).
+
+**NOTE**: *daemonshepherd* will wait for administrative commands to terminate,
+so they should not be long-running operations.
 
 .. code-block:: yaml
 

@@ -542,12 +542,9 @@ class Controller:
             if name not in self.daemons:
                 daemons_to_start[name] = handle
             elif handle != self.daemons[name]:
-                # FIXME: if only stop signal or stop command changes, this is
-                # executed, too; maybe it should only matter if the start
-                # stuff differs?
                 daemons_to_restart[name] = handle
             else: # handle == self.daemons[name]
-                # NOTE: daemons could be update here, but I'd rather do it
+                # NOTE: daemons could be updated here, but I'd rather do it
                 # after processing data from config file is finished
                 daemons_to_update[name] = handle
 
@@ -555,6 +552,7 @@ class Controller:
             # update daemons' metadata coming from config with new values
             self.daemons[name]["restart"] = handle["restart"]
             self.daemons[name]["start_priority"] = handle["start_priority"]
+            self.daemons[name].replace_commands(handle)
 
         def priority_cmp(a, b):
             return cmp(a["start_priority"], b["start_priority"]) or \
