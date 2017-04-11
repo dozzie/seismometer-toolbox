@@ -145,7 +145,8 @@ A daemon can have following variables:
   the precedence
 * ``user``, ``group`` -- username and group name to run as (both
   ``start_command`` and ``stop_command`` will be run with these
-  credentials); obviously this requires *daemonshepherd* to be run as root
+  credentials); ``group`` can be a list of group names; obviously this
+  requires *daemonshepherd* to be run as root
 * ``cwd`` -- working directory to start daemon in
 * ``environment`` -- additional environment variables to set (useful for
   setting :envvar:`$PYTHONPATH` or similar)
