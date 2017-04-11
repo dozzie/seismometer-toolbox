@@ -35,9 +35,20 @@ daemons:
         statetipd start
         --socket=/var/run/statetip/control
         --config=/etc/statetip.conf
+    # shorthand for "commands.stop"
     stop_command: >-
         statetipd stop
         --socket=/var/run/statetip/control
+    commands:
+      pre-start:
+        command: >-
+          mkdir -m 750 /var/run/statetip;
+          chown seismometer:seismometer /var/run/statetip
+        user: root
+      reload:
+        command: statetipd reload --socket=/var/run/statetip/control
+      brutal-kill:
+        signal: SIGKILL
 
   # custom collectd instance
   collectd:

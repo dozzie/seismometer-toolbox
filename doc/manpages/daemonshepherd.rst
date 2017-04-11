@@ -14,6 +14,7 @@ Synopsis
    daemonshepherd [options] stop <daemon-name>
    daemonshepherd [options] restart <daemon-name>
    daemonshepherd [options] cancel_restart <daemon-name>
+   daemonshepherd [options] command <daemon-name> <command-name> [...]
 
 Description
 ===========
@@ -62,6 +63,10 @@ success.
 .. describe:: daemonshepherd cancel_restart <daemon-name>
 
    cancels pending restart of specified daemon
+
+.. describe:: daemonshepherd command <daemon-name> <command-name> [...]
+
+   runs an administrative command defined for specified daemon
 
 Options
 -------
@@ -157,12 +162,76 @@ A daemon can have following variables:
   section for details
 * ``start_priority`` -- start priority (lower number starts earlier);
   defaults to 10
+* ``commands`` -- additional administrative commands for the daemon;
+  see :ref:`daemonshepherd-daemon-admin-commands` section for details
 
 Default values for above-mentioned variables can be stored in ``defaults``
 hash.
 
 **NOTE**: ``environment`` key will be *replaced* by daemon's value, not
 *merged*. It's not possible to add just one environment variable.
+
+.. _daemonshepherd-daemon-admin-commands:
+
+Daemon's administrative commands
+--------------------------------
+
+Daemon can have available some special commands, like reloading configuration
+or reopening log files. Such commands are defined under ``commands`` field in
+daemon specification.
+
+A command can specify either a command to run or a signal to send. Some of the
+variables that can be set for daemon itself can also be set for a command, and
+if unset, the command inherits the value from daemon. Allowed variables are:
+``user``, ``group``, ``cwd``, ``environment``.
+
+Command's environment will have :envvar:`$DAEMON_PID` set to daemon's PID.
+Any additional positional arguments passed to *daemonshepherd* will be passed
+to the command, so usual means of accessing these are available (e.g. shell's
+``$1``, ``$2``, ... or Python's :obj:`sys.argv`).
+
+.. code-block:: yaml
+
+   daemons:
+     example-daemon:
+       user: nobody
+       start_command: /usr/sbin/example-daemon ...
+       commands:
+         before-start:
+           user: root
+           command: >-
+             mkdir -p /var/log/example;
+             chown nobody: /var/log/example
+         reload:
+           signal: SIGHUP
+         rotate-logs:
+           user: root
+           command: >-
+             : > /var/log/example/daemon.log;
+             kill -USR1 $DAEMON_PID
+
+With the configuration above an operator now can call following commands:
+
+.. code-block:: none
+
+  $ daemonshepherd command example-daemon reload
+  $ daemonshepherd command example-daemon rotate-logs
+
+There are few commands with special meaning:
+
+* ``stop`` -- command that will be used to stop the daemon; setting
+  ``stop_command`` or ``stop_signal`` is a shorthand for defining this command
+* ``before-start`` -- command that will be executed just before the daemon is
+  started or restarted; handy for creating socket directory in
+  :file:`/var/run` for a daemon that otherwise runs as a non-privileged user
+* ``after-crash`` -- command that will be executed immediately after the
+  daemon's unexpected termination; the command will have set either
+  :envvar:`$DAEMON_EXIT_CODE` or :envvar:`$DAEMON_SIGNAL` environment
+  variable, depending on how the daemon terminated
+
+Note that these commands can be invoked in the same manner as any other
+administrative command, e.g. ``daemonshepherd command $daemon after-crash``,
+even though they're not expected to make sense in this situation.
 
 .. _daemonshepherd-restart-strategy:
 
@@ -234,9 +303,20 @@ monitoring data (``dumb-probe``), pass messages to another server
            statetipd start
            --socket=/var/run/statetip/control
            --config=/etc/statetip.conf
+       # shorthand for "commands.stop"
        stop_command: >-
            statetipd stop
            --socket=/var/run/statetip/control
+       commands:
+         pre-start:
+           command: >-
+             mkdir -m 750 /var/run/statetip;
+             chown seismometer:seismometer /var/run/statetip
+           user: root
+         reload:
+           command: statetipd reload --socket=/var/run/statetip/control
+         brutal-kill:
+           signal: SIGKILL
 
      # custom collectd instance
      collectd:
