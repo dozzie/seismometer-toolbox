@@ -19,7 +19,8 @@ parser = optparse.OptionParser(
     usage = "\n  %prog [options] --daemons=FILE"
             "\n  %prog [options] reload"
             "\n  %prog [options] ps"
-            "\n  %prog [options] {start|stop|restart|cancel_restart} <daemon_name>",
+            "\n  %prog [options] {start|stop|restart|cancel_restart} <daemon_name>"
+            "\n  %prog [options] command <daemon_name> <command_name>",
     description = "Daemon supervisor/restarter.",
 )
 
@@ -59,7 +60,8 @@ command = "daemon_supervisor"
 
 SOLE_COMMANDS = set(["reload", "ps"])
 DAEMON_COMMANDS = set(["start", "stop", "restart", "cancel_restart"])
-KNOWN_COMMANDS = SOLE_COMMANDS | DAEMON_COMMANDS
+ADMIN_COMMANDS = set(["command"])
+KNOWN_COMMANDS = SOLE_COMMANDS | DAEMON_COMMANDS | ADMIN_COMMANDS
 
 if len(args) == 0 and options.daemons is None:
     parser.error("--daemons option is required for this mode")
@@ -69,6 +71,8 @@ elif len(args) > 0:
         parser.error("unrecognized command: %s" % (command,))
     if len(args) != 1 and command in DAEMON_COMMANDS:
         parser.error("daemon name is required for command %s" % (command,))
+    if len(args) != 2 and command in ADMIN_COMMANDS:
+        parser.error("daemon name and command name are required for command %s" % (command,))
 
 if command != "daemon_supervisor" and options.socket is None:
     options.socket = "/var/run/daemonshepherd.sock"
@@ -157,6 +161,13 @@ else:
         supervisor.send({"command": command})
     elif command in DAEMON_COMMANDS:
         supervisor.send({"command": command, "daemon": args[0]})
+    elif command in ADMIN_COMMANDS:
+        supervisor.send({
+            "command": "admin_command",
+            "daemon": args[0],
+            "admin_command": args[1],
+        })
+
     reply = supervisor.read(blocking = True)
     supervisor.close()
 

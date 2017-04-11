@@ -119,6 +119,12 @@ Available requests
 
   * no data returned, just ``{"status": "ok"}``
 
+* ``{"command": "admin_command", "daemon": <name>, "admin_command":
+  <command>}`` -- run an administrative command according to daemon's
+  definition
+
+  * no data returned, just ``{"status": "ok"}``
+
 Commands that operate on daemons (*start*, *stop*, *restart*,
 *cancel_restart*) always reset backoff, even if nothing was changed (e.g.
 stopping an already stopped daemon).

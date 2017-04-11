@@ -779,6 +779,34 @@ class Controller:
 
     # }}}
     #-------------------------------------------------------------------
+    # command_admin_command() {{{
+
+    def command_admin_command(self, **kwargs):
+        '''
+        Run an administrative command.
+        '''
+        name = kwargs.get("daemon")
+        if not isinstance(name, (str, unicode)):
+            return # TODO: signal error (unrecognized arguments)
+
+        command = kwargs.get("admin_command")
+        if not isinstance(command, (str, unicode)):
+            return # TODO: signal error (unrecognized arguments)
+
+        handle = self.daemons.get(name)
+        if handle is None:
+            return # TODO: signal error (unknown daemon)
+
+        if not handle.has_command(command):
+            return # TODO: signal error (unknown command)
+
+        logger = logging.getLogger("controller")
+
+        logger.info("for daemon %s running command %s", name, command)
+        handle.command(command)
+
+    # }}}
+    #-------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker
