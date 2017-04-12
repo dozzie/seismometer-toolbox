@@ -49,17 +49,13 @@ class Poll:
         '''
         :param handle: file handle, the same as for :meth:`add`
 
-        Remove file handle from poll list. Handle must still return valid file
-        descriptor on ``handle.fileno()`` call or be the same object as passed
-        to :meth:`add()` method.
+        Remove file handle from poll list. Handle must still be the same
+        object as passed to :meth:`add()` method, but may be closed.
         '''
-        fd = handle.fileno()
-        if fd is None:
-            fd = self._object_fds.get(id(handle))
-            if fd is None:
-                return
-        if fd not in self._known_fds:
+        if id(handle) not in self._object_fds:
             return
+        fd = self._object_fds[id(handle)]
+
         del self._known_fds[fd]
         del self._object_fds[id(handle)]
         self._poll.unregister(fd)
