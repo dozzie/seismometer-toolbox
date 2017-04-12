@@ -798,8 +798,8 @@ class Controller:
         Reload daemon specifications. This command calls :meth:`reload()`
         method.
         '''
-        # TODO: return reload errors
-        self.reload()
+        if not self.reload():
+            raise ControlCommandError("configuration reload error")
 
     # }}}
     #-------------------------------------------------------------------
