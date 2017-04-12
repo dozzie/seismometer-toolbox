@@ -264,7 +264,7 @@ class Command:
             read_end  = None
             write_end = None
 
-        # try spawn child
+        # try spawning a child
         pid = os.fork()
         if pid != 0:
             # in parent: close writing end of pipe (if any), make reading end

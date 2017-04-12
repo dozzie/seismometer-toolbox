@@ -35,7 +35,7 @@ class ControlSocket:
         self.socket = None
         conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         conn.bind(self.path)
-        # only set self.socket it after bind(), so the file won't get removed
+        # only set self.socket after bind(), so the file won't get removed
         # when it's not ours (e.g. existed already)
         self.socket = conn
         filehandle.set_close_on_exec(self.socket)

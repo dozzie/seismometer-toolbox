@@ -329,14 +329,14 @@ class Controller:
     def _stop(self, name):
         self.restart_queue.daemon_stopped(name)
         self.poll.remove(self.daemons[name])
-        # FIXME: this can loose some of the daemon's output
+        # FIXME: this can lose some of the daemon's output
         self.daemons[name].stop()
         self.daemons[name]["running"] = False
 
     def _died(self, name, exit_code = None, signame = None):
         self.restart_queue.daemon_died(name, exit_code, signame)
         self.poll.remove(self.daemons[name])
-        # FIXME: this can loose some of the daemon's output
+        # FIXME: this can lose some of the daemon's output
         self.daemons[name].reap()
         self.daemons[name]["running"] = False
 
