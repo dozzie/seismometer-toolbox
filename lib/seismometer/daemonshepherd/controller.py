@@ -304,6 +304,7 @@ class Controller:
         # daemons' metadata:
         #   "name": string
         #   "running": True | False
+        #   "stopping": True | False
         #   "start_priority": integer
         #   "restart": list of integers
 
@@ -326,24 +327,39 @@ class Controller:
     #-------------------------------------------------------------------
     # child daemon management: _start(), _stop(), _died() {{{
 
+    def _stop_async(self, name):
+        # order the daemon to stop, but let it terminate in its own pace
+        self.daemons[name]["stopping"] = True
+        self.daemons[name].command("stop")
+
     def _stop(self, name):
+        # synchronous stop
         self.restart_queue.daemon_stopped(name)
         self.poll.remove(self.daemons[name])
         # FIXME: this can lose some of the daemon's output
-        self.daemons[name].stop()
+        if not self.daemons[name]["stopping"]:
+            self.daemons[name].stop()
+        else:
+            self.daemons[name].reap()
         self.daemons[name]["running"] = False
+        self.daemons[name]["stopping"] = False
 
     def _died(self, name, exit_code = None, signame = None):
-        self.restart_queue.daemon_died(name, exit_code, signame)
+        if self.daemons[name]["stopping"]:
+            self.restart_queue.daemon_stopped(name)
+        else:
+            self.restart_queue.daemon_died(name, exit_code, signame)
         self.poll.remove(self.daemons[name])
         # FIXME: this can lose some of the daemon's output
         self.daemons[name].reap()
         self.daemons[name]["running"] = False
+        self.daemons[name]["stopping"] = False
 
     def _start(self, name):
         self.restart_queue.daemon_started(name)
         self.daemons[name].start()
         self.daemons[name]["running"] = True
+        self.daemons[name]["stopping"] = False
         self.poll.add(self.daemons[name])
 
     # }}}
@@ -561,6 +577,7 @@ class Controller:
             handle = daemon.build(spec)
             handle["name"] = name
             handle["running"] = False
+            handle["stopping"] = False
             handle["restart"] = spec.get("restart", DEFAULT_BACKOFF)
             handle["start_priority"] = spec.get("start_priority", 10)
             if name not in self.daemons:
@@ -657,6 +674,7 @@ class Controller:
 
         logger = logging.getLogger("controller")
 
+        # TODO: tell the caller "shutdown in progress" if handle["stopping"]
         if not handle["running"]:
             logger.info("manually starting %s", name)
             self._start(name)
@@ -685,7 +703,7 @@ class Controller:
 
         if handle["running"]:
             logger.info("manually stopping %s", name)
-            self._stop(name)
+            self._stop_async(name)
         self.restart_queue.cancel_restart(name)
 
     # }}}
