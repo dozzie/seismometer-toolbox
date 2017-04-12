@@ -65,9 +65,15 @@ def build(spec):
             admin_commands["stop"] = build_command({
                 "command": spec["stop_command"]
             }, command_defaults)
+        elif "stop_signal" in spec:
+            admin_commands["stop"] = build_command({
+                "signal": spec["stop_signal"],
+                "process_group": False,
+            })
         else:
             admin_commands["stop"] = build_command({
-                "signal": spec.get("stop_signal"),
+                "signal": signal.SIGTERM,
+                "process_group": True,
             })
 
     return Daemon(
@@ -77,10 +83,13 @@ def build(spec):
 
 def build_command(spec, defaults = {}):
     if not spec.get("command"):
-        if spec.get("signal") is None:
-            return Signal(signal.SIGTERM)
+        if spec.get("signal") is not None:
+            return Signal(
+                spec["signal"],
+                group = spec.get("process_group", False)
+            )
         else:
-            return Signal(spec["signal"])
+            return Signal(signal.SIGTERM, group = True)
 
     def get_default(name):
         return spec.get(name, defaults.get(name))
@@ -121,14 +130,16 @@ class Signal:
     Converting an instance to integer (``int(instance)``) results in signal
     number.
     '''
-    def __init__(self, sig):
+    def __init__(self, sig, group = False):
         '''
         :param sig: signal number or name
+        :param group: whether to send signal to process group or just process
 
         Signal name ignores case and prepends "SIG" prefix if necessary, so
         any of the names are valid: ``"term"``, ``"sigterm"``, ``"TERM"``,
         ``"SIGTERM"``.
         '''
+        self.group = group
         if isinstance(sig, (str, unicode)):
             # convert sig from name to number
             sig = sig.upper()
@@ -149,24 +160,20 @@ class Signal:
             return False
         return self.signal == other.signal
 
-    def send(self, pid = None, group = None):
+    def send(self, pid):
         '''
         :return: ``True`` if signal was sent successfully, ``False`` on error
 
         Send a signal to process or process group.
         '''
-        if pid is not None:
-            try:
+        try:
+            if self.group:
+                os.killpg(pid, self.signal)
+            else:
                 os.kill(pid, self.signal)
-                return True
-            except OSError:
-                return False
-        if group is not None:
-            try:
-                os.killpg(group, self.signal)
-                return True
-            except OSError:
-                return False
+            return True
+        except OSError:
+            return False
 
 #-----------------------------------------------------------------------------
 
@@ -421,7 +428,6 @@ class Daemon:
         command = self.admin_commands[cmd]
         if isinstance(command, Signal):
             if self.child_pid is not None:
-                # TODO: send to process group
                 command.send(self.child_pid)
             return
 

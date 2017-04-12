@@ -132,12 +132,15 @@ a name, by which it will be referred to in administrative commands (see
 A daemon can have following variables:
 
 * ``start_command`` -- command used to start the daemon (can be a shell
-  command, too); daemon should not try to detach from terminal
+  command, too); daemon is started in its own process group and should not try
+  to detach from terminal
 * ``argv0`` -- custom process name (``argv[0]``), though under Linux it's
   a little less useful than it sounds (only shows with some :manpage:`ps(1)`
   invocations, like ``ps -f``)
 * ``stop_signal`` -- signal (number or name, like SIGTERM or TERM) to stop
-  the daemon; defaults to *SIGTERM*
+  the daemon; if specified, it's delivered to the daemon process only, if not
+  specified, defaults to *SIGTERM* and is delivered to the daemon's process
+  group
 * ``stop_command`` -- command used to stop running daemon; it will be
   executed with the same environment and working directory as
   ``start_command``, with :envvar:`$DAEMON_PID` set to PID of the daemon; if
@@ -186,6 +189,9 @@ variables that can be set for daemon itself can also be set for a command, and
 if unset, the command inherits the value from daemon. Allowed variables are:
 ``user``, ``group``, ``cwd``, ``environment``, ``argv0``.
 
+By default, a command that specifies signal delivers the signal only to the
+daemon process. This can be changed by setting ``process_group`` to ``true``.
+
 Command's environment will have :envvar:`$DAEMON_PID` set to daemon's PID (or
 empty string, if the daemon is not running).
 
@@ -211,6 +217,9 @@ so they should not be long-running operations.
            command: >-
              : > /var/log/example/daemon.log;
              kill -USR1 $DAEMON_PID
+         murder:
+           signal: SIGKILL
+           process_group: true
 
 With the configuration above an operator now can call following commands:
 
@@ -218,6 +227,7 @@ With the configuration above an operator now can call following commands:
 
   $ daemonshepherd command example-daemon reload
   $ daemonshepherd command example-daemon rotate-logs
+  $ daemonshepherd command example-daemon murder
 
 There are few commands with special meaning:
 
