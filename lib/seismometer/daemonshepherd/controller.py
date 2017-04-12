@@ -46,6 +46,9 @@ Daemon starter and data dispatcher
 
 .. autodata:: DEFAULT_BACKOFF
 
+.. autoexception:: ControlCommandError
+   :members:
+
 '''
 #-----------------------------------------------------------------------------
 
@@ -266,6 +269,16 @@ class RestartQueue:
 
 # }}}
 #-----------------------------------------------------------------------------
+# ControlCommandError {{{
+
+class ControlCommandError(Exception):
+    '''
+    Error in control command execution.
+    '''
+    pass
+
+# }}}
+#-----------------------------------------------------------------------------
 
 class Controller:
     '''
@@ -458,24 +471,35 @@ class Controller:
         method = getattr(self, "command_" + command["command"], None)
         if method is None:
             logger.warning("command not implemented: %s", command["command"])
-            client.send(
-                {"status": "error", "message": "command not implemented"}
-            )
+            try:
+                client.send(
+                    {"status": "error", "message": "command not implemented"}
+                )
+            except IOError, e:
+                pass # TODO: maybe log this exception?
             return
 
         try:
-            # TODO: signal errors: {"status": "error", "reason": "..."}
             result = method(**command)
+            if result is not None:
+                result = {"status": "ok", "result": result}
+            else:
+                result = {"status": "ok"}
+        except ControlCommandError, e:
+            result = {
+                "status": "error",
+                "message": str(e),
+            }
         except:
             logger.exception("exception in running command %s",
                              command["command"])
-            return
+            result = {
+                "status": "error",
+                "message": "exception in running command",
+            }
 
         try:
-            if result is None:
-                client.send({"status": "ok"})
-            else:
-                client.send({"status": "ok", "result": result})
+            client.send(result)
         except IOError, e:
             pass # TODO: maybe log this exception?
 
@@ -625,11 +649,11 @@ class Controller:
         '''
         name = kwargs.get("daemon")
         if not isinstance(name, (str, unicode)):
-            return # TODO: signal error (unrecognized arguments)
+            raise ControlCommandError("invalid format of daemon name")
 
         handle = self.daemons.get(name)
         if handle is None:
-            return # TODO: signal error (unknown daemon)
+            raise ControlCommandError("unknown daemon %s" % (name,))
 
         logger = logging.getLogger("controller")
 
@@ -651,11 +675,11 @@ class Controller:
         '''
         name = kwargs.get("daemon")
         if not isinstance(name, (str, unicode)):
-            return # TODO: signal error (unrecognized arguments)
+            raise ControlCommandError("invalid format of daemon name")
 
         handle = self.daemons.get(name)
         if handle is None:
-            return # TODO: signal error (unknown daemon)
+            raise ControlCommandError("unknown daemon %s" % (name,))
 
         logger = logging.getLogger("controller")
 
@@ -678,11 +702,11 @@ class Controller:
         '''
         name = kwargs.get("daemon")
         if not isinstance(name, (str, unicode)):
-            return # TODO: signal error (unrecognized arguments)
+            raise ControlCommandError("invalid format of daemon name")
 
         handle = self.daemons.get(name)
         if handle is None:
-            return # TODO: signal error (unknown daemon)
+            raise ControlCommandError("unknown daemon %s" % (name,))
 
         logger = logging.getLogger("controller")
 
@@ -709,11 +733,11 @@ class Controller:
         '''
         name = kwargs.get("daemon")
         if not isinstance(name, (str, unicode)):
-            return # TODO: signal error (unrecognized arguments)
+            raise ControlCommandError("invalid format of daemon name")
 
         handle = self.daemons.get(name)
         if handle is None:
-            return # TODO: signal error (unknown daemon)
+            raise ControlCommandError("unknown daemon %s" % (name,))
 
         logger = logging.getLogger("controller")
 
@@ -787,18 +811,20 @@ class Controller:
         '''
         name = kwargs.get("daemon")
         if not isinstance(name, (str, unicode)):
-            return # TODO: signal error (unrecognized arguments)
+            raise ControlCommandError("invalid format of daemon name")
 
         command = kwargs.get("admin_command")
         if not isinstance(command, (str, unicode)):
-            return # TODO: signal error (unrecognized arguments)
+            raise ControlCommandError("invalid format of command name")
 
         handle = self.daemons.get(name)
         if handle is None:
-            return # TODO: signal error (unknown daemon)
+            raise ControlCommandError("unknown daemon %s" % (name,))
 
         if not handle.has_command(command):
-            return # TODO: signal error (unknown command)
+            raise ControlCommandError(
+                "unknown command %s for daemon %s" % (command, name)
+            )
 
         logger = logging.getLogger("controller")
 

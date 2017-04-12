@@ -176,7 +176,10 @@ else:
               "Empty reply from daemonshepherd, probably a server bug."
         sys.exit(1)
 
-    if reply.get("status") != "ok":
+    if reply.get("status") == "error" and "message" in reply:
+        print >>sys.stderr, "error: %s" % (reply["message"],)
+        sys.exit(1)
+    if reply.get("status") != "ok": # unrecognized errors
         print >>sys.stderr, json.dumps(reply)
         sys.exit(1)
 
