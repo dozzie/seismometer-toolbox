@@ -319,7 +319,11 @@ class Command:
                 os.environ[e] = environment[e]
 
         # execute command and exit with error if failed
-        os.execvp(self.command, self.args)
+        try:
+            os.execvp(self.command, self.args)
+        except OSError:
+            # TODO: log this somehow (dedicated log pipe with CLOEXEC flag?)
+            pass
         os._exit(127)
 
 #-----------------------------------------------------------------------------
