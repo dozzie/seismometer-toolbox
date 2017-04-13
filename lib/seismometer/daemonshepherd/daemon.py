@@ -41,30 +41,37 @@ def build(spec):
 
     # TODO: some small data validation, especially presence of required fields
 
-    # TODO: STDOUT of admin commands should go to user
     command_defaults = {
         "environment":  spec.get("environment"),
         "cwd":          spec.get("cwd"),
         "user":         spec.get("user"),
         "group":        spec.get("group"),
-        "stdout":       "/dev/null",
     }
 
-    start_command = build_command({
-        "command": spec.get("start_command"),
-        "command_name": spec.get("argv0"),
-        "stdout": spec.get("stdout"),
-    }, command_defaults)
+    start_command = build_command(
+        spec = {
+            "command": spec.get("start_command"),
+            "command_name": spec.get("argv0"),
+        },
+        defaults = command_defaults,
+        stdout = spec.get("stdout"),
+    )
 
     admin_commands = {}
     for (name, cmdspec) in spec.get("commands", {}).items():
-        admin_commands[name] = build_command(cmdspec, command_defaults)
+        admin_commands[name] = build_command(
+            spec = cmdspec,
+            defaults = command_defaults,
+            stdout = "log",
+        )
 
     if "stop" not in admin_commands:
         if "stop_command" in spec:
-            admin_commands["stop"] = build_command({
-                "command": spec["stop_command"]
-            }, command_defaults)
+            admin_commands["stop"] = build_command(
+                spec = { "command": spec["stop_command"] },
+                defaults = command_defaults,
+                stdout = "log",
+            )
         elif "stop_signal" in spec:
             admin_commands["stop"] = build_command({
                 "signal": spec["stop_signal"],
@@ -81,7 +88,7 @@ def build(spec):
         admin_commands = admin_commands,
     )
 
-def build_command(spec, defaults = {}):
+def build_command(spec, defaults = {}, stdout = None):
     if not spec.get("command"):
         if spec.get("signal") is not None:
             return Signal(
@@ -94,12 +101,11 @@ def build_command(spec, defaults = {}):
     def get_default(name):
         return spec.get(name, defaults.get(name))
 
-    stdout_option = get_default("stdout")
-    if stdout_option == "console" or stdout_option is None:
+    if stdout == "console" or stdout is None:
         stdout_option = None
-    elif stdout_option == "/dev/null":
+    elif stdout == "/dev/null":
         stdout_option = Command.DEVNULL
-    else: # assume it's `stdout_option == "log"'
+    else: # assume it's `stdout == "log"'
         stdout_option = Command.PIPE
 
     return Command(
@@ -422,8 +428,18 @@ class Daemon:
     def command(self, cmd, env = None):
         '''
         :param cmd: name of the command to run
+        :return: ``(code, output)`` tuple (``(None, None)`` for signal
+            command)
 
         Run an administrative command.
+
+        If the command defined was a signal, ``(None, None)`` is returned.
+
+        Returned :obj:`code` will be a non-negative exit code, negative signal
+        number, or ``None`` if the exit code couldn't be collected.
+
+        Returned :obj:`output` will be either a string or ``None``, if
+        *STDOUT* was not ordered to be collected.
         '''
         if cmd not in self.admin_commands:
             raise KeyError("command %s not defined" % (cmd,))
@@ -432,7 +448,7 @@ class Daemon:
         if isinstance(command, Signal):
             if self.child_pid is not None:
                 command.send(self.child_pid)
-            return
+            return (None, None)
 
         # NOTE: now command is an instance of `Command' class
 
@@ -444,13 +460,20 @@ class Daemon:
         if env is not None:
             environment.update(env)
 
-        # TODO: read and return STDOUT, if any
-        # TODO: return exit code
+        code = None
+        output = None
         (pid, read_handle) = command.run(environment = environment)
+        if read_handle is not None:
+            output = read_handle.read()
         try:
-            os.waitpid(pid, 0) # wait for termination of stop command
+            (_, code) = os.waitpid(pid, 0) # wait for termination of command
         except OSError:
             pass # errno ECHILD, child already reaped
+        if code is not None and os.WIFEXITED(code):
+            return (os.WEXITSTATUS(code), output)
+        elif code is not None: # os.WIFSIGNALED(code)
+            return (-os.WTERMSIG(code), output)
+        return (code, output)
 
     def replace_commands(self, source):
         '''

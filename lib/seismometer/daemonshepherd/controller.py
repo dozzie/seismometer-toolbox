@@ -874,7 +874,13 @@ class Controller:
         logger = logging.getLogger("controller")
 
         logger.info("for daemon %s running command %s", name, command)
-        handle.command(command)
+        (code, output) = handle.command(command)
+        if code is None:
+            return None
+        elif code < 0:
+            return { "signal": -code, "output": output }
+        else:
+            return { "exit": code, "output": output }
 
     # }}}
     #-------------------------------------------------------------------

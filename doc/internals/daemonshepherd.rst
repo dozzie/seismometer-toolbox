@@ -123,7 +123,12 @@ Available requests
   <command>}`` -- run an administrative command according to daemon's
   definition
 
-  * no data returned, just ``{"status": "ok"}``
+  * response result: ``{"status": "ok"}`` if the administrative command was
+    a signal to be sent and ``{"result": <result>, "status": "ok"}`` if it was
+    a command to run
+  * ``<result>`` is a hash of one of two forms: ``{"exit": <number>, "output":
+    <output>}`` or  ``{"signal": <number>, "output": <output>}``, with
+    ``<output>>`` being command's output on *STDOUT*+*STDERR* (string)
 
 Commands that operate on daemons (*start*, *stop*, *restart*,
 *cancel_restart*) always reset backoff, even if nothing was changed (e.g.
