@@ -234,12 +234,14 @@ There are few commands with special meaning:
 * ``stop`` -- command that will be used to stop the daemon; setting
   ``stop_command`` or ``stop_signal`` is a shorthand for defining this command
 * ``before-start`` -- command that will be executed just before the daemon is
-  started or restarted; handy for creating socket directory in
-  :file:`/var/run` for a daemon that otherwise runs as a non-privileged user
+  started or restarted; non-zero exit code prevents the daemon from being
+  started; handy for creating socket directory in :file:`/var/run` for
+  a daemon that otherwise runs as a non-privileged user
 * ``after-crash`` -- command that will be executed immediately after the
-  daemon's unexpected termination; the command will have set either
-  :envvar:`$DAEMON_EXIT_CODE` or :envvar:`$DAEMON_SIGNAL` environment
-  variable, depending on how the daemon terminated
+  daemon's unexpected termination (but not after ``before-start`` failed); the
+  command will have set either :envvar:`$DAEMON_EXIT_CODE` or
+  :envvar:`$DAEMON_SIGNAL` environment variable, depending on how the daemon
+  terminated
 
 Note that these commands can be invoked in the same manner as any other
 administrative command, e.g. ``daemonshepherd command $daemon after-crash``,

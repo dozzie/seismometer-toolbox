@@ -355,9 +355,30 @@ class Controller:
         self.poll.remove(self.daemons[name])
         self.daemons[name]["running"] = False
         self.daemons[name]["stopping"] = False
+        if self.daemons[name].has_command("after-crash"):
+            if exit_code is not None:
+                env = { "DAEMON_EXIT_CODE": str(exit_code) }
+            else:
+                env = { "DAEMON_SIGNAL": str(signum) }
+            (code, output) = \
+                self.daemons[name].command("after-crash", env = env)
+            logger = logging.getLogger("controller")
+            self._log_command_result(logger, name, "after-crash", code, output)
 
     def _start(self, name):
         self.restart_queue.daemon_started(name)
+        if self.daemons[name].has_command("before-start"):
+            (code, output) = self.daemons[name].command("before-start")
+            logger = logging.getLogger("controller")
+            self._log_command_result(logger, name, "before-start", code, output)
+            if code is not None and code != 0:
+                # don't start the daemon if "before-start" failed, but instead
+                # schedule its restart
+                # TODO: dedicated method for restart queue
+                self.restart_queue.daemon_died(name, code, None)
+                self.daemons[name]["running"] = False
+                self.daemons[name]["stopping"] = False
+                return
         self.daemons[name].start()
         self.daemons[name]["running"] = True
         self.daemons[name]["stopping"] = False
