@@ -930,6 +930,24 @@ class Controller:
 
     # }}}
     #-------------------------------------------------------------------
+    # command_list_commands(daemon) {{{
+
+    def command_list_commands(self, **kwargs):
+        '''
+        List administrative commands for a daemon.
+        '''
+        name = kwargs.get("daemon")
+        if not isinstance(name, (str, unicode)):
+            raise ControlCommandError("invalid format of daemon name")
+
+        handle = self.daemons.get(name)
+        if handle is None:
+            raise ControlCommandError("unknown daemon %s" % (name,))
+
+        return handle.commands()
+
+    # }}}
+    #-------------------------------------------------------------------
     # command_admin_command() {{{
 
     def command_admin_command(self, **kwargs):

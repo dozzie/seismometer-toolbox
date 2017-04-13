@@ -20,6 +20,7 @@ parser = optparse.OptionParser(
             "\n  %prog [options] reload"
             "\n  %prog [options] ps"
             "\n  %prog [options] {start|stop|restart|cancel_restart} <daemon_name>"
+            "\n  %prog [options] list_commands <daemon_name>"
             "\n  %prog [options] command <daemon_name> <command_name>",
     description = "Daemon supervisor/restarter.",
 )
@@ -59,7 +60,8 @@ parser.add_option(
 command = "daemon_supervisor"
 
 SOLE_COMMANDS = set(["reload", "ps"])
-DAEMON_COMMANDS = set(["start", "stop", "restart", "cancel_restart"])
+DAEMON_COMMANDS = set(["start", "stop", "restart", "cancel_restart"]) | \
+                  set(["list_commands"])
 ADMIN_COMMANDS = set(["command"])
 KNOWN_COMMANDS = SOLE_COMMANDS | DAEMON_COMMANDS | ADMIN_COMMANDS
 
@@ -186,6 +188,9 @@ else:
     if command == "ps":
         for daemon in reply["result"]:
             print json.dumps(daemon)
+    elif command == "list_commands":
+        for cmd in reply["result"]:
+            print cmd
     elif command in ["command", "stop", "restart"]:
         if "result" in reply:
             result = reply["result"]

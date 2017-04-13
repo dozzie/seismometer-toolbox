@@ -14,6 +14,7 @@ Synopsis
    daemonshepherd [options] stop <daemon-name>
    daemonshepherd [options] restart <daemon-name>
    daemonshepherd [options] cancel_restart <daemon-name>
+   daemonshepherd [options] list-commands <daemon-name>
    daemonshepherd [options] command <daemon-name> <command-name>
 
 Description
@@ -63,6 +64,10 @@ success.
 .. describe:: daemonshepherd cancel_restart <daemon-name>
 
    cancels pending restart of specified daemon
+
+.. describe:: daemonshepherd list_commands <daemon-name>
+
+   list administrative commands defined for this daemon
 
 .. describe:: daemonshepherd command <daemon-name> <command-name>
 

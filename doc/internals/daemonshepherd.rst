@@ -130,6 +130,13 @@ Available requests
     <output>}`` or  ``{"signal": <number>, "output": <output>}``, with
     ``<output>>`` being command's output on *STDOUT*+*STDERR* (string)
 
+* ``{"command": "list_commands", "daemon": <name>}`` -- list administrative
+  commands available for this daemon
+
+  * response result:
+    ``{"result": [<command1>, <command2>, ...], "status": "ok"}``
+  * ``<commandX>`` is a string
+
 Commands that operate on daemons (*start*, *stop*, *restart*,
 *cancel_restart*) always reset backoff, even if nothing was changed (e.g.
 stopping an already stopped daemon).

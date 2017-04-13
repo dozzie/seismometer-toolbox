@@ -430,7 +430,15 @@ class Daemon:
 
         Check if the daemon has particular administrative command.
         '''
-        return cmd in self.admin_commands
+        return (cmd in self.admin_commands)
+
+    def commands(self):
+        '''
+        :return: list of command names
+
+        Return list of administrative commands available for this daemon.
+        '''
+        return sorted(self.admin_commands)
 
     def command(self, cmd, env = None):
         '''
