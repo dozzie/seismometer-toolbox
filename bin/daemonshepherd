@@ -25,6 +25,8 @@ parser = optparse.OptionParser(
     description = "Daemon supervisor/restarter.",
 )
 
+parser.set_defaults(default_log = None)
+
 parser.add_option(
     "-f", "--daemons", dest = "daemons",
     help = "YAML file with daemons to control", metavar = "FILE",
@@ -32,6 +34,18 @@ parser.add_option(
 parser.add_option(
     "-l", "--logging", dest = "logging",
     help = "YAML/JSON file with logging configuration", metavar = "FILE",
+)
+parser.add_option(
+    "--silent", dest = "default_log", action = "store_const", const = "silent",
+    help = "don't log anywhere; overriden by --logging",
+)
+parser.add_option(
+    "--syslog", dest = "default_log", action = "store_const", const = "syslog",
+    help = "log to syslog; overriden by --logging",
+)
+parser.add_option(
+    "--stderr", dest = "default_log", action = "store_const", const = "stderr",
+    help = "log to STDERR; overriden by --logging",
 )
 parser.add_option(
     "-s", "--control-socket", dest = "socket",
@@ -99,7 +113,17 @@ if command == "daemon_supervisor":
 
     # configure logging
     import seismometer.logging
-    seismometer.logging.configure_from_file(options.logging, default = "null")
+    if options.default_log is None and not options.background:
+        default_log = seismometer.logging.log_config_stderr()
+    elif options.default_log is None and options.background:
+        default_log = seismometer.logging.log_config_syslog("daemonshepherd")
+    elif options.default_log == "silent":
+        default_log = seismometer.logging.log_config_null()
+    elif options.default_log == "stderr":
+        default_log = seismometer.logging.log_config_stderr()
+    elif options.default_log == "syslog":
+        default_log = seismometer.logging.log_config_syslog("daemonshepherd")
+    seismometer.logging.configure_from_file(options.logging, default_log)
 
     # setup Python runtime to log all uncaught exceptions somewhere
     def exception_logger(exctype, value, tb):

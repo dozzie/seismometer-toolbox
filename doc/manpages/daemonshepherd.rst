@@ -14,7 +14,7 @@ Synopsis
    daemonshepherd [options] stop <daemon-name>
    daemonshepherd [options] restart <daemon-name>
    daemonshepherd [options] cancel_restart <daemon-name>
-   daemonshepherd [options] list-commands <daemon-name>
+   daemonshepherd [options] list_commands <daemon-name>
    daemonshepherd [options] command <daemon-name> <command-name>
 
 Description
@@ -88,7 +88,20 @@ administrative socket of a running *daemonshepherd*.
 .. option:: -l <config>, --logging <config>
 
    logging configuration, in JSON or YAML format (see
-   :ref:`daemonshepherd-logging` for details); default is no logging at all
+   :ref:`daemonshepherd-logging` for details); default is to log to *STDERR*
+   or to syslog (:option:`--background`)
+
+.. option:: --silent
+
+   don't log anywhere; this option is overriden by :option:`--logging`
+
+.. option:: --stderr
+
+   log to *STDERR*; this option is overriden by :option:`--logging`
+
+.. option:: --syslog
+
+   log to syslog; this option is overriden by :option:`--logging`
 
 .. option:: -s <path>, --control-socket <path>
 
