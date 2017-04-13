@@ -328,18 +328,14 @@ class Controller:
 
     def _stop_async(self, name):
         # order the daemon to stop, but let it terminate in its own pace
-        self.daemons[name]["stopping"] = True
-        self.daemons[name].command("stop")
-
-    def _stop(self, name):
-        # synchronous stop
         if not self.daemons[name]["stopping"]:
+            self.daemons[name]["stopping"] = True
             self.daemons[name].command("stop")
-            self.waitpid(self.daemons[name])
-            self.restart_queue.daemon_stopped(name)
-        else:
-            # stop in progress, just wait for termination
-            self.waitpid(self.daemons[name])
+
+    def _stop_wait(self, name):
+        # wait for the daemon to stop
+        self.waitpid(self.daemons[name])
+        self.restart_queue.daemon_stopped(name)
         self.poll.remove(self.daemons[name])
         self.daemons[name]["running"] = False
         self.daemons[name]["stopping"] = False
@@ -437,7 +433,8 @@ class Controller:
         Shutdown the controller along with all the running daemons.
         '''
         for name in self.daemons.keys():
-            self._stop(name)
+            self._stop_async(name)
+            self._stop_wait(name)
             del self.daemons[name]
         self.restart_queue.clear()
         # delete self.poll entries?
@@ -627,7 +624,8 @@ class Controller:
         for name in sorted(daemons_to_stop):
             logger.info("stopping %s", name)
             self.restart_queue.remove(name)
-            self._stop(name)
+            self._stop_async(name)
+            self._stop_wait(name)
             del self.daemons[name]
 
         # repopulate the restart queue anew, so it doesn't accumulate cruft
@@ -649,7 +647,8 @@ class Controller:
         for handle in sorted(daemons_to_restart.values(), cmp = priority_cmp):
             logger.info("changed definition of %s, stopping current instance",
                         handle["name"])
-            self._stop(handle["name"])
+            self._stop_async(handle["name"])
+            self._stop_wait(handle["name"])
             logger.info("starting %s", handle["name"])
             self.daemons[handle["name"]] = handle
             self._start(handle["name"])
@@ -757,7 +756,8 @@ class Controller:
             logger.info("manually restarting %s", name)
             # FIXME: daemons that take long time to shutdown prevent other
             # admin commands and restarts from taking place
-            self._stop(name)
+            self._stop_async(name)
+            self._stop_wait(name)
             self._start(name)
         else:
             logger.info("manually restarting %s (was stopped)", name)
