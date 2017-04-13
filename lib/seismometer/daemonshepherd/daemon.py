@@ -35,6 +35,10 @@ def build(spec):
 
     Build a :class:`Daemon` instance according to specification.
 
+    This function always adds ``"stop"`` administrative command, either from
+    daemon specification or by supplying default signal *SIGTERM* to process
+    group.
+
     **TODO**: Describe how this specification looks like (it comes from
     config file).
     '''
@@ -338,6 +342,9 @@ class Daemon:
     '''
     Single daemon representation and interaction channel. A daemon can be
     started or stopped.
+
+    Daemon uses an administrative command ``"stop"`` to shut down (and in
+    :meth:`__del__()` method).
 
     To set or read metadata (opaque to this class), use dictionary operations
     (get value, set value, ``del``, ``in`` to check key existence, ``len()``,
