@@ -465,15 +465,11 @@ class Daemon:
         (pid, read_handle) = command.run(environment = environment)
         if read_handle is not None:
             output = read_handle.read()
-        try:
-            (_, code) = os.waitpid(pid, 0) # wait for termination of command
-        except OSError:
-            pass # errno ECHILD, child already reaped
-        if code is not None and os.WIFEXITED(code):
+        (_, code) = os.waitpid(pid, 0) # wait for termination of command
+        if os.WIFEXITED(code):
             return (os.WEXITSTATUS(code), output)
-        elif code is not None: # os.WIFSIGNALED(code)
+        else: # os.WIFSIGNALED(code)
             return (-os.WTERMSIG(code), output)
-        return (code, output)
 
     def replace_commands(self, source):
         '''
