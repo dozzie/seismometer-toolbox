@@ -16,7 +16,7 @@ received on it.
 Controller object keeps daemons' handles, restart queue, poll object for
 filehandles (daemons' outputs and control socket connections), and config
 loader callback function. Controller also sets up handlers for signals
-(*SIGCHLD*, *SIGHUP*, *SIGINT*, *SIGTERM*).
+(*SIGHUP*, *SIGINT*, *SIGTERM*).
 
 Restart queue (:class:`seismometer.daemonshepherd.controller.RestartQueue`)
 tracks the state of the daemons (*started*, *stopped*, *died*), their restart

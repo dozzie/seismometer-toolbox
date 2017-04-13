@@ -317,7 +317,6 @@ class Controller:
         signal.signal(signal.SIGHUP, self.signal_reload)
         signal.signal(signal.SIGINT, self.signal_shutdown)
         signal.signal(signal.SIGTERM, self.signal_shutdown)
-        signal.signal(signal.SIGCHLD, self.signal_child_died)
         if not self.reload():
             raise Exception("configuration loading error")
 
@@ -384,10 +383,14 @@ class Controller:
         logger.info("got signal %s, reloading config", signame)
         self.reload()
 
-    def signal_child_died(self, signum, stack_frame):
+    # }}}
+    #-------------------------------------------------------------------
+    # collect dead children {{{
+
+    def collect_dead_children(self):
         '''
-        *SIGCHLD* signal handler to mark dead children and put them to the
-        restart queue.
+        Function to collect statuses of dead children, mark them dead, and put
+        them to the restart queue.
         '''
         logger = logging.getLogger("controller")
 
@@ -449,6 +452,7 @@ class Controller:
         :meth:`shutdown()`.
         '''
         while self.keep_running:
+            self.collect_dead_children()
             for handle in self.poll.poll(timeout = 100):
                 if isinstance(handle, control_socket.ControlSocket):
                     client = handle.accept()
