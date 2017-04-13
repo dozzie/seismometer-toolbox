@@ -186,7 +186,7 @@ else:
     if command == "ps":
         for daemon in reply["result"]:
             print json.dumps(daemon)
-    elif command == "command":
+    elif command in ["command", "stop", "restart"]:
         if "result" in reply:
             result = reply["result"]
             if result["output"] is not None and result["output"] != "":

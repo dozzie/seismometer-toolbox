@@ -328,9 +328,15 @@ class Controller:
 
     def _stop_async(self, name):
         # order the daemon to stop, but let it terminate in its own pace
-        if not self.daemons[name]["stopping"]:
-            self.daemons[name]["stopping"] = True
-            self.daemons[name].command("stop")
+        if self.daemons[name]["stopping"]:
+            return (None, None)
+        self.daemons[name]["stopping"] = True
+        (code, output) = self.daemons[name].command("stop")
+        logger = logging.getLogger("controller")
+        self._log_command_result(logger, name, "stop", code, output)
+        # XXX: (None, None) for signal; for command, `output' is always
+        # a string (see `daemon.build()' function)
+        return (code, output)
 
     def _stop_wait(self, name):
         # wait for the daemon to stop
@@ -356,6 +362,40 @@ class Controller:
         self.daemons[name]["running"] = True
         self.daemons[name]["stopping"] = False
         self.poll.add(self.daemons[name])
+
+    # }}}
+    #-------------------------------------------------------------------
+    # _log_command_result() {{{
+
+    @staticmethod
+    def _log_command_result(logger, daemon, command, code, output):
+        if code is None and output is None:
+            # signal sent to the daemon or daemon already stopping, so there's
+            # nothing to log
+            return
+
+        if code is None:
+            log_fun = logger.info
+        elif code == 0:
+            log_fun = logger.info
+        else:
+            log_fun = logger.warn
+
+        if output is not None:
+            if output.endswith("\n"):
+                output = output[:-1]
+            for line in output.split("\n"):
+                log_fun("%s %s: %s", daemon, command, line)
+
+        if code is None:
+            log_fun("%s %s command terminated with unknown code",
+                    daemon, command)
+        elif code >= 0:
+            log_fun("%s %s command terminated with code %d",
+                    daemon, command, code)
+        else:
+            log_fun("%s %s command terminated with signal %d",
+                    daemon, command, -code)
 
     # }}}
     #-------------------------------------------------------------------
@@ -434,6 +474,8 @@ class Controller:
         '''
         for name in self.daemons.keys():
             self._stop_async(name)
+            # wait for the daemon even if stop command failed, as the operator
+            # should do something about it to stop daemonshepherd
             self._stop_wait(name)
             del self.daemons[name]
         self.restart_queue.clear()
@@ -625,6 +667,8 @@ class Controller:
             logger.info("stopping %s", name)
             self.restart_queue.remove(name)
             self._stop_async(name)
+            # wait for the daemon even if stop command failed, as the operator
+            # should do something about it
             self._stop_wait(name)
             del self.daemons[name]
 
@@ -648,6 +692,8 @@ class Controller:
             logger.info("changed definition of %s, stopping current instance",
                         handle["name"])
             self._stop_async(handle["name"])
+            # wait for the daemon even if stop command failed, as the operator
+            # should do something about it
             self._stop_wait(handle["name"])
             logger.info("starting %s", handle["name"])
             self.daemons[handle["name"]] = handle
@@ -725,10 +771,18 @@ class Controller:
 
         logger = logging.getLogger("controller")
 
-        if handle["running"]:
-            logger.info("manually stopping %s", name)
-            self._stop_async(name)
         self.restart_queue.cancel_restart(name)
+        if not handle["running"]:
+            return None
+
+        logger.info("manually stopping %s", name)
+        (code, output) = self._stop_async(name)
+        if code is None:
+            return None
+        elif code < 0:
+            return { "signal": -code, "output": output }
+        else:
+            return { "exit": code, "output": output }
 
     # }}}
     #-------------------------------------------------------------------
@@ -752,17 +806,24 @@ class Controller:
 
         logger = logging.getLogger("controller")
 
+        self.restart_queue.cancel_restart(name)
         if handle["running"]:
             logger.info("manually restarting %s", name)
             # FIXME: daemons that take long time to shutdown prevent other
             # admin commands and restarts from taking place
-            self._stop_async(name)
+            (code, output) = self._stop_async(name)
+            # NOTE: on `exit 0' we'll just leave a log message without
+            # reporting anything to operator's console
+            if code is not None and code < 0:
+                return { "signal": -code, "output": output }
+            elif code is not None and code > 0:
+                return { "exit": code, "output": output }
+            # only wait if the stop command was successful
             self._stop_wait(name)
             self._start(name)
         else:
             logger.info("manually restarting %s (was stopped)", name)
             self._start(name)
-        self.restart_queue.cancel_restart(name)
 
     # }}}
     #-------------------------------------------------------------------
