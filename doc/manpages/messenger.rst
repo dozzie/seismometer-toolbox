@@ -28,6 +28,8 @@ source sockets and sends them to one or more destinations.
 Options
 =======
 
+.. program:: messenger
+
 .. option:: --source stdin | tcp:<addr> | udp:<addr> | unix:<path>
 
    Address to receive data on. ``<addr>`` can be in one of two forms:

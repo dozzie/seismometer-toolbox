@@ -22,6 +22,8 @@ a :manpage:`messenger(8)` (or a compatible router).
 Options
 =======
 
+.. program:: dumb-probe
+
 .. cmdoption:: --checks <checks-file>
 
    Python module that defines checks. See :ref:`dumbprobe-checks-file`.

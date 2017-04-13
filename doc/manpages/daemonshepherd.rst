@@ -80,6 +80,8 @@ Most of the options are only meaningful when *daemonshepherd* runs as
 a supervisor. The exception is :option:`--control-socket`, which specifies
 administrative socket of a running *daemonshepherd*.
 
+.. program:: daemonshepherd
+
 .. option:: -f <specfile>, --daemons <specfile>
 
    specification of daemons to start (see :ref:`daemonshepherd-specfile` for
