@@ -408,7 +408,6 @@ class Daemon:
             # the child is not running)
             return
 
-        # TODO: make this command asynchronous
         self.command("stop")
         self.reap()
 
@@ -548,7 +547,7 @@ class Daemon:
         Close our end of daemon's *STDOUT* and wait for daemon's termination.
         '''
         # in case it was still opened
-        self.close() # TODO: read self.child_stdout (and discard? return?)
+        self.close()
 
         if self.child_pid is None:
             return

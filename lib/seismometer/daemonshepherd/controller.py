@@ -333,13 +333,14 @@ class Controller:
 
     def _stop(self, name):
         # synchronous stop
-        self.restart_queue.daemon_stopped(name)
-        self.poll.remove(self.daemons[name])
-        # FIXME: this can lose some of the daemon's output
         if not self.daemons[name]["stopping"]:
-            self.daemons[name].stop()
+            self.daemons[name].command("stop")
+            self.waitpid(self.daemons[name])
+            self.restart_queue.daemon_stopped(name)
         else:
-            self.daemons[name].reap()
+            # stop in progress, just wait for termination
+            self.waitpid(self.daemons[name])
+        self.poll.remove(self.daemons[name])
         self.daemons[name]["running"] = False
         self.daemons[name]["stopping"] = False
 
@@ -348,9 +349,8 @@ class Controller:
             self.restart_queue.daemon_stopped(name)
         else:
             self.restart_queue.daemon_died(name, exit_code, signame)
+        self.waitpid(self.daemons[name])
         self.poll.remove(self.daemons[name])
-        # FIXME: this can lose some of the daemon's output
-        self.daemons[name].reap()
         self.daemons[name]["running"] = False
         self.daemons[name]["stopping"] = False
 
@@ -469,6 +469,27 @@ class Controller:
             # process due restarts
             for name in self.restart_queue.get_restart_ready():
                 self._start(name)
+
+    def waitpid(self, daemon):
+        '''
+        :param daemon: daemon handle
+
+        Wait for daemon to terminate, while still reading logs from all
+        daemons.
+
+        Note: control socket is not processed here.
+        '''
+        # temporary poll object
+        temp_poll = seismometer.poll.Poll()
+        for handle in self.daemons.values():
+            temp_poll.add(handle)
+
+        # wait for specified daemon to terminate
+        while daemon.is_alive():
+            for handle in temp_poll.poll(timeout = 500):
+                self.handle_daemon_output(handle)
+        # any not yet consumed output from the daemon we were waiting for
+        self.handle_daemon_output(daemon)
 
     #-------------------------------------------------------------------
     # handle_command() {{{
@@ -734,6 +755,8 @@ class Controller:
 
         if handle["running"]:
             logger.info("manually restarting %s", name)
+            # FIXME: daemons that take long time to shutdown prevent other
+            # admin commands and restarts from taking place
             self._stop(name)
             self._start(name)
         else:
