@@ -18,9 +18,9 @@ from seismometer.daemonshepherd.filehandle import EOF
 parser = optparse.OptionParser(
     usage = "\n  %prog [options] --daemons=FILE"
             "\n  %prog [options] reload"
-            "\n  %prog [options] ps"
-            "\n  %prog [options] {start|stop|restart|cancel_restart} <daemon_name>"
-            "\n  %prog [options] list_commands <daemon_name>"
+            "\n  %prog [options] list"
+            "\n  %prog [options] {start|stop|restart|cancel-restart} <daemon_name>"
+            "\n  %prog [options] list-commands <daemon_name>"
             "\n  %prog [options] command <daemon_name> <command_name>",
     description = "Daemon supervisor/restarter.",
 )
@@ -48,7 +48,7 @@ parser.add_option(
     help = "log to STDERR; overriden by --logging",
 )
 parser.add_option(
-    "-s", "--control-socket", dest = "socket",
+    "-s", "--socket", dest = "socket",
     help = "path to control socket", metavar = "PATH",
 )
 parser.add_option(
@@ -73,22 +73,26 @@ parser.add_option(
 # assume this until proven otherwise
 command = "daemon_supervisor"
 
-SOLE_COMMANDS = set(["reload", "ps"])
-DAEMON_COMMANDS = set(["start", "stop", "restart", "cancel_restart"]) | \
-                  set(["list_commands"])
-ADMIN_COMMANDS = set(["command"])
-KNOWN_COMMANDS = SOLE_COMMANDS | DAEMON_COMMANDS | ADMIN_COMMANDS
+COMMANDS = {
+    "reload":         { "args": 0, "cmd": "reload",         "output": None },
+    "ps":             { "args": 0, "cmd": "ps",             "output": "line-json" },
+    "list":           { "args": 0, "cmd": "ps",             "output": "line-json" },
+    "start":          { "args": 1, "cmd": "start",          "output": None },
+    "stop":           { "args": 1, "cmd": "stop",           "output": "command" },
+    "restart":        { "args": 1, "cmd": "restart",        "output": "command" },
+    "cancel-restart": { "args": 1, "cmd": "cancel_restart", "output": None },
+    "list-commands":  { "args": 1, "cmd": "list_commands",  "output": "line" },
+    "command":        { "args": 2, "cmd": "admin_command",  "output": "command" },
+}
 
 if len(args) == 0 and options.daemons is None:
     parser.error("--daemons option is required for this mode")
 elif len(args) > 0:
     command = args.pop(0)
-    if command not in KNOWN_COMMANDS:
+    if command not in COMMANDS:
         parser.error("unrecognized command: %s" % (command,))
-    if len(args) != 1 and command in DAEMON_COMMANDS:
-        parser.error("daemon name is required for command %s" % (command,))
-    if len(args) != 2 and command in ADMIN_COMMANDS:
-        parser.error("daemon name and command name are required for command %s" % (command,))
+    if len(args) != COMMANDS[command]["args"]:
+        parser.error("wrong number of arguments for command %s" % (command,))
 
 if command != "daemon_supervisor" and options.socket is None:
     options.socket = "/var/run/daemonshepherd.sock"
@@ -183,13 +187,16 @@ else:
 
     supervisor = ControlSocketClient(conn)
 
-    if command in SOLE_COMMANDS:
-        supervisor.send({"command": command})
-    elif command in DAEMON_COMMANDS:
-        supervisor.send({"command": command, "daemon": args[0]})
-    elif command in ADMIN_COMMANDS:
+    if COMMANDS[command]["args"] == 0:
+        supervisor.send({"command": COMMANDS[command]["cmd"]})
+    elif COMMANDS[command]["args"] == 1:
         supervisor.send({
-            "command": "admin_command",
+            "command": COMMANDS[command]["cmd"],
+            "daemon": args[0],
+        })
+    elif command == "command":
+        supervisor.send({
+            "command": COMMANDS[command]["cmd"],
             "daemon": args[0],
             "admin_command": args[1],
         })
@@ -209,13 +216,13 @@ else:
         print >>sys.stderr, json.dumps(reply)
         sys.exit(1)
 
-    if command == "ps":
-        for daemon in reply["result"]:
-            print json.dumps(daemon)
-    elif command == "list_commands":
-        for cmd in reply["result"]:
-            print cmd
-    elif command in ["command", "stop", "restart"]:
+    if COMMANDS[command]["output"] == "line-json":
+        for rec in reply["result"]:
+            print json.dumps(rec)
+    elif COMMANDS[command]["output"] == "line":
+        for rec in reply["result"]:
+            print rec
+    elif COMMANDS[command]["output"] == "command":
         if "result" in reply:
             result = reply["result"]
             if result["output"] is not None and result["output"] != "":
