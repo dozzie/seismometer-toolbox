@@ -9,12 +9,12 @@ Synopsis
 
    daemonshepherd [options] --daemons=<specfile>
    daemonshepherd [options] reload
-   daemonshepherd [options] ps
+   daemonshepherd [options] list
    daemonshepherd [options] start <daemon-name>
    daemonshepherd [options] stop <daemon-name>
    daemonshepherd [options] restart <daemon-name>
-   daemonshepherd [options] cancel_restart <daemon-name>
-   daemonshepherd [options] list_commands <daemon-name>
+   daemonshepherd [options] cancel-restart <daemon-name>
+   daemonshepherd [options] list-commands <daemon-name>
    daemonshepherd [options] command <daemon-name> <command-name>
 
 Description
@@ -29,18 +29,15 @@ Usage
 =====
 
 Running *daemonshepherd* without any command starts a daemon supervisor mode.
-By default, *daemonshepherd* runs in the foreground and suppresses all logs.
-Option :option:`--daemons` is required in this mode.
+By default, *daemonshepherd* runs in the foreground and prints warnings to
+*STDERR*. Option :option:`--daemons` is required in this mode.
 
 .. _daemonshepherd-commands:
 
 Commands
 --------
 
-Except for ``ps``, administrative commands print nothing and exit with 0 on
-success.
-
-.. describe:: daemonshepherd ps
+.. describe:: daemonshepherd list
 
    lists daemons that are currently defined, one JSON per line
 
@@ -61,11 +58,11 @@ success.
 
    restarts the specified daemon
 
-.. describe:: daemonshepherd cancel_restart <daemon-name>
+.. describe:: daemonshepherd cancel-restart <daemon-name>
 
    cancels pending restart of specified daemon
 
-.. describe:: daemonshepherd list_commands <daemon-name>
+.. describe:: daemonshepherd list-commands <daemon-name>
 
    list administrative commands defined for this daemon
 
@@ -77,7 +74,7 @@ Options
 -------
 
 Most of the options are only meaningful when *daemonshepherd* runs as
-a supervisor. The exception is :option:`--control-socket`, which specifies
+a supervisor. The exception is :option:`--socket`, which specifies
 administrative socket of a running *daemonshepherd*.
 
 .. program:: daemonshepherd
@@ -105,7 +102,7 @@ administrative socket of a running *daemonshepherd*.
 
    log to syslog; this option is overriden by :option:`--logging`
 
-.. option:: -s <path>, --control-socket <path>
+.. option:: -s <path>, --socket <path>
 
    unix socket path to listen for administrative commands
 
