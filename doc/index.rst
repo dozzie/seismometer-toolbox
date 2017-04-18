@@ -14,9 +14,11 @@ Table of contents
 
 .. toctree::
    :maxdepth: 2
+   :titlesonly:
 
    manpages/index
    api/index
+   manpages/seismometer-message
    internals/index
 
 
