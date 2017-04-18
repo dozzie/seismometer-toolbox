@@ -274,4 +274,11 @@ div.viewcode-block:target {
     border-bottom: 1px solid #ac9;
 }
 
+/* -- other body styles ----------------------------------------------------- */
+
+dl.glossary dt {
+    font-weight: bold;
+    font-size: inherit;
+}
+
 /* vim:set ft=css: */
