@@ -13,7 +13,72 @@ import seismometer.poll
 #-----------------------------------------------------------------------------
 # command line options {{{
 
+#-------------------------------------------------------
+# custom option types {{{
+
+def check_interval(option, opt, value):
+    try:
+        if value.endswith("h"):
+            result = 60 * 60 * int(value[:-1])
+        elif value.endswith("m"):
+            result = 60 * int(value[:-1])
+        elif value.endswith("s"):
+            result = int(value[:-1])
+        else: # no suffix
+            result = int(value)
+        if result > 0:
+            return result
+        raise optparse.OptionValueError(
+            "option %s: negative interval value: %r" % (opt, value)
+        )
+    except ValueError:
+        raise optparse.OptionValueError(
+            "option %s: invalid interval value: %r" % (opt, value)
+        )
+
+def check_count(option, opt, value):
+    try:
+        result = int(value)
+        if result > 0:
+            return result
+        raise optparse.OptionValueError(
+            "option %s: negative count: %r" % (opt, value)
+        )
+    except ValueError:
+        raise optparse.OptionValueError(
+            "option %s: invalid count value: %r" % (opt, value)
+        )
+
+def check_fraction(option, opt, value):
+    try:
+        result = float(value)
+        if 0.0 <= result and result <= 1.0:
+            return result
+        raise optparse.OptionValueError(
+            "option %s: invalid fraction value: %r" % (opt, value)
+        )
+    except ValueError:
+        raise optparse.OptionValueError(
+            "option %s: invalid fraction value: %r" % (opt, value)
+        )
+
+
+class HailerterOption(optparse.Option):
+    TYPES = optparse.Option.TYPES + (
+        "interval",
+        "count",
+        "fraction",
+    )
+    TYPE_CHECKER = optparse.Option.TYPE_CHECKER.copy()
+    TYPE_CHECKER["interval"] = check_interval
+    TYPE_CHECKER["count"] = check_count
+    TYPE_CHECKER["fraction"] = check_fraction
+
+# }}}
+#-------------------------------------------------------
+
 parser = optparse.OptionParser(
+    option_class = HailerterOption,
     usage = "%prog [options]",
     #description = "Foo bar baz.",
 )
@@ -23,6 +88,38 @@ parser.add_option(
     default = None,
     help = "YAML/JSON file with logging configuration",
     metavar = "FILE",
+)
+
+parser.add_option(
+    "--notify", dest = "notification_interval",
+    type = "interval", default = 2 * 3600, # 2 hours
+    help = "notification interval for streams that are still degraded,"
+           " missing, or flapping (default: 2 hours)",
+    metavar = "INTERVAL",
+)
+parser.add_option(
+    "--default-interval", dest = "default_interval",
+    type = "interval", default = None,
+    help = "collection interval to assume for streams that don't provide one",
+    metavar = "INTERVAL",
+)
+parser.add_option(
+    "--missing", dest = "missing",
+    type = "count", default = None,
+    help = "number of messages after which stream is deemed missing",
+    metavar = "COUNT",
+)
+parser.add_option(
+    "--flapping-window", dest = "flapping_window",
+    type = "count", default = None,
+    help = "number of messages to calculate stream flapping",
+    metavar = "COUNT",
+)
+parser.add_option(
+    "--flapping-threshold", dest = "flapping_threshold",
+    type = "fraction", default = None,
+    help = "fraction of messages in flapping window to deem stream flapping",
+    metavar = "FRACTION",
 )
 
 (options, args) = parser.parse_args()
