@@ -1,0 +1,123 @@
+#!/usr/bin/python
+
+import sys
+import optparse
+import logging
+import traceback
+import seismometer.logging
+import signal
+import json
+import seismometer.message
+import seismometer.poll
+
+#-----------------------------------------------------------------------------
+# command line options {{{
+
+parser = optparse.OptionParser(
+    usage = "%prog [options]",
+    #description = "Foo bar baz.",
+)
+
+parser.add_option(
+    "--logging", dest = "logging_config",
+    default = None,
+    help = "YAML/JSON file with logging configuration",
+    metavar = "FILE",
+)
+
+(options, args) = parser.parse_args()
+
+# }}}
+#-----------------------------------------------------------------------------
+# logging configuration {{{
+
+seismometer.logging.configure_from_file(options.logging_config, default = "stderr")
+logger = logging.getLogger()
+
+def exception_logger(exctype, value, tb):
+    logger.critical("Uncaught exception: %s", value)
+    for chunk in traceback.format_exception(exctype, value, tb):
+        for line in chunk.split("\n"):
+            if line == "": continue
+            logger.critical(line)
+
+sys.excepthook = exception_logger
+
+# }}}
+#-----------------------------------------------------------------------------
+# signal handlers {{{
+
+def quit_program(sig, stack_frame):
+    logger.info("received signal; shutting down")
+    sys.exit(0)
+
+signal.signal(signal.SIGHUP, quit_program)
+signal.signal(signal.SIGINT, quit_program)
+signal.signal(signal.SIGTERM, quit_program)
+
+# }}}
+#-----------------------------------------------------------------------------
+# core: state tracker machine
+
+class StateTracker:
+    def __init__(self):
+        self._check_timeouts = False
+
+    def install_alarm(self):
+        signal.signal(signal.SIGALRM, self._handle_alarm)
+        signal.alarm(1)
+
+    def _handle_alarm(self, sig, stack_frame):
+        self._check_timeouts = True
+        signal.alarm(1)
+
+    def missing_messages(self):
+        if not self._check_timeouts:
+            # don't do the busy work more often than on schedule
+            return ()
+        self._check_timeouts = False
+        print "tick"
+        return () # TODO
+
+    def update_state(self, message):
+        print "a message [\"%s\"] %s" % (message.aspect, repr(message.location))
+        pass # TODO
+
+#-----------------------------------------------------------------------------
+
+# poll for a single handle may be a little overkill, but it should mix nice
+# with SIGALRM and it allows to close STDIN and exit gracefully
+poll = seismometer.poll.Poll()
+poll.add(sys.stdin)
+
+stm = StateTracker()
+stm.install_alarm()
+
+while not poll.empty():
+    read_handles = poll.poll(timeout = None) # 1s loop
+
+    for handle in read_handles:
+        # TODO: read as much as possible, so the flush at the end of loop
+        # works for an aggregate instead of every single line
+        line = sys.stdin.readline()
+        if line == "":
+            poll.remove(handle)
+            continue
+        rec = json.loads(line) # TODO: catch deserialization errors
+        if not seismometer.message.is_valid(rec):
+            continue
+
+        result = stm.update_state(seismometer.message.Message(rec))
+        if result is not None:
+            json.dump(result, sys.stdout)
+            sys.stdout.write("\n")
+
+    timeouts = stm.missing_messages()
+    for msg in timeouts:
+        json.dump(msg, sys.stdout)
+        sys.stdout.write("\n")
+
+    sys.stdout.flush()
+
+#-----------------------------------------------------------------------------
+# vim:ft=python:foldmethod=marker
