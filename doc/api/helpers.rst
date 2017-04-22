@@ -12,3 +12,5 @@ Plugin loading
 
 .. automodule:: seismometer.poll
 
+.. automodule:: seismometer.prio_queue
+
