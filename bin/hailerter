@@ -298,8 +298,7 @@ class StateTracker:
 
         def update(self, status):
             # TODO: discard statuses that arrived out of order and/or are in
-            # the future (maybe with a margin of several minutes, accounting
-            # for time synchronization problems)
+            # the future
 
             # the flow went missing and stayed this way for a long time
             # (assuming that notification interval is much larger than flow's
@@ -336,6 +335,7 @@ class StateTracker:
         # a queue with time when to deem some data flow to be missing
         self._when_goes_missing = seismometer.prio_queue.PrioQueue()
         self._flows = {}
+        self._future_margin = 5 * 60 # 5 minutes
         self.notification_interval = options.notification_interval
         self.default_interval = options.default_interval
         self.missing_after = options.missing
@@ -406,7 +406,7 @@ class StateTracker:
             flow = self._flows[flow_id]
 
             flow.update(STATUS_MISSING)
-            flow.notification_sent()
+            flow.notification_sent(now)
             # NOTE: report most current flapping status, after updating flow's
             # status
             missing.append(RESULT_MISSING(flow_id, flow.is_flapping()))
@@ -429,6 +429,11 @@ class StateTracker:
             # TODO: self.reschedule_missing_notification() also for metrics
             return None
 
+        now = int(time.time())
+        if timestamp > now + self._future_margin:
+            # the message is too far in the future, discard it
+            return None
+
         self.reschedule_missing_notification(flow_id, timestamp, interval)
 
         if flow_id not in self._flows:
@@ -437,10 +442,10 @@ class StateTracker:
 
         (old_status, flapping) = flow.update(status)
         if flapping:
-            if time.time() - flow.notified < self.notification_interval:
+            if now - flow.notified < self.notification_interval:
                 return None
             else:
-                flow.notification_sent()
+                flow.notification_sent(now)
                 return RESULT_FLAPPING
 
         if status == STATUS_OK:
@@ -451,13 +456,13 @@ class StateTracker:
                 return RESULT_RECOVERED
 
         if status == old_status and \
-           time.time() - flow.notified < self.notification_interval:
+           now - flow.notified < self.notification_interval:
             # the same error status as the last time, but a notification was
             # sent recently
             return None
 
         # XXX: status != STATUS_OK; either a degradation or a reminder
-        flow.notification_sent()
+        flow.notification_sent(now)
         return RESULT_DEGRADED
 
 #-----------------------------------------------------------------------------
