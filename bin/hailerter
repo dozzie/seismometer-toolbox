@@ -101,6 +101,12 @@ parser.add_option(
 )
 
 parser.add_option(
+    "--skip-initial-error", dest = "ignore_initial_error",
+    action = "store_true", default = False,
+    help = "don't report the initial stream status if it is an error;"
+           " reminders are still sent",
+)
+parser.add_option(
     "--remind-interval", dest = "remind_interval",
     type = "interval", default = None,
     help = "interval for reminders that a stream is still degraded, missing,"
@@ -339,6 +345,7 @@ class StateTracker:
         self._when_goes_missing = seismometer.prio_queue.PrioQueue()
         self._flows = {}
         self._future_margin = 5 * 60 # 5 minutes
+        self.ignore_initial_error = options.ignore_initial_error
         self.remind_interval = options.remind_interval
         self.default_interval = options.default_interval
         self.missing_after = options.missing
@@ -514,6 +521,11 @@ class StateTracker:
                         "previous_status": status_json(old_status),
                     },
                 }
+
+        if old_status is None and self.ignore_initial_error:
+            # set up a reminder and stay silent for now
+            flow.notification_sent(now)
+            return None
 
         if status == old_status and self.remind_interval is None:
             # the same error status as the last time, but no reminders
