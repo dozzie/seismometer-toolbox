@@ -247,6 +247,12 @@ STATUS_MISSING  = Constant("status", "missing")
 STATUS_FLAPPING = Constant("status", "flapping")
 STATUS_DISCARD  = Constant("status", "discard")
 
+def status_json(status):
+    if status is None:
+        return None
+    else:
+        return str(status)
+
 class StateTracker:
     #-------------------------------------------------------
     # StateTracker.Flow {{{
@@ -415,7 +421,7 @@ class StateTracker:
                     "location": flow.location,
                     "details": {
                         # TODO: last seen time
-                        "previous_status": str(old_status),
+                        "previous_status": status_json(old_status),
                     },
                 })
             else:
@@ -495,7 +501,7 @@ class StateTracker:
                     "location": flow.location,
                     "details": {
                         "state": message.state,
-                        "previous_status": str(old_status),
+                        "previous_status": status_json(old_status),
                     },
                 }
 
@@ -515,7 +521,7 @@ class StateTracker:
             "details": {
                 "state": message.state,
                 "severity": message.severity,
-                "previous_status": str(old_status),
+                "previous_status": status_json(old_status),
             },
         }
 
