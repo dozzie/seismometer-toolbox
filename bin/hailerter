@@ -244,6 +244,7 @@ STATUS_OK       = Constant("status", "ok")
 STATUS_ERROR    = Constant("status", "error")
 STATUS_MISSING  = Constant("status", "missing")
 STATUS_FLAPPING = Constant("status", "flapping")
+STATUS_DISCARD  = Constant("status", "discard")
 
 # TODO: replace these with properly built messages
 RESULT_RECOVERED = Constant("result", "recovered")
@@ -265,6 +266,7 @@ class StateTracker:
     class Flow:
         def __init__(self, flapping = (1, 1.0)):
             self.status = None
+            self.status_time = 0 # timestamp of the last status
             self.notified = 0 # timestamp of the last notification
             self.flap_window = flapping[0]
             self.flap_threshold = flapping[1] # 0.0 .. 1.0
@@ -296,9 +298,13 @@ class StateTracker:
             flap_index = float(self.flap_change_count) / self.flap_window
             return (flap_index > self.flap_threshold)
 
-        def update(self, status):
-            # TODO: discard statuses that arrived out of order and/or are in
-            # the future
+        def update(self, status, timestamp):
+            # discard statuses that arrived out of order, so they don't count
+            # towards flapping
+            if timestamp < self.status_time:
+                # FIXME: when the server jumps far back in time, it can take
+                # a long time for hailerter to catch up
+                return (STATUS_DISCARD, False)
 
             # the flow went missing and stayed this way for a long time
             # (assuming that notification interval is much larger than flow's
@@ -317,6 +323,7 @@ class StateTracker:
             self.flap_update(int(status != self.status))
 
             self.status = status
+            self.status_time = timestamp
             return (old_status, self.is_flapping())
 
         def notification_sent(self, timestamp = None, reset_timer = False):
@@ -405,7 +412,7 @@ class StateTracker:
             flow_id = self._when_goes_missing.peek()[1]
             flow = self._flows[flow_id]
 
-            flow.update(STATUS_MISSING)
+            flow.update(STATUS_MISSING, now)
             flow.notification_sent(now)
             # NOTE: report most current flapping status, after updating flow's
             # status
@@ -440,7 +447,10 @@ class StateTracker:
             self._flows[flow_id] = StateTracker.Flow(flapping = self.flapping)
         flow = self._flows[flow_id]
 
-        (old_status, flapping) = flow.update(status)
+        (old_status, flapping) = flow.update(status, timestamp)
+        if old_status == STATUS_DISCARD:
+            return None
+
         if flapping:
             if now - flow.notified < self.notification_interval:
                 return None
