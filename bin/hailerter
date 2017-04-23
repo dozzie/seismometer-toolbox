@@ -411,8 +411,7 @@ class StateTracker:
             # it's missing, we just need to _remind_ that it is (assuming that
             # notification interval is much larger than flow's collection
             # interval)
-            self._when_goes_missing[flow_id] = \
-                int(time.time()) + self.notification_interval
+            self._when_goes_missing[flow_id] = now + self.notification_interval
         return missing
 
     def reschedule_missing_notification(self, flow_id, interval):
