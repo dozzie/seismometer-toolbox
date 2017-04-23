@@ -1,8 +1,10 @@
 #!/usr/bin/python
 
 import sys
+import os
 import optparse
 import logging
+import socket
 import traceback
 import seismometer.logging
 import signal
@@ -91,6 +93,12 @@ parser.add_option(
     help = "YAML/JSON file with logging configuration",
     metavar = "FILE",
 )
+parser.add_option(
+    "--socket", dest = "control_socket",
+    default = None,
+    help = "path to control socket",
+    metavar = "PATH",
+)
 
 parser.add_option(
     "--notify", dest = "notification_interval",
@@ -153,6 +161,71 @@ def quit_program(sig, stack_frame):
 signal.signal(signal.SIGHUP, quit_program)
 signal.signal(signal.SIGINT, quit_program)
 signal.signal(signal.SIGTERM, quit_program)
+
+# }}}
+#-----------------------------------------------------------------------------
+# control socket {{{
+
+class ControlSocket:
+    def __init__(self, address):
+        self.path = os.path.abspath(address)
+        self.socket = None
+        conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        conn.bind(self.path)
+        # only set self.socket after bind(), so the file won't get removed
+        # when it's not ours (e.g. existed already)
+        self.socket = conn
+        self.socket.listen(1)
+
+    def __del__(self):
+        self.close()
+
+    def accept(self):
+        (conn, addr) = self.socket.accept()
+        return ControlSocketClient(conn)
+
+    def fileno(self):
+        return self.socket.fileno()
+
+    def close(self):
+        if self.socket is not None:
+            self.socket.close()
+            self.socket = None
+            if self.path is not None:
+                os.remove(self.path)
+
+class ControlSocketClient:
+    def __init__(self, socket):
+        self.socket = socket
+
+    def __del__(self):
+        self.close()
+
+    def read(self):
+        line = None
+        while line is None:
+            try:
+                line = self.socket.recv(4096)
+            except socket.error, e:
+                if e.errno != errno.EWOULDBLOCK and e.errno != errno.EAGAIN:
+                    raise
+        if line == "":
+            return None
+        try:
+            return json.loads(line)
+        except:
+            return None
+
+    def send(self, message):
+        self.socket.send(json.dumps(message) + "\n")
+
+    def fileno(self):
+        return self.socket.fileno()
+
+    def close(self):
+        if self.socket is not None:
+            self.socket.close()
+            self.socket = None
 
 # }}}
 #-----------------------------------------------------------------------------
@@ -387,24 +460,53 @@ class StateTracker:
         return RESULT_DEGRADED
 
 #-----------------------------------------------------------------------------
+# control commands {{{
+
+def handle_request(stm, request):
+    # TODO: handle the request properly
+    print "request: %s" % (json.dumps(request),)
+    return {}
+
+# }}}
+#-----------------------------------------------------------------------------
 
 # poll for a single handle may be a little overkill, but it should mix nice
 # with SIGALRM and it allows to close STDIN and exit gracefully
 poll = seismometer.poll.Poll()
 poll.add(sys.stdin)
+data_handles = set([sys.stdin])
+
+if options.control_socket is not None:
+    poll.add(ControlSocket(options.control_socket))
 
 stm = StateTracker(options)
 stm.install_alarm()
 
-while not poll.empty():
+while len(data_handles) > 0:
     read_handles = poll.poll(timeout = None) # 1s loop
 
     for handle in read_handles:
+        if isinstance(handle, ControlSocket):
+            conn = handle.accept()
+            poll.add(conn)
+            continue
+        elif isinstance(handle, ControlSocketClient):
+            request = handle.read()
+            if request is not None:
+                result = handle_request(stm, request)
+                handle.send(result)
+            poll.remove(handle)
+            handle.close()
+            continue
+
+        # XXX: data handle, i.e. `sys.stdin'
+
         # TODO: read as much as possible, so the flush at the end of loop
         # works for an aggregate instead of every single line
         line = handle.readline()
         if line == "":
             poll.remove(handle)
+            data_handles.discard(handle)
             continue
         rec = json.loads(line) # TODO: catch deserialization errors
         if not seismometer.message.is_state(rec):
