@@ -297,6 +297,10 @@ class StateTracker:
             return (flap_index > self.flap_threshold)
 
         def update(self, status):
+            # TODO: discard statuses that arrived out of order and/or are in
+            # the future (maybe with a margin of several minutes, accounting
+            # for time synchronization problems)
+
             # the flow went missing and stayed this way for a long time
             # (assuming that notification interval is much larger than flow's
             # collection interval)
@@ -379,7 +383,7 @@ class StateTracker:
                 status = STATUS_ERROR
             elif message.severity == "error":
                 status = STATUS_ERROR
-        return (flow_id, interval, status)
+        return (flow_id, int(message.time), interval, status)
 
     # }}}
     #-------------------------------------------------------
@@ -389,7 +393,7 @@ class StateTracker:
             # don't do the busy work more often than on schedule
             return ()
         self._check_timeouts = False
-        now = time.time()
+        now = int(time.time())
 
         if len(self._when_goes_missing) == 0 or \
            self._when_goes_missing.peek()[0] > now:
@@ -414,20 +418,18 @@ class StateTracker:
             self._when_goes_missing[flow_id] = now + self.notification_interval
         return missing
 
-    def reschedule_missing_notification(self, flow_id, interval):
+    def reschedule_missing_notification(self, flow_id, timestamp, interval):
         if interval is not None and self.missing_after is not None:
-            # TODO: take `message.time' into account
             self._when_goes_missing[flow_id] = \
-                int(time.time()) + interval * self.missing_after
+                timestamp + interval * self.missing_after
 
     def update_state(self, message):
-        # TODO: take `message.time' into account
-        (flow_id, interval, status) = self.unpack(message)
+        (flow_id, timestamp, interval, status) = self.unpack(message)
         if status is None:
             # TODO: self.reschedule_missing_notification() also for metrics
             return None
 
-        self.reschedule_missing_notification(flow_id, interval)
+        self.reschedule_missing_notification(flow_id, timestamp, interval)
 
         if flow_id not in self._flows:
             self._flows[flow_id] = StateTracker.Flow(flapping = self.flapping)
