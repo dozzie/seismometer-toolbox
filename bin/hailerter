@@ -304,7 +304,7 @@ class StateTracker:
             if timestamp < self.status_time:
                 # FIXME: when the server jumps far back in time, it can take
                 # a long time for hailerter to catch up
-                return (STATUS_DISCARD, False)
+                return STATUS_DISCARD
 
             # the flow went missing and stayed this way for a long time
             # (assuming that notification interval is much larger than flow's
@@ -324,7 +324,7 @@ class StateTracker:
 
             self.status = status
             self.status_time = timestamp
-            return (old_status, self.is_flapping())
+            return old_status
 
         def notification_sent(self, timestamp = None, reset_timer = False):
             if reset_timer:
@@ -447,11 +447,11 @@ class StateTracker:
             self._flows[flow_id] = StateTracker.Flow(flapping = self.flapping)
         flow = self._flows[flow_id]
 
-        (old_status, flapping) = flow.update(status, timestamp)
+        old_status = flow.update(status, timestamp)
         if old_status == STATUS_DISCARD:
             return None
 
-        if flapping:
+        if flow.is_flapping():
             if now - flow.notified < self.notification_interval:
                 return None
             else:
