@@ -102,9 +102,9 @@ parser.add_option(
 
 parser.add_option(
     "--notify", dest = "notification_interval",
-    type = "interval", default = 2 * 3600, # 2 hours
+    type = "interval", default = None,
     help = "notification interval for streams that are still degraded,"
-           " missing, or flapping (default: 2 hours)",
+           " missing, or flapping (default is no reminders)",
     metavar = "INTERVAL",
 )
 parser.add_option(
@@ -404,7 +404,8 @@ class StateTracker:
             return ()
 
         missing = []
-        while self._when_goes_missing.peek()[0] <= now:
+        while len(self._when_goes_missing) > 0 and \
+              self._when_goes_missing.peek()[0] <= now:
             flow_id = self._when_goes_missing.peek()[1]
             flow = self._flows[flow_id]
 
@@ -425,6 +426,8 @@ class StateTracker:
                     },
                 })
             else:
+                # FIXME: flapping may be the last message about the stream if
+                # no reminders are expected to be sent
                 missing.append({
                     "status": "flapping",
                     "time": now,
@@ -440,7 +443,12 @@ class StateTracker:
             # it's missing, we just need to _remind_ that it is (assuming that
             # notification interval is much larger than flow's collection
             # interval)
-            self._when_goes_missing[flow_id] = now + self.notification_interval
+            if self.notification_interval is not None:
+                self._when_goes_missing[flow_id] = \
+                    now + self.notification_interval
+            else:
+                # TODO: forget about this flow? and what about its recovery?
+                del self._when_goes_missing[flow_id]
         return missing
 
     def reschedule_missing_notification(self, flow_id, timestamp, interval):
@@ -474,7 +482,11 @@ class StateTracker:
             return None
 
         if flow.is_flapping():
-            if now - flow.notified < self.notification_interval:
+            if self.notification_interval is None and \
+               old_status == STATUS_FLAPPING:
+                return None
+            elif self.notification_interval is not None and \
+                 now - flow.notified < self.notification_interval:
                 return None
             else:
                 flow.notification_sent(now)
@@ -505,6 +517,9 @@ class StateTracker:
                     },
                 }
 
+        if status == old_status and self.notification_interval is None:
+            # the same error status as the last time, but no reminders
+            return None
         if status == old_status and \
            now - flow.notified < self.notification_interval:
             # the same error status as the last time, but a notification was
