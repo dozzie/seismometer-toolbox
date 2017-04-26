@@ -46,6 +46,11 @@ Options
 
    Default is not to send any reminders.
 
+.. option:: --warning-expected
+
+   Treat a state of severity ``"warning"`` as ``"expected"`` instead of
+   ``"error"``.
+
 .. option:: --default-interval <interval>
 
    Collection interval to assume if a Seismometer message doesn't carry one.

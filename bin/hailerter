@@ -105,6 +105,12 @@ parser.add_option(
     metavar = "INTERVAL",
 )
 parser.add_option(
+    "--warning-expected", dest = "warning_expected",
+    action = "store_true", default = False,
+    help = 'treat severity "warning" the same way as "expected" instead of '
+           '"error"',
+)
+parser.add_option(
     "--default-interval", dest = "default_interval",
     type = "interval", default = None,
     help = "collection interval to assume for streams that don't provide one",
@@ -312,6 +318,7 @@ class StateTracker:
         self._future_margin = 5 * 60 # 5 minutes
         self.ignore_initial_error = options.ignore_initial_error
         self.remind_interval = options.remind_interval
+        self.warning_expected = options.warning_expected
         self.default_interval = options.default_interval
         self.missing_after = options.missing
         if options.flapping_window is not None and \
@@ -353,8 +360,9 @@ class StateTracker:
         if message.state is not None:
             if message.severity is None or message.severity == "expected":
                 status = STATUS_OK
-            elif message.severity == "warning":
-                # TODO: how to treat warnings? (self.options)
+            elif message.severity == "warning" and self.warning_expected:
+                status = STATUS_OK
+            elif message.severity == "warning" and not self.warning_expected:
                 status = STATUS_ERROR
             elif message.severity == "error":
                 status = STATUS_ERROR
