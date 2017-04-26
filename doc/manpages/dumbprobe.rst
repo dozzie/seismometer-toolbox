@@ -219,8 +219,21 @@ should at least help somewhat in deployment.
 See Also
 ========
 
-* message schema v3 <http://seismometer.net/message-schema/v3/>
-* :manpage:`daemonshepherd(8)`
-* :manpage:`messenger(8)`
-* Monitoring Plugins <https://www.monitoring-plugins.org/>
+.. only:: man
+
+   * message schema v3 <http://seismometer.net/message-schema/v3/>
+   * :manpage:`seismometer-message(7)`
+   * :manpage:`daemonshepherd(8)`
+   * :manpage:`messenger(8)`
+   * :manpage:`hailerter(8)`
+   * Monitoring Plugins <https://www.monitoring-plugins.org/>
+
+.. only:: html
+
+   * message schema v3 <http://seismometer.net/message-schema/v3/>
+   * :doc:`../api/message`
+   * :doc:`daemonshepherd`
+   * :doc:`messenger`
+   * :doc:`hailerter`
+   * Monitoring Plugins <https://www.monitoring-plugins.org/>
 
