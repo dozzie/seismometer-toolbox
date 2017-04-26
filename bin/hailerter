@@ -3,10 +3,7 @@
 import sys
 import os
 import optparse
-import logging
 import socket
-import traceback
-import seismometer.logging
 import signal
 import json
 import time
@@ -88,12 +85,6 @@ parser = optparse.OptionParser(
 )
 
 parser.add_option(
-    "--logging", dest = "logging_config",
-    default = None,
-    help = "YAML/JSON file with logging configuration",
-    metavar = "FILE",
-)
-parser.add_option(
     "--socket", dest = "control_socket",
     default = None,
     help = "path to control socket",
@@ -142,26 +133,9 @@ parser.add_option(
 
 # }}}
 #-----------------------------------------------------------------------------
-# logging configuration {{{
-
-seismometer.logging.configure_from_file(options.logging_config, default = "stderr")
-logger = logging.getLogger()
-
-def exception_logger(exctype, value, tb):
-    logger.critical("Uncaught exception: %s", value)
-    for chunk in traceback.format_exception(exctype, value, tb):
-        for line in chunk.split("\n"):
-            if line == "": continue
-            logger.critical(line)
-
-sys.excepthook = exception_logger
-
-# }}}
-#-----------------------------------------------------------------------------
 # signal handlers {{{
 
 def quit_program(sig, stack_frame):
-    logger.info("received signal; shutting down")
     sys.exit(0)
 
 signal.signal(signal.SIGHUP, quit_program)
@@ -238,26 +212,16 @@ class ControlSocketClient:
 # core: state tracker machine
 
 class Constant:
-    def __init__(self, type, name):
-        self.type = type
+    def __init__(self, name):
         self.name = name
     def __repr__(self):
-        return "<%s %s:%s>" % (self.__class__.__name__, self.type, self.name)
-    def __str__(self):
-        # important for building reports
-        return str(self.name)
+        return "<%s %s>" % (self.__class__.__name__, self.name)
 
-STATUS_OK       = Constant("status", "ok")
-STATUS_ERROR    = Constant("status", "error")
-STATUS_MISSING  = Constant("status", "missing")
-STATUS_FLAPPING = Constant("status", "flapping")
-STATUS_DISCARD  = Constant("status", "discard")
-
-def status_json(status):
-    if status is None:
-        return None
-    else:
-        return str(status)
+STATUS_OK       = Constant("ok")
+STATUS_ERROR    = Constant("error")
+STATUS_MISSING  = Constant("missing")
+STATUS_FLAPPING = Constant("flapping")
+STATUS_DISCARD  = Constant("discard")
 
 class StateTracker:
     #-------------------------------------------------------
