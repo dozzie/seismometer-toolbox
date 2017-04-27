@@ -329,6 +329,29 @@ class StateTracker:
             self.flapping = (1, 1.0)
 
     #-------------------------------------------------------
+    # data access {{{
+
+    def flows(self):
+        return self._flows.values()
+
+    def delete(self, aspect, location):
+        flow_id = StateTracker.flow_id(aspect, location)
+        if flow_id in self._flows:
+            del self._when_goes_missing[flow_id]
+            del self._flows[flow_id]
+
+    def reset_flapping(self, aspect, location):
+        flow_id = StateTracker.flow_id(aspect, location)
+        if flow_id in self._flows:
+            self._flows[flow_id].flap_reset()
+
+    def reset_reminder(self, aspect, location):
+        flow_id = StateTracker.flow_id(aspect, location)
+        if flow_id in self._flows:
+            self._flows[flow_id].notification_sent(reset_timer = True)
+
+    # }}}
+    #-------------------------------------------------------
     # SIGALRM {{{
 
     def install_alarm(self):
@@ -341,16 +364,23 @@ class StateTracker:
 
     # }}}
     #-------------------------------------------------------
+    # flow_id() {{{
+
+    @staticmethod
+    def flow_id(aspect, location):
+        location_str = json.dumps(location, sort_keys = True,
+                                  separators = (",", ":"))
+        # NOTE: tuple with two strings is hashable and can be used as a key
+        # for dictionary
+        return (aspect, location_str)
+
+    # }}}
+    #-------------------------------------------------------
     # unpack(message) {{{
 
     def unpack(self, message):
-        # NOTE: tuple with two strings is hashable and can be used as a key
-        # for dictionary
-        flow_id = (
-            message.aspect,
-            json.dumps(message.location.to_dict(), sort_keys = True,
-                       separators = (",", ":"))
-        )
+        flow_id = StateTracker.flow_id(message.aspect,
+                                       message.location.to_dict())
         if message.interval is not None:
             interval = message.interval
         else:
@@ -558,19 +588,35 @@ class Controller:
         return { "error": "bad request" }
 
     def command_list(self, **kwargs):
-        return { "result": [] }
+        def info(flow):
+            return {
+                "aspect": flow.aspect,
+                "location": flow.location,
+                "info": flow.status_info,
+            }
+        result = [info(flow) for flow in stm.flows()]
+        return { "result": result }
 
     def command_forget(self, **kwargs):
-        # TODO: check kwargs.get("aspect"), kwargs.get("location")
-        return { "result": "TODO" }
+        if not isinstance(kwargs.get("aspect"), (str, unicode)) or \
+           not isinstance(kwargs.get("location"), dict):
+            return self.badreq()
+        self.stm.delete(kwargs["aspect"], kwargs["location"])
+        return { "result": "ok" }
 
     def command_reset_flapping(self, **kwargs):
-        # TODO: check kwargs.get("aspect"), kwargs.get("location")
-        return { "result": "TODO" }
+        if not isinstance(kwargs.get("aspect"), (str, unicode)) or \
+           not isinstance(kwargs.get("location"), dict):
+            return self.badreq()
+        self.stm.reset_flapping(kwargs["aspect"], kwargs["location"])
+        return { "result": "ok" }
 
     def command_reset_reminder(self, **kwargs):
-        # TODO: check kwargs.get("aspect"), kwargs.get("location")
-        return { "result": "TODO" }
+        if not isinstance(kwargs.get("aspect"), (str, unicode)) or \
+           not isinstance(kwargs.get("location"), dict):
+            return self.badreq()
+        self.stm.reset_reminder(kwargs["aspect"], kwargs["location"])
+        return { "result": "ok" }
 
 # }}}
 #-----------------------------------------------------------------------------
