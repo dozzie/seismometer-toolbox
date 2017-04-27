@@ -7,7 +7,11 @@ Synopsis
 
 .. code-block:: none
 
-   hailerter [options]
+   hailerter [--socket=<path>] [options]
+   hailerter --socket=<path> list
+   hailerter --socket=<path> forget <aspect> <location>
+   hailerter --socket=<path> reset-flapping <aspect> <location>
+   hailerter --socket=<path> reset-reminder <aspect> <location>
 
 Description
 ===========
@@ -85,12 +89,75 @@ Options
    Both :option:`--flapping-window` and :option:`--flapping-threshold` need to
    be provided for flapping detection to be enabled.
 
+Control commands
+================
+
+Since some streams that *hailerter* started tracking could disappear in
+a planned and permanent way, *hailerter* provides a control interface for
+managing the streams.
+
+Control interface needs to be enabled by providing :option:`--socket` option.
+This creates a unix stream socket with a simple request-reply protocol on
+top. Requests and replies are JSON hashes, each encoded in a single line.
+Connection is closed immediately after sending a reply.
+
+Commands that *hailerter* supports can be sent by calling ``hailerter``
+command, but the protocol description provided here is equally important.
+
+Supported commands are following:
+
+.. describe:: hailerter list
+
+   List known monitored objects (aspect + location).
+
+   * request: ``{"command":"list"}``
+   * response: ``{"result":[<stream1>, <stream2>, ...]}``, where
+     ``<streamX>`` is a hash structure ``{"aspect":"...",
+     "location":{...}, "info":<info>}``, and ``<info>`` has the same
+     structure as in :ref:`output format <hailerter-output>`
+
+.. describe:: hailerter forget <aspect> <location>
+
+   Delete all information about stream identified by ``<aspect>`` and
+   ``<location>``.
+
+   * request: ``{"command":"forget", "aspect":"...", "location":{...}}``
+
+   * response: ``{"result":"ok"}``
+
+.. describe:: hailerter reset-flapping <aspect> <location>
+
+   Reset flapping counter for the stream identified by ``<aspect>`` and
+   ``<location>``.
+
+   Note that this command does not change stream's state nor triggers any
+   notifications. State change will be only visible after next message in the
+   stream.
+
+   * request: ``{"command":"reset_flapping", "aspect":"...", "location":{...}}``
+
+   * response: ``{"result":"ok"}``
+
+.. describe:: hailerter reset-reminder <aspect> <location>
+
+   Reset reminder interval for the stream identified by ``<aspect>`` and
+   ``<location>``. Next message to come will trigger a reminder notification.
+
+   * request: ``{"command":"reset_reminder", "aspect":"...", "location":{...}}``
+
+   * response: ``{"result":"ok"}``
+
+In the commands described above, ``<aspect>`` is a raw string not encoded in
+any way, and ``<location>`` is a JSON string.
+
 Input format
 ============
 
 *hailerter* expects JSON messages on its *STDIN*, one per line. Any message
 that is not a Seismometer message is discarded. If the message conforms to the
 Seismometer structure, but only carries metrics, it's discarded as well.
+
+.. _hailerter-output:
 
 Output format
 =============
