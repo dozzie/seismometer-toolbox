@@ -80,8 +80,12 @@ class HailerterOption(optparse.Option):
 
 parser = optparse.OptionParser(
     option_class = HailerterOption,
-    usage = "%prog [options]",
-    #description = "Foo bar baz.",
+    usage = "\n  %prog [options]"
+            "\n  %prog --socket=PATH list"
+            "\n  %prog --socket=PATH forget <aspect> <location>"
+            "\n  %prog --socket=PATH reset-flapping <aspect> <location>"
+            "\n  %prog --socket=PATH reset-reminder <aspect> <location>",
+    description = "Monitoring state tracker and notifications generator.",
 )
 
 parser.add_option(
@@ -136,6 +140,51 @@ parser.add_option(
 )
 
 (options, args) = parser.parse_args()
+
+# }}}
+#-----------------------------------------------------------------------------
+# command sending mode {{{
+
+COMMANDS = {
+    "list": { "cmd": "list", "args": [] },
+    "forget": { "cmd": "forget", "args": ["aspect", "location"] },
+    "reset-flapping": { "cmd": "reset_flapping", "args": ["aspect", "location"] },
+    "reset-reminder": { "cmd": "reset_reminder", "args": ["aspect", "location"] },
+}
+
+if len(args) > 0:
+    cmd = COMMANDS.get(args[0])
+    if cmd is None:
+        parser.error("unrecognized command: %s" % (args[0],))
+    if len(args) - 1 != len(cmd["args"]):
+        parser.error("wrong number of arguments for %s" % (args[0],))
+    if options.control_socket is None:
+        parser.error("--socket option is required for command %s" % (args[0],))
+
+    request = { "command": cmd["cmd"] }
+    for i in range(len(cmd["args"])):
+        request[cmd["args"][i]] = args[i + 1]
+    if "location" in request:
+        try:
+            request["location"] = json.loads(request["location"])
+        except ValueError:
+            parser.error("invalid location")
+
+    try:
+        conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        conn.connect(options.control_socket)
+    except socket.error, e:
+        print >>sys.stderr, "Can't connect to %s: %s" % (
+            options.control_socket, e
+        )
+        sys.exit(1)
+    conn.send(json.dumps(request) + "\n")
+    reply = json.load(conn.makefile())
+    conn.close()
+    if cmd["cmd"] == "list":
+        for rec in reply["result"]:
+            print json.dumps(rec, sort_keys = True)
+    sys.exit()
 
 # }}}
 #-----------------------------------------------------------------------------
@@ -203,12 +252,14 @@ class ControlSocketClient:
             return None
 
     def send(self, message):
+        # TODO: defend against EPIPE
         self.socket.send(json.dumps(message) + "\n")
 
     def fileno(self):
         return self.socket.fileno()
 
     def close(self):
+        # TODO: defend against EPIPE
         if self.socket is not None:
             self.socket.close()
             self.socket = None
