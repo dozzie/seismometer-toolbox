@@ -542,10 +542,35 @@ class StateTracker:
 #-----------------------------------------------------------------------------
 # control commands {{{
 
-def handle_request(stm, request):
-    # TODO: handle the request properly
-    print "request: %s" % (json.dumps(request),)
-    return {}
+class Controller:
+    def __init__(self, stm):
+        self.stm = stm
+
+    def handle_request(self, request):
+        if not isinstance(request, dict) or \
+           not isinstance(request.get("command"), (str, unicode)):
+            return { "error": "bad request" }
+
+        handler = getattr(self, "command_" + request["command"], self.badreq)
+        return handler(**request)
+
+    def badreq(self, **kwargs):
+        return { "error": "bad request" }
+
+    def command_list(self, **kwargs):
+        return { "result": [] }
+
+    def command_forget(self, **kwargs):
+        # TODO: check kwargs.get("aspect"), kwargs.get("location")
+        return { "result": "TODO" }
+
+    def command_reset_flapping(self, **kwargs):
+        # TODO: check kwargs.get("aspect"), kwargs.get("location")
+        return { "result": "TODO" }
+
+    def command_reset_reminder(self, **kwargs):
+        # TODO: check kwargs.get("aspect"), kwargs.get("location")
+        return { "result": "TODO" }
 
 # }}}
 #-----------------------------------------------------------------------------
@@ -562,6 +587,8 @@ if options.control_socket is not None:
 stm = StateTracker(options)
 stm.install_alarm()
 
+controller = Controller(stm)
+
 while len(data_handles) > 0:
     read_handles = poll.poll(timeout = None) # 1s loop
 
@@ -573,7 +600,7 @@ while len(data_handles) > 0:
         elif isinstance(handle, ControlSocketClient):
             request = handle.read()
             if request is not None:
-                result = handle_request(stm, request)
+                result = controller.handle_request(request)
                 handle.send(result)
             poll.remove(handle)
             handle.close()
