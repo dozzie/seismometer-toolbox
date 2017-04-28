@@ -10,6 +10,9 @@ Synopsis
    hailerter [--socket=<path>] [options]
    hailerter --socket=<path> list
    hailerter --socket=<path> forget <aspect> <location>
+   hailerter --socket=<path> list-muted
+   hailerter --socket=<path> mute <aspect> <location> <duration>
+   hailerter --socket=<path> unmute <aspect> <location>
    hailerter --socket=<path> reset-flapping <aspect> <location>
    hailerter --socket=<path> reset-reminder <aspect> <location>
 
@@ -122,6 +125,38 @@ Supported commands are following:
    ``<location>``.
 
    * request: ``{"command":"forget", "aspect":"...", "location":{...}}``
+
+   * response: ``{"result":"ok"}``
+
+.. describe:: hailerter list-muted
+
+   List streams with suppressed notifications.
+
+   * request: ``{"command":"list_muted"}``
+   * response: ``{"result":[<stream1>, <stream2>, ...]}``, where
+     ``<streamX>`` is a hash structure ``{"aspect":"...",
+     "location":{...}, "expires":1234567890}``, with ``1234567890`` being unix
+     timestamp when suppression expires
+
+.. describe:: hailerter mute <aspect> <location> <duration>
+
+   Suppress notifications about stream identified by ``<aspect>`` and
+   ``<location>`` for specified duration. Suppressing a stream in advance,
+   before *hailerter* learns about it, is a supported operation.
+
+   ``<duration>`` has the same format as intervals.
+
+   * request: ``{"command":"mute", "aspect":"...", "location":{...},
+     "duration":<time>}``, where ``<time>`` is positive number of seconds
+
+   * response: ``{"result":"ok"}``
+
+.. describe:: hailerter unmute <aspect> <location>
+
+   Re-enable notifications for stream identified by ``<aspect>`` and
+   ``<location>``.
+
+   * request: ``{"command":"unmute", "aspect":"...", "location":{...}}``
 
    * response: ``{"result":"ok"}``
 

@@ -83,6 +83,9 @@ parser = optparse.OptionParser(
     usage = "\n  %prog [options]"
             "\n  %prog --socket=PATH list"
             "\n  %prog --socket=PATH forget <aspect> <location>"
+            "\n  %prog --socket=PATH list-muted"
+            "\n  %prog --socket=PATH mute <aspect> <location> <duration>"
+            "\n  %prog --socket=PATH unmute <aspect> <location>"
             "\n  %prog --socket=PATH reset-flapping <aspect> <location>"
             "\n  %prog --socket=PATH reset-reminder <aspect> <location>",
     description = "Monitoring state tracker and notifications generator.",
@@ -148,6 +151,9 @@ parser.add_option(
 COMMANDS = {
     "list": { "cmd": "list", "args": [] },
     "forget": { "cmd": "forget", "args": ["aspect", "location"] },
+    "list-muted": { "cmd": "list_muted", "args": [] },
+    "mute": { "cmd": "mute", "args": ["aspect", "location", "duration"] },
+    "unmute": { "cmd": "unmute", "args": ["aspect", "location"] },
     "reset-flapping": { "cmd": "reset_flapping", "args": ["aspect", "location"] },
     "reset-reminder": { "cmd": "reset_reminder", "args": ["aspect", "location"] },
 }
@@ -169,6 +175,20 @@ if len(args) > 0:
             request["location"] = json.loads(request["location"])
         except ValueError:
             parser.error("invalid location")
+    if "duration" in request:
+        try:
+            if request["duration"].endswith("h"):
+                request["duration"] = 60 * 60 * int(request["duration"][:-1])
+            elif request["duration"].endswith("m"):
+                request["duration"] = 60 * int(request["duration"][:-1])
+            elif request["duration"].endswith("s"):
+                request["duration"] = int(request["duration"][:-1])
+            else: # no suffix
+                request["duration"] = int(request["duration"])
+        except ValueError:
+            parser.error("invalid duration")
+        if request["duration"] < 0:
+            parser.error("invalid duration")
 
     try:
         conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -181,7 +201,7 @@ if len(args) > 0:
     conn.send(json.dumps(request) + "\n")
     reply = json.load(conn.makefile())
     conn.close()
-    if cmd["cmd"] == "list":
+    if cmd["cmd"] == "list" or cmd["cmd"] == "list_muted":
         for rec in reply["result"]:
             print json.dumps(rec, sort_keys = True)
     sys.exit()
@@ -365,6 +385,7 @@ class StateTracker:
         self._check_timeouts = False
         # a queue with time when to deem some data flow to be missing
         self._when_goes_missing = seismometer.prio_queue.PrioQueue()
+        self._muted = seismometer.prio_queue.PrioQueue()
         self._flows = {}
         self._future_margin = 5 * 60 # 5 minutes
         self.ignore_initial_error = options.ignore_initial_error
@@ -390,6 +411,22 @@ class StateTracker:
         if flow_id in self._flows:
             del self._when_goes_missing[flow_id]
             del self._flows[flow_id]
+
+    def muted_flows(self):
+        return [
+            #(aspect, location, expiry)
+            (flow_id[0], json.loads(flow_id[1]), self._muted[flow_id])
+            for flow_id in self._muted
+        ]
+
+    def mute(self, aspect, location, duration):
+        flow_id = StateTracker.flow_id(aspect, location)
+        # NOTE: this allows to mute flows in advance
+        self._muted[flow_id] = int(time.time()) + duration
+
+    def unmute(self, aspect, location):
+        flow_id = StateTracker.flow_id(aspect, location)
+        del self._muted[flow_id]
 
     def reset_flapping(self, aspect, location):
         flow_id = StateTracker.flow_id(aspect, location)
@@ -459,6 +496,10 @@ class StateTracker:
         self._check_timeouts = False
         now = int(time.time())
 
+        # drop expired mute markers
+        while len(self._muted) > 0 and self._muted.peek()[0] <= now:
+            self._muted.pop()
+
         if len(self._when_goes_missing) == 0 or \
            self._when_goes_missing.peek()[0] > now:
             # nothing is missing now
@@ -495,13 +536,14 @@ class StateTracker:
                     "window": flow.flap_window,
                     "changes": flow.flap_change_count,
                 }
-            missing.append({
-                "time": now,
-                "aspect": flow.aspect,
-                "location": flow.location,
-                "info": flow.status_info,
-                "previous": old_info,
-            })
+            if flow_id not in self._muted:
+                missing.append({
+                    "time": now,
+                    "aspect": flow.aspect,
+                    "location": flow.location,
+                    "info": flow.status_info,
+                    "previous": old_info,
+                })
 
             # XXX: now that the flow is missing we don't need to _detect_ if
             # it's missing, we just need to _remind_ that it is (assuming that
@@ -558,6 +600,8 @@ class StateTracker:
                 return None
             else:
                 flow.notification_sent(now)
+                if flow_id in self._muted:
+                    return None
                 return {
                     "time": timestamp,
                     "aspect": flow.aspect,
@@ -581,6 +625,8 @@ class StateTracker:
                 return None
             else:
                 flow.notification_sent(reset_timer = True)
+                if flow_id in self._muted:
+                    return None
                 return {
                     "time": timestamp,
                     "aspect": flow.aspect,
@@ -612,6 +658,8 @@ class StateTracker:
             return None
 
         flow.notification_sent(now)
+        if flow_id in self._muted:
+            return None
         return {
             "time": timestamp,
             "aspect": flow.aspect,
@@ -653,6 +701,32 @@ class Controller:
            not isinstance(kwargs.get("location"), dict):
             return self.badreq()
         self.stm.delete(kwargs["aspect"], kwargs["location"])
+        return { "result": "ok" }
+
+    def command_list_muted(self, **kwargs):
+        def info(record):
+            return {
+                "aspect":   record[0],
+                "location": record[1],
+                "expires":  record[2],
+            }
+        result = [info(rec) for rec in stm.muted_flows()]
+        return { "result": result }
+
+    def command_mute(self, **kwargs):
+        if not isinstance(kwargs.get("aspect"), (str, unicode)) or \
+           not isinstance(kwargs.get("location"), dict) or \
+           not isinstance(kwargs.get("duration"), (int, long)) or \
+           kwargs["duration"] <= 0:
+            return self.badreq()
+        self.stm.mute(kwargs["aspect"], kwargs["location"], kwargs["duration"])
+        return { "result": "ok" }
+
+    def command_unmute(self, **kwargs):
+        if not isinstance(kwargs.get("aspect"), (str, unicode)) or \
+           not isinstance(kwargs.get("location"), dict):
+            return self.badreq()
+        self.stm.unmute(kwargs["aspect"], kwargs["location"])
         return { "result": "ok" }
 
     def command_reset_flapping(self, **kwargs):
