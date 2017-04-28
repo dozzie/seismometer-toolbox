@@ -107,6 +107,38 @@ class PrioQueue:
     #-------------------------------------------------------
     # main operations {{{
 
+    def __iter__(self):
+        '''
+        :return: iterator
+
+        Iterate over the entries in the queue.
+
+        Order of the entries is unspecified.
+        '''
+        for element in self._heap:
+            yield element.entry
+
+    def iterentries(self):
+        '''
+        :return: iterator
+
+        Iterate over the entries in the queue.
+
+        Order of the entries is unspecified.
+        '''
+        for element in self._heap:
+            yield element.entry
+
+    def entries(self):
+        '''
+        :return: list of entries
+
+        Retrieve list of entries stored in the queue.
+
+        Order of the entries is unspecified.
+        '''
+        return [e.entry for e in self._heap]
+
     def length(self):
         '''
         :return: queue length
