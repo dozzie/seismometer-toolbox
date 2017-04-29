@@ -310,16 +310,22 @@ monitoring data (``dumb-probe``), pass messages to another server
        # string folded for readability
        start_command: >-
            messenger
-           --src=unix:/var/run/messenger.sock
+           --src=unix:/var/run/messenger/socket
            --dest=tcp:10.4.5.11:24222
            --tagfile=/etc/seismometer/messenger.tags
            --logging=/etc/seismometer/messenger.logging
+       commands:
+         pre-start:
+           user: root
+           command: >-
+             mkdir -p -m 755 /var/run/messenger;
+             chown seismometer:seismometer /var/run/messenger
      dumbprobe:
        # string folded for readability
        start_command: >-
            dumb-probe
            --checks=/etc/seismometer/dumbprobe.py
-           --dest=unix:/var/run/messenger.sock
+           --dest=unix:/var/run/messenger/socket
            --logging=/etc/seismometer/dumbprobe.logging
 
      # some daemon that needs to be shut down by command instead of by
@@ -340,10 +346,10 @@ monitoring data (``dumb-probe``), pass messages to another server
            --socket=/var/run/statetip/control
        commands:
          pre-start:
-           command: >-
-             mkdir -m 750 /var/run/statetip;
-             chown seismometer:seismometer /var/run/statetip
            user: root
+           command: >-
+             mkdir -p -m 750 /var/run/statetip;
+             chown seismometer:seismometer /var/run/statetip
          reload:
            command: statetipd reload --socket=/var/run/statetip/control
          brutal-kill:
