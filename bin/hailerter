@@ -4,6 +4,7 @@ import sys
 import os
 import optparse
 import socket
+import errno
 import signal
 import json
 import time
@@ -272,16 +273,22 @@ class ControlSocketClient:
             return None
 
     def send(self, message):
-        # TODO: defend against EPIPE
-        self.socket.send(json.dumps(message) + "\n")
+        try:
+            self.socket.send(json.dumps(message) + "\n")
+        except socket.error, e:
+            if e.errno != errno.EPIPE:
+                raise
 
     def fileno(self):
         return self.socket.fileno()
 
     def close(self):
-        # TODO: defend against EPIPE
         if self.socket is not None:
-            self.socket.close()
+            try:
+                self.socket.close()
+            except socket.error, e:
+                if e.errno != errno.EPIPE:
+                    raise
             self.socket = None
 
 # }}}
@@ -786,21 +793,36 @@ while len(data_handles) > 0:
             poll.remove(handle)
             data_handles.discard(handle)
             continue
-        rec = json.loads(line) # TODO: catch deserialization errors
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            print >>sys.stderr, "Invalid input line: %s" % (line.rstrip(),)
+            poll.remove(handle)
+            data_handles.discard(handle)
+            continue
         if not seismometer.message.is_state(rec):
             continue
 
         result = stm.update_state(seismometer.message.Message(rec))
         if result is not None:
-            json.dump(result, sys.stdout, sort_keys = True)
-            sys.stdout.write("\n")
+            try:
+                json.dump(result, sys.stdout, sort_keys = True)
+                sys.stdout.write("\n")
+            except IOError: # EPIPE
+                sys.exit(0)
 
     missing = stm.missing_messages()
     for msg in missing:
-        json.dump(msg, sys.stdout, sort_keys = True)
-        sys.stdout.write("\n")
+        try:
+            json.dump(msg, sys.stdout, sort_keys = True)
+            sys.stdout.write("\n")
+        except IOError: # EPIPE
+            sys.exit(0)
 
-    sys.stdout.flush()
+    try:
+        sys.stdout.flush()
+    except IOError: # EPIPE
+        sys.exit(0)
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker
