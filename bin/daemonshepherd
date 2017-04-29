@@ -95,7 +95,7 @@ elif len(args) > 0:
         parser.error("wrong number of arguments for command %s" % (command,))
 
 if command != "daemon_supervisor" and options.socket is None:
-    options.socket = "/var/run/daemonshepherd.sock"
+    options.socket = "/var/run/daemonshepherd/control"
 
 # }}}
 #-----------------------------------------------------------------------------
