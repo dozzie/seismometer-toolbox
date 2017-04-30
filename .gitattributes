@@ -1,6 +1,3 @@
-_versions       export-ignore
+/_versions      export-ignore
 .gitattributes  export-ignore
 .gitignore      export-ignore
-doc/.gitignore  export-ignore
-doc/static/.gitignore     export-ignore
-doc/templates/.gitignore  export-ignore
