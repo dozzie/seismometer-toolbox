@@ -79,12 +79,24 @@ administrative socket of a running *daemonshepherd*.
 
 .. program:: daemonshepherd
 
-.. option:: -f <specfile>, --daemons <specfile>
+.. option:: --daemons <specfile>
 
    specification of daemons to start (see :ref:`daemonshepherd-specfile` for
    details)
 
-.. option:: -l <config>, --logging <config>
+.. option:: --socket <path>
+
+   unix socket path to listen for administrative commands
+
+.. option:: --pid-file <path>
+
+   path to file with PID of *daemonshepherd* instance
+
+.. option:: --background
+
+   detach from terminal and change working directory to :file:`/`
+
+.. option:: --logging <config>
 
    logging configuration, in JSON or YAML format (see
    :ref:`daemonshepherd-logging` for details); default is to log to *STDERR*
@@ -102,23 +114,11 @@ administrative socket of a running *daemonshepherd*.
 
    log to syslog; this option is overriden by :option:`--logging`
 
-.. option:: -s <path>, --socket <path>
-
-   unix socket path to listen for administrative commands
-
-.. option:: -p <path>, --pid-file <path>
-
-   path to file with PID of *daemonshepherd* instance
-
-.. option:: -d, --background
-
-   detach from terminal and change working directory to :file:`/`
-
-.. option:: -u <user>, --user <user>
+.. option:: --user <user>
 
    user to run as
 
-.. option:: -g <group>, --group <group>
+.. option:: --group <group>
 
    group to run as
 

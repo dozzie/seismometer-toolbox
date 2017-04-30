@@ -28,46 +28,62 @@ parser = optparse.OptionParser(
 parser.set_defaults(default_log = None)
 
 parser.add_option(
-    "-f", "--daemons", dest = "daemons",
+    "--daemons", dest = "daemons",
     help = "YAML file with daemons to control", metavar = "FILE",
 )
 parser.add_option(
-    "-l", "--logging", dest = "logging",
-    help = "YAML/JSON file with logging configuration", metavar = "FILE",
-)
-parser.add_option(
-    "--silent", dest = "default_log", action = "store_const", const = "silent",
-    help = "don't log anywhere; overriden by --logging",
-)
-parser.add_option(
-    "--syslog", dest = "default_log", action = "store_const", const = "syslog",
-    help = "log to syslog; overriden by --logging",
-)
-parser.add_option(
-    "--stderr", dest = "default_log", action = "store_const", const = "stderr",
-    help = "log to STDERR; overriden by --logging",
-)
-parser.add_option(
-    "-s", "--socket", dest = "socket",
+    "--socket", dest = "socket",
     help = "path to control socket", metavar = "PATH",
 )
 parser.add_option(
-    "-p", "--pid-file", dest = "pid_file",
+    "--pid-file", dest = "pid_file",
     help = "PID file for going daemon", metavar = "FILE",
 )
 parser.add_option(
-    "-d", "--background", dest = "background",
+    "--background", dest = "background",
     action = "store_true", default = False,
     help = "detach from terminal (run as a daemon)",
 )
-parser.add_option(
-    "-u", "--user", dest = "user",
+
+#------------------------------------------------------
+# logging {{{
+
+group = optparse.OptionGroup(parser, "Logging options")
+group.add_option(
+    "--logging", dest = "logging",
+    help = "YAML/JSON file with logging configuration", metavar = "FILE",
+)
+group.add_option(
+    "--silent", dest = "default_log", action = "store_const", const = "silent",
+    help = "don't log anywhere; overriden by --logging",
+)
+group.add_option(
+    "--syslog", dest = "default_log", action = "store_const", const = "syslog",
+    help = "log to syslog; overriden by --logging",
+)
+group.add_option(
+    "--stderr", dest = "default_log", action = "store_const", const = "stderr",
+    help = "log to STDERR; overriden by --logging",
+)
+parser.add_option_group(group)
+
+# }}}
+#------------------------------------------------------
+# daemons' environment {{{
+
+group = optparse.OptionGroup(parser, "Default options for daemons")
+group.add_option(
+    "--user", dest = "user",
     help = "user to run as",
 )
-parser.add_option(
-    "-g", "--group", dest = "group",
+group.add_option(
+    "--group", dest = "group",
     help = "group to run as",
 )
+parser.add_option_group(group)
+
+# }}}
+#------------------------------------------------------
 
 (options, args) = parser.parse_args()
 # assume this until proven otherwise
