@@ -347,7 +347,7 @@ monitoring data (``dumb-probe``), pass messages to another server
            --tagfile=/etc/seismometer/messenger.tags
            --logging=/etc/seismometer/messenger.logging
        commands:
-         pre-start:
+         before-start:
            user: root
            command: >-
              mkdir -p -m 755 /var/run/messenger;
@@ -377,7 +377,7 @@ monitoring data (``dumb-probe``), pass messages to another server
            statetipd stop
            --socket=/var/run/statetip/control
        commands:
-         pre-start:
+         before-start:
            user: root
            command: >-
              mkdir -p -m 750 /var/run/statetip;

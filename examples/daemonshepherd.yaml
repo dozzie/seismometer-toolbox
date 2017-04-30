@@ -17,7 +17,7 @@ daemons:
         --tagfile=/etc/seismometer/messenger.tags
         --logging=/etc/seismometer/messenger.logging
     commands:
-      pre-start:
+      before-start:
         user: root
         command: >-
           mkdir -p -m 755 /var/run/messenger;
@@ -46,7 +46,7 @@ daemons:
         statetipd stop
         --socket=/var/run/statetip/control
     commands:
-      pre-start:
+      before-start:
         user: root
         command: >-
           mkdir -p -m 750 /var/run/statetip;
