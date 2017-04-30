@@ -45,8 +45,14 @@ class BaseCheck(object):
         :param aspect: aspect name, as in :class:`seismometer.message.Message`
         :param location: ``str => str`` dictionary, as in
             :class:`seismometer.message.Message`
-        :param kwargs: additional keys to be added to :obj:`location` (kwargs
-            take precedence over individual values in :obj:`location`)
+        :param kwargs: additional keys to be added to :obj:`location`
+
+        If :obj:`aspect`, :obj:`location`, or :obj:`kwargs` are provided, all
+        the messages produced by :meth:`run()` are expected to be either
+        :class:`seismometer.message.Message` instances or dictionaries
+        conforming to the message schema. Both :obj:`aspect` and individual
+        values from :obj:`location` overwrite whatever was set in the produced
+        messages.
 
         Fields defined by this class:
 
@@ -64,7 +70,7 @@ class BaseCheck(object):
 
         .. attribute:: location
 
-           location to be set (dict ``str => str``)
+           location to be set (dictionary ``str => str``)
 
         .. method:: check_name()
 
