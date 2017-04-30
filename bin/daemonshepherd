@@ -15,8 +15,51 @@ from seismometer.daemonshepherd.filehandle import EOF
 #-----------------------------------------------------------------------------
 # parse command line options {{{
 
+#------------------------------------------------------
+# option callback functions {{{
+
+def store_exec(option, opt, value, parser):
+    if "=" not in value:
+        raise optparse.OptionValueError(
+            "option %s: command without daemon name: %r" % (opt, value)
+        )
+    (name, command) = value.split("=", 1)
+    if name in parser.values.commands:
+        raise optparse.OptionValueError(
+            "option %s: daemon %r already defined" % (opt, name)
+        )
+    parser.values.commands[name] = command
+
+def store_env(option, opt, value, parser):
+    if "=" not in value:
+        raise optparse.OptionValueError(
+            "option %s: invalid value: %r" % (opt, value)
+        )
+    (name, content) = value.split("=", 1)
+    if parser.values.default_env is None:
+        parser.values.default_env = {}
+    parser.values.default_env[name] = content
+
+def store_restart_strategy(option, opt, value, parser):
+    try:
+        values = [int(v.strip()) for v in value.split(",")]
+    except:
+        raise optparse.OptionValueError(
+            "option %s: invalid value: %r" % (opt, value)
+        )
+    if len(values) > 0 and all((v >= 0 for v in values)):
+        parser.values.default_restart_strategy = values
+    else:
+        raise optparse.OptionValueError(
+            "option %s: invalid value: %r" % (opt, value)
+        )
+
+# }}}
+#------------------------------------------------------
+
 parser = optparse.OptionParser(
     usage = "\n  %prog [options] --daemons=FILE"
+            "\n  %prog [options] --exec=NAME=COMMAND [--exec=NAME=COMMAND ...]"
             "\n  %prog [options] reload"
             "\n  %prog [options] list"
             "\n  %prog [options] {start|stop|restart|cancel-restart} <daemon_name>"
@@ -30,6 +73,12 @@ parser.set_defaults(default_log = None)
 parser.add_option(
     "--daemons", dest = "daemons",
     help = "YAML file with daemons to control", metavar = "FILE",
+)
+parser.add_option(
+    "--exec", dest = "commands", default = {},
+    action = "callback", callback = store_exec, type = "string",
+    help = "command to run as a daemon in simplified mode",
+    metavar = "NAME=COMMAND",
 )
 parser.add_option(
     "--socket", dest = "socket",
@@ -80,6 +129,28 @@ group.add_option(
     "--group", dest = "group",
     help = "group to run as",
 )
+group.add_option(
+    "--cwd", dest = "default_cwd",
+    help = "default working directory for daemons", metavar = "DIRECTORY",
+)
+group.add_option(
+    "--env", dest = "default_env",
+    action = "callback", callback = store_env, type = "string",
+    help = "default environment for daemons (option may be used multiple"
+           " times)",
+    metavar = "VAR=value",
+)
+group.add_option(
+    "--stdout", dest = "default_stdout",
+    type = "choice", choices = ["console", "/dev/null", "log"],
+    help = "default place for daemons' STDOUT and STDERR",
+    metavar = "STDOUT",
+)
+group.add_option(
+    "--restart", dest = "default_restart_strategy",
+    action = "callback", callback = store_restart_strategy, type = "string",
+    help = "default restart strategy for daemons", metavar = "STRATEGY",
+)
 parser.add_option_group(group)
 
 # }}}
@@ -101,8 +172,11 @@ COMMANDS = {
     "command":        { "args": 2, "cmd": "admin_command",  "output": "command" },
 }
 
-if len(args) == 0 and options.daemons is None:
-    parser.error("--daemons option is required for this mode")
+if len(args) == 0:
+    if options.daemons is None and len(options.commands) == 0:
+        parser.error("--daemons or --exec option is required")
+    if options.daemons is not None and len(options.commands) > 0:
+        parser.error("--daemons or --exec options are mutually exclusive")
 elif len(args) > 0:
     command = args.pop(0)
     if command not in COMMANDS:
@@ -155,11 +229,41 @@ if command == "daemon_supervisor":
                 logger.critical(line)
     sys.excepthook = exception_logger
 
-    def load_config():
-        with open(options.daemons) as f:
-            config = yaml.safe_load(f)
-            defaults = config.get("defaults", {})
-            daemons = config.get("daemons", {})
+    if options.daemons is not None:
+        def load_config():
+            with open(options.daemons) as f:
+                config = yaml.safe_load(f)
+                defaults = {}
+                if options.default_cwd is not None:
+                    defaults["cwd"] = options.default_cwd
+                if options.default_env is not None:
+                    defaults["environment"] = options.default_env
+                if options.default_stdout is not None:
+                    defaults["stdout"] = options.default_stdout
+                if options.default_restart_strategy is not None:
+                    defaults["restart"] = options.default_restart_strategy
+                defaults.update(config.get("defaults", {}))
+                daemons = config.get("daemons", {})
+                for daemon in daemons.values():
+                    for key in defaults:
+                        if key not in daemon:
+                            daemon[key] = defaults[key]
+                return daemons
+    else:
+        def load_config():
+            defaults = {}
+            if options.default_cwd is not None:
+                defaults["cwd"] = options.default_cwd
+            if options.default_env is not None:
+                defaults["environment"] = options.default_env
+            if options.default_stdout is not None:
+                defaults["stdout"] = options.default_stdout
+            if options.default_restart_strategy is not None:
+                defaults["restart"] = options.default_restart_strategy
+            daemons = dict([
+                (name, {"start_command": command})
+                for (name, command) in options.commands.items()
+            ])
             for daemon in daemons.values():
                 for key in defaults:
                     if key not in daemon:

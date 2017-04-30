@@ -8,6 +8,7 @@ Synopsis
 .. code-block:: none
 
    daemonshepherd [options] --daemons=<specfile>
+   daemonshepherd [options] --exec=<daemon-name>=<command> ...
    daemonshepherd [options] reload
    daemonshepherd [options] list
    daemonshepherd [options] start <daemon-name>
@@ -30,7 +31,8 @@ Usage
 
 Running *daemonshepherd* without any command starts a daemon supervisor mode.
 By default, *daemonshepherd* runs in the foreground and prints warnings to
-*STDERR*. Option :option:`--daemons` is required in this mode.
+*STDERR*. Option :option:`--daemons` list of options :option:`--exec` is
+required in this mode.
 
 .. _daemonshepherd-commands:
 
@@ -84,6 +86,15 @@ administrative socket of a running *daemonshepherd*.
    specification of daemons to start (see :ref:`daemonshepherd-specfile` for
    details)
 
+.. option:: --exec <daemon-name>=<command>
+
+   simplified supervision mode; all daemons specified with :option:`--exec`
+   will be running with the same options (:option:`--user`, :option:`--group`,
+   :option:`--cwd`, :option:`--env`, :option:`--stdout`, :option:`--restart`)
+   and will be stopped with *SIGTERM* signal
+
+   this option may be used multiple times
+
 .. option:: --socket <path>
 
    unix socket path to listen for administrative commands
@@ -121,6 +132,25 @@ administrative socket of a running *daemonshepherd*.
 .. option:: --group <group>
 
    group to run as
+
+.. option:: --cwd <directory>
+
+   default working directory for daemons
+
+.. option:: --env <name>=<value>
+
+   default environment variables for daemons; option may be used multiple
+   times to specify multiple variables
+
+.. option:: --stdout <destination>
+
+   default daemon's output destination; valid values are ``console``,
+   ``/dev/null``, and ``log``
+
+.. option:: --restart <strategy>
+
+   restart strategy described as comma-separated list of backoff intervals;
+   see :ref:`daemonshepherd-restart-strategy` section for details
 
 .. _daemonshepherd-specfile:
 
