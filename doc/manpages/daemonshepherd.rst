@@ -41,36 +41,36 @@ Commands
 
 .. describe:: daemonshepherd list
 
-   lists daemons that are currently defined, one JSON per line
+   List daemons that are currently defined, one JSON per line.
 
 .. describe:: daemonshepherd reload
 
-   instructs *daemonshepherd* to reload its configuration; the same as sending
-   *SIGHUP* signal
+   Order *daemonshepherd* to reload its configuration. The same as sending
+   *SIGHUP* signal.
 
 .. describe:: daemonshepherd start <daemon-name>
 
-   starts the specified daemon
+   Start the specified daemon.
 
 .. describe:: daemonshepherd stop <daemon-name>
 
-   stops the specified daemon
+   Stop the specified daemon.
 
 .. describe:: daemonshepherd restart <daemon-name>
 
-   restarts the specified daemon
+   Restart (stop and then start) the specified daemon.
 
 .. describe:: daemonshepherd cancel-restart <daemon-name>
 
-   cancels pending restart of specified daemon
+   Cancel pending restart of specified daemon.
 
 .. describe:: daemonshepherd list-commands <daemon-name>
 
-   list administrative commands defined for this daemon
+   List administrative commands defined for specified daemon.
 
 .. describe:: daemonshepherd command <daemon-name> <command-name>
 
-   runs an administrative command defined for specified daemon
+   Run an administrative command defined for specified daemon.
 
 Options
 -------
@@ -83,74 +83,76 @@ administrative socket of a running *daemonshepherd*.
 
 .. option:: --daemons <specfile>
 
-   specification of daemons to start (see :ref:`daemonshepherd-specfile` for
-   details)
+   Specification of daemons to start (see :ref:`daemonshepherd-specfile` for
+   details). Option mutually exclusive with :option:`--exec`.
 
 .. option:: --exec <daemon-name>=<command>
 
-   simplified supervision mode; all daemons specified with :option:`--exec`
+   Simplified supervision mode. All daemons specified with :option:`--exec`
    will be running with the same options (:option:`--user`, :option:`--group`,
    :option:`--cwd`, :option:`--env`, :option:`--stdout`, :option:`--restart`)
-   and will be stopped with *SIGTERM* signal
+   and will be stopped with *SIGTERM* signal.
 
-   this option may be used multiple times
+   Option mutually exclusive with :option:`--daemons`.
+
+   This option may be used multiple times.
 
 .. option:: --socket <path>
 
-   unix socket path to listen for administrative commands
+   Unix socket path to listen for administrative commands.
 
 .. option:: --pid-file <path>
 
-   path to file with PID of *daemonshepherd* instance
+   Path to file with PID of *daemonshepherd* instance.
 
 .. option:: --background
 
-   detach from terminal and change working directory to :file:`/`
+   Detach from terminal and change working directory to :file:`/`.
 
 .. option:: --logging <config>
 
-   logging configuration, in JSON or YAML format (see
-   :ref:`daemonshepherd-logging` for details); default is to log to *STDERR*
-   or to syslog (:option:`--background`)
+   Logging configuration, in JSON or YAML format (see
+   :ref:`daemonshepherd-logging` for details). Default is to log to *STDERR*
+   or to syslog (:option:`--background`).
 
 .. option:: --silent
 
-   don't log anywhere; this option is overriden by :option:`--logging`
+   Don't log anywhere. This option is overriden by :option:`--logging`.
 
 .. option:: --stderr
 
-   log to *STDERR*; this option is overriden by :option:`--logging`
+   Log to *STDERR*. This option is overriden by :option:`--logging`.
 
 .. option:: --syslog
 
-   log to syslog; this option is overriden by :option:`--logging`
+   Log to syslog. This option is overriden by :option:`--logging`.
 
 .. option:: --user <user>
 
-   user to run as
+   User to run *daemonshepherd* as.
 
 .. option:: --group <group>
 
-   group to run as
+   Group to run *daemonshepherd* as.
 
 .. option:: --cwd <directory>
 
-   default working directory for daemons
+   Default working directory for daemons.
 
 .. option:: --env <name>=<value>
 
-   default environment variables for daemons; option may be used multiple
-   times to specify multiple variables
+   Default environment variables for daemons. Option may be used multiple
+   times to specify multiple variables.
 
 .. option:: --stdout <destination>
 
-   default daemon's output destination; valid values are ``console``,
-   ``/dev/null``, and ``log``
+   Default daemon's output destination. Valid values are ``console``,
+   ``/dev/null``, and ``log``.
 
 .. option:: --restart <strategy>
 
-   restart strategy described as comma-separated list of backoff intervals;
-   see :ref:`daemonshepherd-restart-strategy` section for details
+   Restart strategy described as comma-separated list of backoff intervals.
+   See :ref:`daemonshepherd-restart-strategy` section for details.
 
 .. _daemonshepherd-specfile:
 
@@ -184,10 +186,10 @@ A daemon can have following variables:
 * ``argv0`` -- custom process name (``argv[0]``), though under Linux it's
   a little less useful than it sounds (only shows with some :manpage:`ps(1)`
   invocations, like ``ps -f``)
-* ``stop_signal`` -- signal (number or name, like SIGTERM or TERM) to stop
-  the daemon; if specified, it's delivered to the daemon process only, if not
-  specified, defaults to *SIGTERM* and is delivered to the daemon's process
-  group
+* ``stop_signal`` -- signal (number or name, like ``SIGTERM`` or ``TERM``) to
+  stop the daemon; if specified, it's delivered to the daemon process only, if
+  not specified, defaults to *SIGTERM* and is delivered to the daemon's
+  process group
 * ``stop_command`` -- command used to stop running daemon; it will be
   executed with the same environment and working directory as
   ``start_command``, with :envvar:`$DAEMON_PID` set to PID of the daemon; if
