@@ -8,12 +8,15 @@ Synopsis
 .. code-block:: none
 
    daemonshepherd [options] --daemons=<specfile>
+   daemonshepherd [options] --exec=<daemon-name>=<command> ...
    daemonshepherd [options] reload
-   daemonshepherd [options] ps
+   daemonshepherd [options] list
    daemonshepherd [options] start <daemon-name>
    daemonshepherd [options] stop <daemon-name>
    daemonshepherd [options] restart <daemon-name>
-   daemonshepherd [options] cancel_restart <daemon-name>
+   daemonshepherd [options] cancel-restart <daemon-name>
+   daemonshepherd [options] list-commands <daemon-name>
+   daemonshepherd [options] command <daemon-name> <command-name>
 
 Description
 ===========
@@ -27,78 +30,129 @@ Usage
 =====
 
 Running *daemonshepherd* without any command starts a daemon supervisor mode.
-By default, *daemonshepherd* runs in the foreground and suppresses all logs.
-Option :option:`--daemons` is required in this mode.
+By default, *daemonshepherd* runs in the foreground and prints warnings to
+*STDERR*. Option :option:`--daemons` list of options :option:`--exec` is
+required in this mode.
 
 .. _daemonshepherd-commands:
 
 Commands
 --------
 
-Except for ``ps``, administrative commands print nothing and exit with 0 on
-success.
+.. describe:: daemonshepherd list
 
-.. describe:: daemonshepherd ps
-
-   lists daemons that are currently defined, one JSON per line
+   List daemons that are currently defined, one JSON per line.
 
 .. describe:: daemonshepherd reload
 
-   instructs *daemonshepherd* to reload its configuration; the same as sending
-   *SIGHUP* signal
+   Order *daemonshepherd* to reload its configuration. The same as sending
+   *SIGHUP* signal.
 
 .. describe:: daemonshepherd start <daemon-name>
 
-   starts the specified daemon
+   Start the specified daemon.
 
 .. describe:: daemonshepherd stop <daemon-name>
 
-   stops the specified daemon
+   Stop the specified daemon.
 
 .. describe:: daemonshepherd restart <daemon-name>
 
-   restarts the specified daemon
+   Restart (stop and then start) the specified daemon.
 
-.. describe:: daemonshepherd cancel_restart <daemon-name>
+.. describe:: daemonshepherd cancel-restart <daemon-name>
 
-   cancels pending restart of specified daemon
+   Cancel pending restart of specified daemon.
+
+.. describe:: daemonshepherd list-commands <daemon-name>
+
+   List administrative commands defined for specified daemon.
+
+.. describe:: daemonshepherd command <daemon-name> <command-name>
+
+   Run an administrative command defined for specified daemon.
 
 Options
 -------
 
 Most of the options are only meaningful when *daemonshepherd* runs as
-a supervisor. The exception is :option:`--control-socket`, which specifies
+a supervisor. The exception is :option:`--socket`, which specifies
 administrative socket of a running *daemonshepherd*.
 
-.. option:: -f <specfile>, --daemons <specfile>
+.. program:: daemonshepherd
 
-   specification of daemons to start (see :ref:`daemonshepherd-specfile` for
-   details)
+.. option:: --daemons <specfile>
 
-.. option:: -l <config>, --logging <config>
+   Specification of daemons to start (see :ref:`daemonshepherd-specfile` for
+   details). Option mutually exclusive with :option:`--exec`.
 
-   logging configuration, in JSON or YAML format (see
-   :ref:`daemonshepherd-logging` for details); default is no logging at all
+.. option:: --exec <daemon-name>=<command>
 
-.. option:: -s <path>, --control-socket <path>
+   Simplified supervision mode. All daemons specified with :option:`--exec`
+   will be running with the same options (:option:`--user`, :option:`--group`,
+   :option:`--cwd`, :option:`--env`, :option:`--stdout`, :option:`--restart`)
+   and will be stopped with *SIGTERM* signal.
 
-   unix socket path to listen for administrative commands
+   Option mutually exclusive with :option:`--daemons`.
 
-.. option:: -p <path>, --pid-file <path>
+   This option may be used multiple times.
 
-   path to file with PID of *daemonshepherd* instance
+.. option:: --socket <path>
 
-.. option:: -d, --background
+   Unix socket path to listen for administrative commands.
 
-   detach from terminal and change working directory to :file:`/`
+.. option:: --pid-file <path>
 
-.. option:: -u <user>, --user <user>
+   Path to file with PID of *daemonshepherd* instance.
 
-   user to run as
+.. option:: --background
 
-.. option:: -g <group>, --group <group>
+   Detach from terminal and change working directory to :file:`/`.
 
-   group to run as
+.. option:: --logging <config>
+
+   Logging configuration, in JSON or YAML format (see
+   :ref:`daemonshepherd-logging` for details). Default is to log to *STDERR*
+   or to syslog (:option:`--background`).
+
+.. option:: --silent
+
+   Don't log anywhere. This option is overriden by :option:`--logging`.
+
+.. option:: --stderr
+
+   Log to *STDERR*. This option is overriden by :option:`--logging`.
+
+.. option:: --syslog
+
+   Log to syslog. This option is overriden by :option:`--logging`.
+
+.. option:: --user <user>
+
+   User to run *daemonshepherd* as.
+
+.. option:: --group <group>
+
+   Group to run *daemonshepherd* as.
+
+.. option:: --cwd <directory>
+
+   Default working directory for daemons.
+
+.. option:: --env <name>=<value>
+
+   Default environment variables for daemons. Option may be used multiple
+   times to specify multiple variables.
+
+.. option:: --stdout <destination>
+
+   Default daemon's output destination. Valid values are ``console``,
+   ``/dev/null``, and ``log``.
+
+.. option:: --restart <strategy>
+
+   Restart strategy described as comma-separated list of backoff intervals.
+   See :ref:`daemonshepherd-restart-strategy` section for details.
 
 .. _daemonshepherd-specfile:
 
@@ -127,12 +181,15 @@ a name, by which it will be referred to in administrative commands (see
 A daemon can have following variables:
 
 * ``start_command`` -- command used to start the daemon (can be a shell
-  command, too); daemon should not try to detach from terminal
+  command, too); daemon is started in its own process group and should not try
+  to detach from terminal
 * ``argv0`` -- custom process name (``argv[0]``), though under Linux it's
   a little less useful than it sounds (only shows with some :manpage:`ps(1)`
   invocations, like ``ps -f``)
-* ``stop_signal`` -- signal (number or name, like SIGTERM or TERM) to stop
-  the daemon; defaults to *SIGTERM*
+* ``stop_signal`` -- signal (number or name, like ``SIGTERM`` or ``TERM``) to
+  stop the daemon; if specified, it's delivered to the daemon process only, if
+  not specified, defaults to *SIGTERM* and is delivered to the daemon's
+  process group
 * ``stop_command`` -- command used to stop running daemon; it will be
   executed with the same environment and working directory as
   ``start_command``, with :envvar:`$DAEMON_PID` set to PID of the daemon; if
@@ -140,7 +197,8 @@ A daemon can have following variables:
   the precedence
 * ``user``, ``group`` -- username and group name to run as (both
   ``start_command`` and ``stop_command`` will be run with these
-  credentials); obviously this requires *daemonshepherd* to be run as root
+  credentials); ``group`` can be a list of group names; obviously this
+  requires *daemonshepherd* to be run as root
 * ``cwd`` -- working directory to start daemon in
 * ``environment`` -- additional environment variables to set (useful for
   setting :envvar:`$PYTHONPATH` or similar)
@@ -157,6 +215,8 @@ A daemon can have following variables:
   section for details
 * ``start_priority`` -- start priority (lower number starts earlier);
   defaults to 10
+* ``commands`` -- additional administrative commands for the daemon;
+  see :ref:`daemonshepherd-daemon-admin-commands` section for details
 
 Default values for above-mentioned variables can be stored in ``defaults``
 hash.
@@ -164,13 +224,85 @@ hash.
 **NOTE**: ``environment`` key will be *replaced* by daemon's value, not
 *merged*. It's not possible to add just one environment variable.
 
+.. _daemonshepherd-daemon-admin-commands:
+
+Daemon's administrative commands
+--------------------------------
+
+Daemon can have available some special commands, like reloading configuration
+or reopening log files. Such commands are defined under ``commands`` field in
+daemon specification.
+
+A command can specify either a command to run or a signal to send. Some of the
+variables that can be set for daemon itself can also be set for a command, and
+if unset, the command inherits the value from daemon. Allowed variables are:
+``user``, ``group``, ``cwd``, ``environment``, ``argv0``.
+
+By default, a command that specifies signal delivers the signal only to the
+daemon process. This can be changed by setting ``process_group`` to ``true``.
+
+Command's environment will have :envvar:`$DAEMON_PID` set to daemon's PID (or
+empty string, if the daemon is not running).
+
+**NOTE**: *daemonshepherd* will wait for administrative commands to terminate,
+so they should not be long-running operations.
+
+.. code-block:: yaml
+
+   daemons:
+     example-daemon:
+       user: nobody
+       start_command: /usr/sbin/example-daemon ...
+       commands:
+         before-start:
+           user: root
+           command: >-
+             mkdir -p /var/log/example;
+             chown nobody: /var/log/example
+         reload:
+           signal: SIGHUP
+         rotate-logs:
+           user: root
+           command: >-
+             : > /var/log/example/daemon.log;
+             kill -USR1 $DAEMON_PID
+         murder:
+           signal: SIGKILL
+           process_group: true
+
+With the configuration above an operator now can call following commands:
+
+.. code-block:: none
+
+  $ daemonshepherd command example-daemon reload
+  $ daemonshepherd command example-daemon rotate-logs
+  $ daemonshepherd command example-daemon murder
+
+There are few commands with special meaning:
+
+* ``stop`` -- command that will be used to stop the daemon; setting
+  ``stop_command`` or ``stop_signal`` is a shorthand for defining this command
+* ``before-start`` -- command that will be executed just before the daemon is
+  started or restarted; non-zero exit code prevents the daemon from being
+  started; handy for creating socket directory in :file:`/var/run` for
+  a daemon that otherwise runs as a non-privileged user
+* ``after-crash`` -- command that will be executed immediately after the
+  daemon's unexpected termination (but not after ``before-start`` failed); the
+  command will have set either :envvar:`$DAEMON_EXIT_CODE` or
+  :envvar:`$DAEMON_SIGNAL` environment variable, depending on how the daemon
+  terminated
+
+Note that these commands can be invoked in the same manner as any other
+administrative command, e.g. ``daemonshepherd command $daemon after-crash``,
+even though they're not expected to make sense in this situation.
+
 .. _daemonshepherd-restart-strategy:
 
 Restart strategy
 ----------------
 
-When a daemon dies, it's restarted after backoff time. If it dies again, next
-backoff interval will be used. A list of backoff intervals (expressed as
+When a daemon dies, it's restarted after a backoff time. If it dies again,
+next backoff interval will be used. A list of backoff intervals (expressed as
 number of seconds before next try) is called a *restart strategy*. Typically
 it would be a increasing list of integers, so on first death daemon is
 restarted soon, but if it keeps dying, it will be restarted less often to
@@ -184,8 +316,7 @@ restart strategy), restart strategy is reset.
 
 If no restart strategy is defined (neither specific to daemon nor in
 ``defaults``), assumed default is ``[0, 5, 15, 30, 60]`` (see
-:mod:`seismometer.daemonshepherd.controller.RestartQueue` Python class for
-reference).
+:mod:`seismometer.daemonshepherd.controller` module for reference).
 
 Example daemon spec file
 ------------------------
@@ -211,16 +342,22 @@ monitoring data (``dumb-probe``), pass messages to another server
        # string folded for readability
        start_command: >-
            messenger
-           --src=unix:/var/run/messenger.sock
+           --src=unix:/var/run/messenger/socket
            --dest=tcp:10.4.5.11:24222
            --tagfile=/etc/seismometer/messenger.tags
            --logging=/etc/seismometer/messenger.logging
+       commands:
+         before-start:
+           user: root
+           command: >-
+             mkdir -p -m 755 /var/run/messenger;
+             chown seismometer:seismometer /var/run/messenger
      dumbprobe:
        # string folded for readability
        start_command: >-
            dumb-probe
            --checks=/etc/seismometer/dumbprobe.py
-           --dest=unix:/var/run/messenger.sock
+           --dest=unix:/var/run/messenger/socket
            --logging=/etc/seismometer/dumbprobe.logging
 
      # some daemon that needs to be shut down by command instead of by
@@ -235,9 +372,20 @@ monitoring data (``dumb-probe``), pass messages to another server
            statetipd start
            --socket=/var/run/statetip/control
            --config=/etc/statetip.conf
+       # shorthand for "commands.stop"
        stop_command: >-
            statetipd stop
            --socket=/var/run/statetip/control
+       commands:
+         before-start:
+           user: root
+           command: >-
+             mkdir -p -m 750 /var/run/statetip;
+             chown seismometer:seismometer /var/run/statetip
+         reload:
+           command: statetipd reload --socket=/var/run/statetip/control
+         brutal-kill:
+           signal: SIGKILL
 
      # custom collectd instance
      collectd:
@@ -249,8 +397,8 @@ monitoring data (``dumb-probe``), pass messages to another server
      store-clients:
        # string folded for readability
        start_command: >-
-           /etc/seismometer/bin/count-clients |
-           socat - unix:/var/run/collectd/clients.sock
+           /etc/seismometer/bin/count-clients
+           | socat - unix:/var/run/collectd/clients.sock
 
 .. _daemonshepherd-logging:
 

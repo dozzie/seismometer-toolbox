@@ -8,8 +8,8 @@ project = u'Seismometer Toolbox'
 
 #copyright = u'...'
 
-release = '0.4.0'
-version = '0.4'
+release = '0.5.0'
+version = '0.5'
 
 #-----------------------------------------------------------------------------
 
@@ -39,14 +39,8 @@ autoclass_content = 'both'
 # HTML output
 #-----------------------------------------------------------------------------
 
-import sphinx
-def ver(v):
-    return [int(i) for i in v.split('.')]
-
-if ver(sphinx.__version__) >= ver('1.3'):
-    html_theme = 'classic'
-else:
-    html_theme = 'default'
+html_theme = 'poole'
+html_theme_path = ['themes']
 
 pygments_style = 'sphinx'
 
@@ -66,6 +60,12 @@ man_pages = [
     ('manpages/messenger', 'messenger',
      'monitoring and log message transporter',
      [], 8),
+    ('manpages/hailerter', 'hailerter',
+     'state tracker and notification generator',
+     [], 8),
+    ('manpages/seismometer-message', 'seismometer-message',
+     'Seismometer message format',
+     [], 7),
 ]
 
 #man_show_urls = False

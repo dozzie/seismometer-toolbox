@@ -1,0 +1,828 @@
+#!/usr/bin/python
+
+import sys
+import os
+import optparse
+import socket
+import errno
+import signal
+import json
+import time
+import seismometer.message
+import seismometer.poll
+import seismometer.prio_queue
+
+#-----------------------------------------------------------------------------
+# command line options {{{
+
+#-------------------------------------------------------
+# custom option types {{{
+
+def check_interval(option, opt, value):
+    try:
+        if value.endswith("h"):
+            result = 60 * 60 * int(value[:-1])
+        elif value.endswith("m"):
+            result = 60 * int(value[:-1])
+        elif value.endswith("s"):
+            result = int(value[:-1])
+        else: # no suffix
+            result = int(value)
+        if result > 0:
+            return result
+        raise optparse.OptionValueError(
+            "option %s: negative interval value: %r" % (opt, value)
+        )
+    except ValueError:
+        raise optparse.OptionValueError(
+            "option %s: invalid interval value: %r" % (opt, value)
+        )
+
+def check_count(option, opt, value):
+    try:
+        result = int(value)
+        if result > 0:
+            return result
+        raise optparse.OptionValueError(
+            "option %s: negative count: %r" % (opt, value)
+        )
+    except ValueError:
+        raise optparse.OptionValueError(
+            "option %s: invalid count value: %r" % (opt, value)
+        )
+
+def check_fraction(option, opt, value):
+    try:
+        result = float(value)
+        if 0.0 <= result and result <= 1.0:
+            return result
+        raise optparse.OptionValueError(
+            "option %s: invalid fraction value: %r" % (opt, value)
+        )
+    except ValueError:
+        raise optparse.OptionValueError(
+            "option %s: invalid fraction value: %r" % (opt, value)
+        )
+
+
+class HailerterOption(optparse.Option):
+    TYPES = optparse.Option.TYPES + (
+        "interval",
+        "count",
+        "fraction",
+    )
+    TYPE_CHECKER = optparse.Option.TYPE_CHECKER.copy()
+    TYPE_CHECKER["interval"] = check_interval
+    TYPE_CHECKER["count"] = check_count
+    TYPE_CHECKER["fraction"] = check_fraction
+
+# }}}
+#-------------------------------------------------------
+
+parser = optparse.OptionParser(
+    option_class = HailerterOption,
+    usage = "\n  %prog [options]"
+            "\n  %prog --socket=PATH list"
+            "\n  %prog --socket=PATH forget <aspect> <location>"
+            "\n  %prog --socket=PATH list-muted"
+            "\n  %prog --socket=PATH mute <aspect> <location> <duration>"
+            "\n  %prog --socket=PATH unmute <aspect> <location>"
+            "\n  %prog --socket=PATH reset-flapping <aspect> <location>"
+            "\n  %prog --socket=PATH reset-reminder <aspect> <location>",
+    description = "Monitoring state tracker and notifications generator.",
+)
+
+parser.add_option(
+    "--socket", dest = "control_socket",
+    default = None,
+    help = "path to control socket",
+    metavar = "PATH",
+)
+
+parser.add_option(
+    "--skip-initial-error", dest = "ignore_initial_error",
+    action = "store_true", default = False,
+    help = "don't report the initial stream status if it is an error;"
+           " reminders are still sent",
+)
+parser.add_option(
+    "--remind-interval", dest = "remind_interval",
+    type = "interval", default = None,
+    help = "interval for reminders that a stream is still degraded, missing,"
+           " or flapping (default is no reminders)",
+    metavar = "INTERVAL",
+)
+parser.add_option(
+    "--warning-expected", dest = "warning_expected",
+    action = "store_true", default = False,
+    help = 'treat severity "warning" the same way as "expected" instead of '
+           '"error"',
+)
+parser.add_option(
+    "--default-interval", dest = "default_interval",
+    type = "interval", default = None,
+    help = "collection interval to assume for streams that don't provide one",
+    metavar = "INTERVAL",
+)
+parser.add_option(
+    "--missing", dest = "missing",
+    type = "count", default = None,
+    help = "number of messages after which stream is deemed missing",
+    metavar = "COUNT",
+)
+parser.add_option(
+    "--flapping-window", dest = "flapping_window",
+    type = "count", default = None,
+    help = "number of messages to calculate stream flapping",
+    metavar = "COUNT",
+)
+parser.add_option(
+    "--flapping-threshold", dest = "flapping_threshold",
+    type = "fraction", default = None,
+    help = "fraction of messages in flapping window to deem stream flapping",
+    metavar = "FRACTION",
+)
+
+(options, args) = parser.parse_args()
+
+# }}}
+#-----------------------------------------------------------------------------
+# command sending mode {{{
+
+COMMANDS = {
+    "list": { "cmd": "list", "args": [] },
+    "forget": { "cmd": "forget", "args": ["aspect", "location"] },
+    "list-muted": { "cmd": "list_muted", "args": [] },
+    "mute": { "cmd": "mute", "args": ["aspect", "location", "duration"] },
+    "unmute": { "cmd": "unmute", "args": ["aspect", "location"] },
+    "reset-flapping": { "cmd": "reset_flapping", "args": ["aspect", "location"] },
+    "reset-reminder": { "cmd": "reset_reminder", "args": ["aspect", "location"] },
+}
+
+if len(args) > 0:
+    cmd = COMMANDS.get(args[0])
+    if cmd is None:
+        parser.error("unrecognized command: %s" % (args[0],))
+    if len(args) - 1 != len(cmd["args"]):
+        parser.error("wrong number of arguments for %s" % (args[0],))
+    if options.control_socket is None:
+        parser.error("--socket option is required for command %s" % (args[0],))
+
+    request = { "command": cmd["cmd"] }
+    for i in range(len(cmd["args"])):
+        request[cmd["args"][i]] = args[i + 1]
+    if "location" in request:
+        try:
+            request["location"] = json.loads(request["location"])
+        except ValueError:
+            parser.error("invalid location")
+    if "duration" in request:
+        try:
+            if request["duration"].endswith("h"):
+                request["duration"] = 60 * 60 * int(request["duration"][:-1])
+            elif request["duration"].endswith("m"):
+                request["duration"] = 60 * int(request["duration"][:-1])
+            elif request["duration"].endswith("s"):
+                request["duration"] = int(request["duration"][:-1])
+            else: # no suffix
+                request["duration"] = int(request["duration"])
+        except ValueError:
+            parser.error("invalid duration")
+        if request["duration"] < 0:
+            parser.error("invalid duration")
+
+    try:
+        conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        conn.connect(options.control_socket)
+    except socket.error, e:
+        print >>sys.stderr, "Can't connect to %s: %s" % (
+            options.control_socket, e
+        )
+        sys.exit(1)
+    conn.send(json.dumps(request) + "\n")
+    reply = json.load(conn.makefile())
+    conn.close()
+    if cmd["cmd"] == "list" or cmd["cmd"] == "list_muted":
+        for rec in reply["result"]:
+            print json.dumps(rec, sort_keys = True)
+    sys.exit()
+
+# }}}
+#-----------------------------------------------------------------------------
+# signal handlers {{{
+
+def quit_program(sig, stack_frame):
+    sys.exit(0)
+
+signal.signal(signal.SIGHUP, quit_program)
+signal.signal(signal.SIGINT, quit_program)
+signal.signal(signal.SIGTERM, quit_program)
+
+# }}}
+#-----------------------------------------------------------------------------
+# control socket {{{
+
+class ControlSocket:
+    def __init__(self, address):
+        self.path = os.path.abspath(address)
+        self.socket = None
+        conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        conn.bind(self.path)
+        # only set self.socket after bind(), so the file won't get removed
+        # when it's not ours (e.g. existed already)
+        self.socket = conn
+        self.socket.listen(1)
+
+    def __del__(self):
+        self.close()
+
+    def accept(self):
+        (conn, addr) = self.socket.accept()
+        return ControlSocketClient(conn)
+
+    def fileno(self):
+        return self.socket.fileno()
+
+    def close(self):
+        if self.socket is not None:
+            self.socket.close()
+            self.socket = None
+            if self.path is not None:
+                os.remove(self.path)
+
+class ControlSocketClient:
+    def __init__(self, socket):
+        self.socket = socket
+
+    def __del__(self):
+        self.close()
+
+    def read(self):
+        line = None
+        while line is None:
+            try:
+                line = self.socket.recv(4096)
+            except socket.error, e:
+                if e.errno != errno.EWOULDBLOCK and e.errno != errno.EAGAIN:
+                    raise
+        if line == "":
+            return None
+        try:
+            return json.loads(line)
+        except:
+            return None
+
+    def send(self, message):
+        try:
+            self.socket.send(json.dumps(message) + "\n")
+        except socket.error, e:
+            if e.errno != errno.EPIPE:
+                raise
+
+    def fileno(self):
+        return self.socket.fileno()
+
+    def close(self):
+        if self.socket is not None:
+            try:
+                self.socket.close()
+            except socket.error, e:
+                if e.errno != errno.EPIPE:
+                    raise
+            self.socket = None
+
+# }}}
+#-----------------------------------------------------------------------------
+# core: state tracker machine
+
+class Constant:
+    def __init__(self, name):
+        self.name = name
+    def __repr__(self):
+        return "<%s %s>" % (self.__class__.__name__, self.name)
+
+STATUS_OK       = Constant("ok")
+STATUS_ERROR    = Constant("error")
+STATUS_MISSING  = Constant("missing")
+STATUS_FLAPPING = Constant("flapping")
+STATUS_DISCARD  = Constant("discard")
+
+class StateTracker:
+    #-------------------------------------------------------
+    # StateTracker.Flow {{{
+
+    class Flow:
+        def __init__(self, aspect, location, flapping = (1, 1.0)):
+            self.aspect = aspect
+            self.location = location
+            self.status = None
+            self.status_time = 0 # timestamp of the last status
+            self.status_info = None
+            self.notified = 0 # timestamp of the last notification
+            self.flap_window = flapping[0]
+            self.flap_threshold = flapping[1] # 0.0 .. 1.0
+            self.flap_change_count = 0
+            self.flap_changes = 0
+            self.flap_pos = 0
+
+        def flap_reset(self):
+            self.flap_change_count = 0
+            self.flap_changes = 0
+            self.flap_pos = 0
+
+        def flap_update(self, bit):
+            # pop the oldest bit from array
+            old_bit = (self.flap_changes & (1 << self.flap_pos))
+            # reset the position of oldest (now newest) bit to 0
+            self.flap_changes ^= old_bit
+            # set the bit
+            self.flap_changes |= (bit << self.flap_pos)
+            # get just the bit, without its position
+            old_bit >>= self.flap_pos
+            # advance the position marker to the next bit
+            self.flap_pos = (self.flap_pos + 1) % self.flap_window
+            # update the counter that tracks 1's
+            self.flap_change_count -= old_bit
+            self.flap_change_count += bit
+
+        def is_flapping(self):
+            flap_index = float(self.flap_change_count) / self.flap_window
+            return (flap_index > self.flap_threshold)
+
+        def update(self, status, timestamp):
+            # discard statuses that arrived out of order, so they don't count
+            # towards flapping
+            if timestamp < self.status_time:
+                # FIXME: when the server jumps far back in time, it can take
+                # a long time for hailerter to catch up
+                return STATUS_DISCARD
+
+            # the flow went missing and stayed this way for a long time
+            # (assuming that notification interval is much larger than flow's
+            # collection interval)
+            if status is STATUS_MISSING and self.status is STATUS_MISSING:
+                self.flap_reset()
+
+            if self.is_flapping():
+                # this mixes nicely with recovery from flapping
+                old_status = STATUS_FLAPPING
+            else:
+                old_status = self.status
+
+            # TODO: interpolate messages that were missing but haven't
+            # triggered reporting that the stream is missing
+            self.flap_update(int(status != self.status))
+
+            self.status = status
+            self.status_time = timestamp
+            return old_status
+
+        def notification_sent(self, timestamp = None, reset_timer = False):
+            if reset_timer:
+                self.notified = 0
+            elif timestamp is not None:
+                self.notified = timestamp
+            else:
+                self.notified = int(time.time())
+
+    # }}}
+    #-------------------------------------------------------
+
+    def __init__(self, options):
+        self._check_timeouts = False
+        # a queue with time when to deem some data flow to be missing
+        self._when_goes_missing = seismometer.prio_queue.PrioQueue()
+        self._muted = seismometer.prio_queue.PrioQueue()
+        self._flows = {}
+        self._future_margin = 5 * 60 # 5 minutes
+        self.ignore_initial_error = options.ignore_initial_error
+        self.remind_interval = options.remind_interval
+        self.warning_expected = options.warning_expected
+        self.default_interval = options.default_interval
+        self.missing_after = options.missing
+        if options.flapping_window is not None and \
+           options.flapping_threshold is not None:
+            self.flapping = (options.flapping_window,
+                             options.flapping_threshold)
+        else:
+            self.flapping = (1, 1.0)
+
+    #-------------------------------------------------------
+    # data access {{{
+
+    def flows(self):
+        return self._flows.values()
+
+    def delete(self, aspect, location):
+        flow_id = StateTracker.flow_id(aspect, location)
+        if flow_id in self._flows:
+            del self._when_goes_missing[flow_id]
+            del self._flows[flow_id]
+
+    def muted_flows(self):
+        return [
+            #(aspect, location, expiry)
+            (flow_id[0], json.loads(flow_id[1]), self._muted[flow_id])
+            for flow_id in self._muted
+        ]
+
+    def mute(self, aspect, location, duration):
+        flow_id = StateTracker.flow_id(aspect, location)
+        # NOTE: this allows to mute flows in advance
+        self._muted[flow_id] = int(time.time()) + duration
+
+    def unmute(self, aspect, location):
+        flow_id = StateTracker.flow_id(aspect, location)
+        del self._muted[flow_id]
+
+    def reset_flapping(self, aspect, location):
+        flow_id = StateTracker.flow_id(aspect, location)
+        if flow_id in self._flows:
+            self._flows[flow_id].flap_reset()
+
+    def reset_reminder(self, aspect, location):
+        flow_id = StateTracker.flow_id(aspect, location)
+        if flow_id in self._flows:
+            self._flows[flow_id].notification_sent(reset_timer = True)
+
+    # }}}
+    #-------------------------------------------------------
+    # SIGALRM {{{
+
+    def install_alarm(self):
+        signal.signal(signal.SIGALRM, self._handle_alarm)
+        signal.alarm(1)
+
+    def _handle_alarm(self, sig, stack_frame):
+        self._check_timeouts = True
+        signal.alarm(1)
+
+    # }}}
+    #-------------------------------------------------------
+    # flow_id() {{{
+
+    @staticmethod
+    def flow_id(aspect, location):
+        location_str = json.dumps(location, sort_keys = True,
+                                  separators = (",", ":"))
+        # NOTE: tuple with two strings is hashable and can be used as a key
+        # for dictionary
+        return (aspect, location_str)
+
+    # }}}
+    #-------------------------------------------------------
+    # unpack(message) {{{
+
+    def unpack(self, message):
+        flow_id = StateTracker.flow_id(message.aspect,
+                                       message.location.to_dict())
+        if message.interval is not None:
+            interval = message.interval
+        else:
+            interval = self.default_interval
+        status = None
+        # TODO: also metrics without state but with thresholds
+        if message.state is not None:
+            if message.severity is None or message.severity == "expected":
+                status = STATUS_OK
+            elif message.severity == "warning" and self.warning_expected:
+                status = STATUS_OK
+            elif message.severity == "warning" and not self.warning_expected:
+                status = STATUS_ERROR
+            elif message.severity == "error":
+                status = STATUS_ERROR
+        return (flow_id, int(message.time), interval, status)
+
+    # }}}
+    #-------------------------------------------------------
+
+    def missing_messages(self):
+        if not self._check_timeouts:
+            # don't do the busy work more often than on schedule
+            return ()
+        self._check_timeouts = False
+        now = int(time.time())
+
+        # drop expired mute markers
+        while len(self._muted) > 0 and self._muted.peek()[0] <= now:
+            self._muted.pop()
+
+        if len(self._when_goes_missing) == 0 or \
+           self._when_goes_missing.peek()[0] > now:
+            # nothing is missing now
+            return ()
+
+        missing = []
+        while len(self._when_goes_missing) > 0 and \
+              self._when_goes_missing.peek()[0] <= now:
+            flow_id = self._when_goes_missing.peek()[1]
+            flow = self._flows[flow_id]
+
+            old_status = flow.status
+            old_status_time = flow.status_time
+            old_info = flow.status_info
+            flow.update(STATUS_MISSING, now)
+            flow.notification_sent(now)
+            # NOTE: use most current flapping status, after updating flow's
+            # status
+            if not flow.is_flapping():
+                # consequent STATUS_MISSING messages have the same content, so
+                # only the first one needs setting
+                if old_status is not STATUS_MISSING:
+                    flow.status_info = {
+                        "status": "missing",
+                        "last_seen": old_status_time,
+                    }
+            else:
+                # FIXME: flapping may be the last message about the stream if
+                # no reminders are expected to be sent
+                # FIXME: flapping and then settling on STATUS_MISSING gives
+                # wrong `last_seen' value
+                flow.status_info = {
+                    "status": "flapping",
+                    "window": flow.flap_window,
+                    "changes": flow.flap_change_count,
+                }
+            if flow_id not in self._muted:
+                missing.append({
+                    "time": now,
+                    "aspect": flow.aspect,
+                    "location": flow.location,
+                    "info": flow.status_info,
+                    "previous": old_info,
+                })
+
+            # XXX: now that the flow is missing we don't need to _detect_ if
+            # it's missing, we just need to _remind_ that it is (assuming that
+            # notification interval is much larger than flow's collection
+            # interval)
+            if self.remind_interval is not None:
+                self._when_goes_missing[flow_id] = now + self.remind_interval
+            else:
+                # TODO: forget about this flow? and what about its recovery?
+                del self._when_goes_missing[flow_id]
+        return missing
+
+    def reschedule_missing_notification(self, flow_id, timestamp, interval):
+        if interval is not None and self.missing_after is not None:
+            self._when_goes_missing[flow_id] = \
+                timestamp + interval * self.missing_after
+
+    def update_state(self, message):
+        (flow_id, timestamp, interval, status) = self.unpack(message)
+        if status is None:
+            # TODO: self.reschedule_missing_notification() also for metrics
+            return None
+
+        now = int(time.time())
+        if timestamp > now + self._future_margin:
+            # the message is too far in the future, discard it
+            return None
+
+        self.reschedule_missing_notification(flow_id, timestamp, interval)
+
+        if flow_id not in self._flows:
+            self._flows[flow_id] = StateTracker.Flow(
+                aspect = message.aspect,
+                location = message.location.to_dict(),
+                flapping = self.flapping,
+            )
+        flow = self._flows[flow_id]
+
+        old_status = flow.update(status, timestamp)
+        if old_status == STATUS_DISCARD:
+            return None
+
+        if flow.is_flapping():
+            old_info = flow.status_info
+            flow.status_info = {
+                "status": "flapping",
+                "window": flow.flap_window,
+                "changes": flow.flap_change_count,
+            }
+            if self.remind_interval is None and old_status == STATUS_FLAPPING:
+                return None
+            elif self.remind_interval is not None and \
+                 now - flow.notified < self.remind_interval:
+                return None
+            else:
+                flow.notification_sent(now)
+                if flow_id in self._muted:
+                    return None
+                return {
+                    "time": timestamp,
+                    "aspect": flow.aspect,
+                    "location": flow.location,
+                    "info": flow.status_info,
+                    "previous": old_info,
+                }
+
+        if status == STATUS_OK:
+            old_info = flow.status_info
+            if message.severity is None:
+                severity = "expected"
+            else:
+                severity = message.severity
+            flow.status_info = {
+                "status": "ok",
+                "state": message.state,
+                "severity": severity,
+            }
+            if old_status is None or old_status == STATUS_OK:
+                return None
+            else:
+                flow.notification_sent(reset_timer = True)
+                if flow_id in self._muted:
+                    return None
+                return {
+                    "time": timestamp,
+                    "aspect": flow.aspect,
+                    "location": flow.location,
+                    "info": flow.status_info,
+                    "previous": old_info,
+                }
+
+        # XXX: status != STATUS_OK; either a degradation or a reminder
+
+        old_info = flow.status_info
+        flow.status_info = {
+            "status": "degraded",
+            "state": message.state,
+            "severity": message.severity,
+        }
+
+        if old_status is None and self.ignore_initial_error:
+            # set up a reminder and stay silent for now
+            flow.notification_sent(now)
+            return None
+
+        if status == old_status and self.remind_interval is None:
+            # the same error status as the last time, but no reminders
+            return None
+        if status == old_status and now - flow.notified < self.remind_interval:
+            # the same error status as the last time, but a notification was
+            # sent recently
+            return None
+
+        flow.notification_sent(now)
+        if flow_id in self._muted:
+            return None
+        return {
+            "time": timestamp,
+            "aspect": flow.aspect,
+            "location": flow.location,
+            "info": flow.status_info,
+            "previous": old_info,
+        }
+
+#-----------------------------------------------------------------------------
+# control commands {{{
+
+class Controller:
+    def __init__(self, stm):
+        self.stm = stm
+
+    def handle_request(self, request):
+        if not isinstance(request, dict) or \
+           not isinstance(request.get("command"), (str, unicode)):
+            return { "error": "bad request" }
+
+        handler = getattr(self, "command_" + request["command"], self.badreq)
+        return handler(**request)
+
+    def badreq(self, **kwargs):
+        return { "error": "bad request" }
+
+    def command_list(self, **kwargs):
+        def info(flow):
+            return {
+                "aspect": flow.aspect,
+                "location": flow.location,
+                "info": flow.status_info,
+            }
+        result = [info(flow) for flow in stm.flows()]
+        return { "result": result }
+
+    def command_forget(self, **kwargs):
+        if not isinstance(kwargs.get("aspect"), (str, unicode)) or \
+           not isinstance(kwargs.get("location"), dict):
+            return self.badreq()
+        self.stm.delete(kwargs["aspect"], kwargs["location"])
+        return { "result": "ok" }
+
+    def command_list_muted(self, **kwargs):
+        def info(record):
+            return {
+                "aspect":   record[0],
+                "location": record[1],
+                "expires":  record[2],
+            }
+        result = [info(rec) for rec in stm.muted_flows()]
+        return { "result": result }
+
+    def command_mute(self, **kwargs):
+        if not isinstance(kwargs.get("aspect"), (str, unicode)) or \
+           not isinstance(kwargs.get("location"), dict) or \
+           not isinstance(kwargs.get("duration"), (int, long)) or \
+           kwargs["duration"] <= 0:
+            return self.badreq()
+        self.stm.mute(kwargs["aspect"], kwargs["location"], kwargs["duration"])
+        return { "result": "ok" }
+
+    def command_unmute(self, **kwargs):
+        if not isinstance(kwargs.get("aspect"), (str, unicode)) or \
+           not isinstance(kwargs.get("location"), dict):
+            return self.badreq()
+        self.stm.unmute(kwargs["aspect"], kwargs["location"])
+        return { "result": "ok" }
+
+    def command_reset_flapping(self, **kwargs):
+        if not isinstance(kwargs.get("aspect"), (str, unicode)) or \
+           not isinstance(kwargs.get("location"), dict):
+            return self.badreq()
+        self.stm.reset_flapping(kwargs["aspect"], kwargs["location"])
+        return { "result": "ok" }
+
+    def command_reset_reminder(self, **kwargs):
+        if not isinstance(kwargs.get("aspect"), (str, unicode)) or \
+           not isinstance(kwargs.get("location"), dict):
+            return self.badreq()
+        self.stm.reset_reminder(kwargs["aspect"], kwargs["location"])
+        return { "result": "ok" }
+
+# }}}
+#-----------------------------------------------------------------------------
+
+# poll for a single handle may be a little overkill, but it should mix nice
+# with SIGALRM and it allows to close STDIN and exit gracefully
+poll = seismometer.poll.Poll()
+poll.add(sys.stdin)
+data_handles = set([sys.stdin])
+
+if options.control_socket is not None:
+    poll.add(ControlSocket(options.control_socket))
+
+stm = StateTracker(options)
+stm.install_alarm()
+
+controller = Controller(stm)
+
+while len(data_handles) > 0:
+    read_handles = poll.poll(timeout = None) # 1s loop
+
+    for handle in read_handles:
+        if isinstance(handle, ControlSocket):
+            conn = handle.accept()
+            poll.add(conn)
+            continue
+        elif isinstance(handle, ControlSocketClient):
+            request = handle.read()
+            if request is not None:
+                result = controller.handle_request(request)
+                handle.send(result)
+            poll.remove(handle)
+            handle.close()
+            continue
+
+        # XXX: data handle, i.e. `sys.stdin'
+
+        # TODO: read as much as possible, so the flush at the end of loop
+        # works for an aggregate instead of every single line
+        line = handle.readline()
+        if line == "":
+            poll.remove(handle)
+            data_handles.discard(handle)
+            continue
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            print >>sys.stderr, "Invalid input line: %s" % (line.rstrip(),)
+            poll.remove(handle)
+            data_handles.discard(handle)
+            continue
+        if not seismometer.message.is_state(rec):
+            continue
+
+        result = stm.update_state(seismometer.message.Message(rec))
+        if result is not None:
+            try:
+                json.dump(result, sys.stdout, sort_keys = True)
+                sys.stdout.write("\n")
+            except IOError: # EPIPE
+                sys.exit(0)
+
+    missing = stm.missing_messages()
+    for msg in missing:
+        try:
+            json.dump(msg, sys.stdout, sort_keys = True)
+            sys.stdout.write("\n")
+        except IOError: # EPIPE
+            sys.exit(0)
+
+    try:
+        sys.stdout.flush()
+    except IOError: # EPIPE
+        sys.exit(0)
+
+#-----------------------------------------------------------------------------
+# vim:ft=python:foldmethod=marker

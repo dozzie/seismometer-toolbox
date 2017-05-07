@@ -231,6 +231,7 @@ def quit_daemon(sig, stack_frame):
     sys.exit(0)
 
 signal.signal(signal.SIGHUP, reload_tags)
+signal.signal(signal.SIGINT, quit_daemon)
 signal.signal(signal.SIGTERM, quit_daemon)
 
 #-----------------------------------------------------------------------------
@@ -240,9 +241,6 @@ try:
     while True:
         message = reader.read()
         writer.write(message)
-except KeyboardInterrupt:
-    logger.info("received signal; shutting down")
-    pass
 except seismometer.input.EOF:
     # this is somewhat expected: all the input descriptors are closed (e.g.
     # only STDIN was specified)

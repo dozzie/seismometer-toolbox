@@ -35,6 +35,12 @@ These classes represent specific data inside of :class:`Message`.
 
 from time import time as now
 
+__all__ = [
+    "SCHEMA_VERSION",
+    "Message", "Value", "Location",
+    "is_valid", "is_metric", "is_state",
+]
+
 #-----------------------------------------------------------------------------
 
 SCHEMA_VERSION = 3
@@ -64,10 +70,10 @@ class Value(object):
         '''
         :param value: value
         :param name: name of the value
-        :type value: integer, float or ``None``
+        :type value: integer, float, or ``None``
         :param unit: unit of measurement
         :param type: type of change of the value
-        :type type: ``"direct"``, ``"accumulative"`` or ``"differential"``
+        :type type: ``"direct"``, ``"accumulative"``, or ``"differential"``
         '''
         self._name = name
         self.value = value
@@ -150,15 +156,28 @@ class Value(object):
             )
 
     def __int__(self):
+        '''
+        Return int value of this instance.
+        '''
         return int(self._value)
 
     def __long__(self):
+        '''
+        Return long value of this instance.
+        '''
         return long(self._value)
 
     def __float__(self):
+        '''
+        Return float value of this instance.
+        '''
         return float(self._value)
 
     def __eq__(self, other):
+        '''
+        Compare this instance with another :class:`Value`, ``None``, or
+        number.
+        '''
         if other is None:
             return (self._value is None)
         elif isinstance(other, Value):
@@ -167,6 +186,10 @@ class Value(object):
             return self._value == other
 
     def __gt__(self, other):
+        '''
+        Compare this instance with another :class:`Value`, ``None``, or
+        number.
+        '''
         if self._value is None:
             return False
         if isinstance(other, Value):
@@ -174,6 +197,10 @@ class Value(object):
         return (other is None or self._value > other)
 
     def __lt__(self, other):
+        '''
+        Compare this instance with another :class:`Value`, ``None``, or
+        number.
+        '''
         if isinstance(other, Value):
             other = other._value
         if other is None:
@@ -181,9 +208,17 @@ class Value(object):
         return (self._value is None or self._value < other)
 
     def __ge__(self, other):
+        '''
+        Compare this instance with another :class:`Value`, ``None``, or
+        number.
+        '''
         return (not self < other)
 
     def __le__(self, other):
+        '''
+        Compare this instance with another :class:`Value`, ``None``, or
+        number.
+        '''
         return (not self > other)
 
     #-----------------------------------------------------------------
@@ -326,7 +361,7 @@ class Value(object):
         :type which: ``"above"`` (``"high"``), ``"below"`` (``"low"``) or
             ``"both"``
 
-        Remove threshold (high, low or both).
+        Remove threshold (high, low, or both).
         '''
         if which in ('both', 'above', 'high') and name in self._threshold_high:
             del self._threshold_high[name]
@@ -397,27 +432,45 @@ class Location(object):
         return self._location[name]
 
     def __getitem__(self, name):
+        '''
+        Get a location field value.
+        '''
         if name not in self._location:
             raise KeyError('no such location: %s' % (name,))
         return self._location[name]
 
     def __setitem__(self, name, value):
+        '''
+        Set a location field value.
+        '''
         # TODO: check value_name against regexp
         if not isinstance(value, (str, unicode)):
             raise ValueError("location must be a string")
         self._location[name] = value
 
     def __delitem__(self, name):
+        '''
+        Delete a location field. It's OK to delete a non-existing field.
+        '''
         if name in self._location:
             del self._location[name]
 
     def __contains__(self, name):
+        '''
+        Check if the location contains specific field.
+        '''
         return (name in self._location)
 
     def __len__(self):
+        '''
+        Return number of fields in this location.
+        '''
         return len(self._location)
 
     def __iter__(self):
+        '''
+        Iterate over field names in this location.
+        '''
         return self._location.__iter__()
 
     def keys(self):
@@ -472,7 +525,7 @@ class Message(object):
     An instance supports dict-like interface to access values
     (``event.vset.*``). ``len(instance)`` returns a number of values in value
     set. Each value is an instance of :class:`Value` class. Setting a value to
-    integer, float or ``None`` results in creating new :class:`Value`. Setting
+    integer, float, or ``None`` results in creating new :class:`Value`. Setting
     it to :class:`Value` *does not copy* the original value.
 
     If a message does not conform to schema, :exc:`ValueError` is thrown.
@@ -497,11 +550,11 @@ class Message(object):
         :param state: state of the monitored aspect
         :type state: string
         :param severity: what type is the aspect's state
-        :type severity: ``expected``, ``warning`` or ``error``
+        :type severity: ``"expected"``, ``"warning"``, or ``"error"``
         :param comment: comment on monitored aspect's state
         :type comment: string
         :param value: set value named ``"value"`` to this value
-        :type value: float, integer or ``None``
+        :type value: float, integer, :class:`Value`, or ``None``
 
         Either :obj:`message` or rest of the parameters should be set.
         '''
@@ -700,7 +753,7 @@ class Message(object):
         '''
         Severity of the :attr:`state`. (read-write-delete)
 
-        Either ``"expected"``, ``"warning"`` or ``"error"``.
+        Either ``"expected"``, ``"warning"``, or ``"error"``.
         '''
         return self._severity
 
@@ -755,11 +808,25 @@ class Message(object):
     # value set
 
     def __getitem__(self, value_name):
+        '''
+        :param value_name: name of value to get
+        :type value_name: string
+
+        Get a specific value from value set.
+        '''
         if value_name not in self._vset:
             raise KeyError('no such value: %s' % (value_name,))
         return self._vset[value_name]
 
     def __setitem__(self, value_name, value):
+        '''
+        :param value_name: name of value to set
+        :type value_name: string
+        :param value: value
+        :type value: float, integer, :class:`Value`, or ``None``
+
+        Set a value in value set.
+        '''
         # TODO: check value_name against regexp
         if isinstance(value, Value):
             # instance of Value is expected to be a temporary variable
@@ -770,16 +837,34 @@ class Message(object):
             self._vset[value_name] = Value(value, value_name)
 
     def __delitem__(self, value_name):
+        '''
+        :param value_name: name of value to delete
+        :type value_name: string
+
+        Delete a value from value set.
+        '''
         if value_name in self._vset:
             del self._vset[value_name]
 
     def __contains__(self, value_name):
+        '''
+        :param value_name: name of value to delete
+        :type value_name: string
+
+        Check if a value is in value set.
+        '''
         return (value_name in self._vset)
 
     def __len__(self):
+        '''
+        Return number of values in value set.
+        '''
         return len(self._vset)
 
     def __iter__(self):
+        '''
+        Iterate over value names from value set.
+        '''
         return self._vset.__iter__()
 
     def keys(self):

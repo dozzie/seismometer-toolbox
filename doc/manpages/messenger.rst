@@ -28,6 +28,8 @@ source sockets and sends them to one or more destinations.
 Options
 =======
 
+.. program:: messenger
+
 .. option:: --source stdin | tcp:<addr> | udp:<addr> | unix:<path>
 
    Address to receive data on. ``<addr>`` can be in one of two forms:
@@ -187,6 +189,17 @@ Logging configuration
 See Also
 ========
 
-* message schema v3 <http://seismometer.net/message-schema/v3/>
-* :manpage:`daemonshepherd(8)`
-* Fluentd <http://fluentd.org/>
+.. only:: man
+
+   * message schema v3 <http://seismometer.net/message-schema/v3/>
+   * :manpage:`seismometer-message(7)`
+   * :manpage:`daemonshepherd(8)`
+   * Fluentd <http://fluentd.org/>
+
+.. only:: html
+
+   * message schema v3 <http://seismometer.net/message-schema/v3/>
+   * :doc:`../api/message`
+   * :doc:`daemonshepherd`
+   * Fluentd <http://fluentd.org/>
+

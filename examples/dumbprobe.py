@@ -64,21 +64,22 @@ CHECKS = [
     Function(df, args = ["/home"], interval = 30 * 60),
     Function(df, args = ["/tmp"],  interval = 30 * 60),
     # shell command (`sh -c ...'), prints list of JSON objects to STDOUT
-    ShellOutputJSON("/usr/local/bin/read-etc-passwd", interval = 60),
-    # external command (run without `sh -c'), prints single number
-    ShellOutputMetric(
-        ["/usr/local/bin/random", "0.5"],
-        interval = 30,
-        aspect = "random",
-        host = hostname(),
+    ShellCommand(
+        "/usr/local/bin/read-etc-passwd",
+        parse = lambda stdout,code: [
+            json.loads(l) for l in stdout.strip().split("\n")
+        ],
+        interval = 60
     ),
-    # external command, prints "missing" (expected) or anything else
-    # (error)
-    ShellOutputState(
-        ["/usr/local/bin/file_exists", "/etc/nologin"],
-        expected = ["missing"],
-        interval = 60,
-        aspect = "nologin marker",
+    # external command (run without `sh -c'), prints single number
+    ShellCommand(
+        ["/usr/local/bin/random", "0.5"],
+        parse = lambda stdout,code: Message(
+          aspect = "random",
+          value = float(stdout),
+        ),
+        interval = 30,
+        host = hostname(),
     ),
     # and two Monitoring Plugins
     Nagios(

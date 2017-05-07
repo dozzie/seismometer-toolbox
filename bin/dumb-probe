@@ -7,6 +7,7 @@ import seismometer.output
 import seismometer.message
 import seismometer.dumbprobe
 import seismometer.logging
+import signal
 import logging
 import traceback
 
@@ -99,14 +100,13 @@ checks = checks_mod.CHECKS
 ploader.close()
 if isinstance(checks, (list, tuple)):
     checks = seismometer.dumbprobe.Checks(checks)
-    checks.setup_handles()
 
 output = prepare_destination(options.destination)
 if output is None:
     parser.error("invalid --destination")
 
 if options.once:
-    if not isinstance(checks, seismometer.dumbprobe.Checks):
+    if not isinstance(checks_mod.CHECKS, (list, tuple)):
         print >>sys.stderr, "CHECKS not being a list or tuple is" \
                             " not supported with --once option"
         sys.exit(1)
@@ -132,17 +132,27 @@ if options.once:
     sys.exit(0)
 
 #-----------------------------------------------------------------------------
+
+def quit_daemon(sig, stack_frame):
+    logger.info("received signal; shutting down")
+    sys.exit(0)
+
+signal.signal(signal.SIGHUP, quit_daemon)
+signal.signal(signal.SIGINT, quit_daemon)
+signal.signal(signal.SIGTERM, quit_daemon)
+
+#-----------------------------------------------------------------------------
 # main loop
 
-try:
-    while True:
-        for msg in checks.run_next():
-            if isinstance(msg, seismometer.message.Message):
-                output.send(msg.to_dict())
-            else: # dict
-                output.send(msg)
-except KeyboardInterrupt:
-    pass
+if isinstance(checks, seismometer.dumbprobe.Checks):
+    checks.setup_handles()
+
+while True:
+    for msg in checks.run_next():
+        if isinstance(msg, seismometer.message.Message):
+            output.send(msg.to_dict())
+        else: # dict
+            output.send(msg)
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker

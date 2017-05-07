@@ -1,0 +1,186 @@
+*******************
+Seismometer Message
+*******************
+
+Synopsis
+========
+
+.. code-block:: yaml
+
+   v: 3
+   time: 1376261660
+   location:
+     host: web01.example.net
+   event:
+     name: uptime
+     vset:
+       value:
+         value: 3205629.35
+   ---
+   v: 3
+   time: 1376261660
+   location:
+     cluster: MongoDB
+     environment: devel
+   event:
+     name: availability
+     state:
+       value: not_running
+       severity: error
+
+
+Description
+===========
+
+This is a handy reference of Seismometer message format. Full specification is
+available at <http://seismometer.net/message-schema/v3/>.
+
+Each Seismometer message describes some measurement (*event*). The result of
+the measurement can be a metric or set of metrics (free+used disk space,
+CPU usage, round-trip-time to some host, etc.), state (a server is running or
+is shut down, RAID storage healthy or degraded, etc), or both.
+
+What kind of thing was measured (*monitored aspect*) is described by aspect
+name (field ``event.name``). It's usually a string like ``"disk space"``,
+``"RAID status"``, ``"database availability"``. Where it was measured is
+described by *location* structure (sometimes called *dimensions*). Location
+usually includes host, and for disk related events it probably would contain
+device name or mount point.
+
+In the case of metrics that don't make much sense on their own and need to be
+kept bundled, like free/used/total disk space, a message can carry a set of
+values.
+
+Message structure
+=================
+
+Seismometer message is a JSON-compatible hash structure and is expected to
+have several fields:
+
+* ``v`` -- numeric schema version; this document describes version ``3``
+* ``time`` -- unix timestamp of the event
+* ``location`` -- hash that describes where the event happened; keys should
+  match :regexp:`/^[a-zA-Z0-9_]+$/` regexp, values are arbitrary strings
+* ``event`` -- hash structure that describes the event; required fields are
+  ``name`` and either ``state``, ``vset``, or both
+
+  * ``event.name`` -- name of the aspect the event is about; name is a string
+    with no further restrictions
+  * ``event.state`` -- state description (hash), if the message is about state
+  * ``event.vset`` -- value set (hash), if the message carries metrics
+  * ``event.threshold_kept`` -- name (string) of the state to set if the
+    message carries value set with thresholds and all thresholds are kept;
+    should be of the same format as ``event.state.value`` and defaults to
+    ``"ok"``
+  * ``event.comment`` -- optional string containing human-readable description
+    of the event
+  * ``event.interval`` -- optional number of seconds between two consecutive
+    events
+
+``event.state``
+---------------
+
+Hash structure describing state of the monitored object. This structure has
+following fields:
+
+* ``value`` -- state of the monitored object; the value should match
+  :regexp:`/^[a-zA-Z0-9_]+$/` regexp
+* ``severity`` -- optional severity of the state: ``"expected"``,
+  ``"warning"``, or ``"error"``; if not specified, defaults to ``"expected"``
+
+``event.vset``
+--------------
+
+Hash containing a set of values (metrics). Key in this hash corresponds to
+name of a value and should match :regexp:`/^[a-zA-Z0-9_]+$/` regexp. Value is
+a hash structure with following fields:
+
+* ``value`` -- number (integer or float) or ``null`` if no value could be
+  measured (e.g. round-trip-time for a host that is down)
+* ``unit`` -- optional string to specify units of ``value`` field
+* ``type`` -- measurement type: ``"direct"`` (regular value),
+  ``"accumulative"`` (counter that accumulates values over time, like network
+  traffic counters), or ``"differential"`` (counter that is reset after each
+  read); if not provided, defaults to ``"direct"``
+* ``threshold_low``, ``threshold_high`` -- optional lists of hash structures
+  that describe thresholds; such a structure has three fields:
+  ``{"name": <name>, "value": <value>, "severity": <severity>}``
+
+  * ``<value>`` -- if the measured value is greater than this
+    (``threshold_high``) or less than this (``threshold_low``), this threshold
+    is exceeded
+  * ``<name>`` -- if the threshold is exceeded, this becomes
+    ``event.state.value``
+  * ``<severity>`` -- if the threshold is exceeded, this becomes
+    ``event.state.severity``
+
+See also: ``event.threshold_kept``.
+
+An example message with thresholds:
+
+.. code-block:: yaml
+
+   v: 3
+   time: 1376261660
+   location:
+     host: web01.example.net
+   event:
+     name: ping
+     threshold_kept: ok
+     vset:
+       rtt:
+         value: 12.3
+         unit: ms
+         threshold_high:
+           - {value: 30.0, name: warn, severity: warning}
+           - {value: 50.0, name: crit, severity: error}
+       lost:
+         value: 0
+         unit: "%"
+         threshold_high:
+           - {value: 20, name: warn, severity: warning}
+           - {value: 70, name: crit, severity: error}
+
+
+Glossary
+========
+
+.. glossary::
+
+   event
+   message
+      data generated by monitoring probe as a result of a measurement
+
+   aspect
+      thing about the monitored object that is being measured; aspect tells
+      how to interpret a value or state carried by a message
+
+   location
+   dimensions
+      identification of the monitored object the message is about
+
+   state
+      short description of the monitored object's status
+
+   severity
+      level of operator's attention needed by monitored object's status;
+      status is either expected, indicates a warning, or is an error and
+      requires action
+
+   value set
+      collection of metrics about monitored object; usually a message only
+      carries one metric, if any, but some metrics don't make sense on their
+      own and need to be presented together (e.g. free/used/total disk space)
+
+
+See also
+========
+
+.. only:: man
+
+   * schema specification <http://seismometer.net/message-schema/v3/>
+
+.. only:: html
+
+   * schema specification <http://seismometer.net/message-schema/v3/>
+   * :doc:`../api/message`

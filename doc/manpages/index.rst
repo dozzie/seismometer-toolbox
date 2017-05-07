@@ -8,3 +8,4 @@ Command line tools
    daemonshepherd
    messenger
    dumbprobe
+   hailerter

@@ -6,70 +6,186 @@ import logging
 import traceback
 import socket
 import json
+import yaml
 
 from seismometer import daemonshepherd
 from seismometer.daemonshepherd.control_socket import ControlSocketClient
+from seismometer.daemonshepherd.filehandle import EOF
 
 #-----------------------------------------------------------------------------
 # parse command line options {{{
 
+#------------------------------------------------------
+# option callback functions {{{
+
+def store_exec(option, opt, value, parser):
+    if "=" not in value:
+        raise optparse.OptionValueError(
+            "option %s: command without daemon name: %r" % (opt, value)
+        )
+    (name, command) = value.split("=", 1)
+    if name in parser.values.commands:
+        raise optparse.OptionValueError(
+            "option %s: daemon %r already defined" % (opt, name)
+        )
+    parser.values.commands[name] = command
+
+def store_env(option, opt, value, parser):
+    if "=" not in value:
+        raise optparse.OptionValueError(
+            "option %s: invalid value: %r" % (opt, value)
+        )
+    (name, content) = value.split("=", 1)
+    if parser.values.default_env is None:
+        parser.values.default_env = {}
+    parser.values.default_env[name] = content
+
+def store_restart_strategy(option, opt, value, parser):
+    try:
+        values = [int(v.strip()) for v in value.split(",")]
+    except:
+        raise optparse.OptionValueError(
+            "option %s: invalid value: %r" % (opt, value)
+        )
+    if len(values) > 0 and all((v >= 0 for v in values)):
+        parser.values.default_restart_strategy = values
+    else:
+        raise optparse.OptionValueError(
+            "option %s: invalid value: %r" % (opt, value)
+        )
+
+# }}}
+#------------------------------------------------------
+
 parser = optparse.OptionParser(
     usage = "\n  %prog [options] --daemons=FILE"
+            "\n  %prog [options] --exec=NAME=COMMAND [--exec=NAME=COMMAND ...]"
             "\n  %prog [options] reload"
-            "\n  %prog [options] ps"
-            "\n  %prog [options] {start|stop|restart|cancel_restart} <daemon_name>",
+            "\n  %prog [options] list"
+            "\n  %prog [options] {start|stop|restart|cancel-restart} <daemon_name>"
+            "\n  %prog [options] list-commands <daemon_name>"
+            "\n  %prog [options] command <daemon_name> <command_name>",
     description = "Daemon supervisor/restarter.",
 )
 
+parser.set_defaults(default_log = None)
+
 parser.add_option(
-    "-f", "--daemons", dest = "daemons",
+    "--daemons", dest = "daemons",
     help = "YAML file with daemons to control", metavar = "FILE",
 )
 parser.add_option(
-    "-l", "--logging", dest = "logging",
-    help = "YAML/JSON file with logging configuration", metavar = "FILE",
+    "--exec", dest = "commands", default = {},
+    action = "callback", callback = store_exec, type = "string",
+    help = "command to run as a daemon in simplified mode",
+    metavar = "NAME=COMMAND",
 )
 parser.add_option(
-    "-s", "--control-socket", dest = "control_socket",
+    "--socket", dest = "socket",
     help = "path to control socket", metavar = "PATH",
 )
 parser.add_option(
-    "-p", "--pid-file", dest = "pid_file",
+    "--pid-file", dest = "pid_file",
     help = "PID file for going daemon", metavar = "FILE",
 )
 parser.add_option(
-    "-d", "--background", dest = "background",
+    "--background", dest = "background",
     action = "store_true", default = False,
     help = "detach from terminal (run as a daemon)",
 )
-parser.add_option(
-    "-u", "--user", dest = "user",
+
+#------------------------------------------------------
+# logging {{{
+
+group = optparse.OptionGroup(parser, "Logging options")
+group.add_option(
+    "--logging", dest = "logging",
+    help = "YAML/JSON file with logging configuration", metavar = "FILE",
+)
+group.add_option(
+    "--silent", dest = "default_log", action = "store_const", const = "silent",
+    help = "don't log anywhere; overriden by --logging",
+)
+group.add_option(
+    "--syslog", dest = "default_log", action = "store_const", const = "syslog",
+    help = "log to syslog; overriden by --logging",
+)
+group.add_option(
+    "--stderr", dest = "default_log", action = "store_const", const = "stderr",
+    help = "log to STDERR; overriden by --logging",
+)
+parser.add_option_group(group)
+
+# }}}
+#------------------------------------------------------
+# daemons' environment {{{
+
+group = optparse.OptionGroup(parser, "Default options for daemons")
+group.add_option(
+    "--user", dest = "user",
     help = "user to run as",
 )
-parser.add_option(
-    "-g", "--group", dest = "group",
+group.add_option(
+    "--group", dest = "group",
     help = "group to run as",
 )
+group.add_option(
+    "--cwd", dest = "default_cwd",
+    help = "default working directory for daemons", metavar = "DIRECTORY",
+)
+group.add_option(
+    "--env", dest = "default_env",
+    action = "callback", callback = store_env, type = "string",
+    help = "default environment for daemons (option may be used multiple"
+           " times)",
+    metavar = "VAR=value",
+)
+group.add_option(
+    "--stdout", dest = "default_stdout",
+    type = "choice", choices = ["console", "/dev/null", "log"],
+    help = "default place for daemons' STDOUT and STDERR",
+    metavar = "STDOUT",
+)
+group.add_option(
+    "--restart", dest = "default_restart_strategy",
+    action = "callback", callback = store_restart_strategy, type = "string",
+    help = "default restart strategy for daemons", metavar = "STRATEGY",
+)
+parser.add_option_group(group)
+
+# }}}
+#------------------------------------------------------
 
 (options, args) = parser.parse_args()
 # assume this until proven otherwise
 command = "daemon_supervisor"
 
-SOLE_COMMANDS = set(["reload", "ps"])
-DAEMON_COMMANDS = set(["start", "stop", "restart", "cancel_restart"])
-KNOWN_COMMANDS = SOLE_COMMANDS | DAEMON_COMMANDS
+COMMANDS = {
+    "reload":         { "args": 0, "cmd": "reload",         "output": None },
+    "ps":             { "args": 0, "cmd": "ps",             "output": "line-json" },
+    "list":           { "args": 0, "cmd": "ps",             "output": "line-json" },
+    "start":          { "args": 1, "cmd": "start",          "output": None },
+    "stop":           { "args": 1, "cmd": "stop",           "output": "command" },
+    "restart":        { "args": 1, "cmd": "restart",        "output": "command" },
+    "cancel-restart": { "args": 1, "cmd": "cancel_restart", "output": None },
+    "list-commands":  { "args": 1, "cmd": "list_commands",  "output": "line" },
+    "command":        { "args": 2, "cmd": "admin_command",  "output": "command" },
+}
 
-if len(args) == 0 and options.daemons is None:
-    parser.error("--daemons option is required for this mode")
+if len(args) == 0:
+    if options.daemons is None and len(options.commands) == 0:
+        parser.error("--daemons or --exec option is required")
+    if options.daemons is not None and len(options.commands) > 0:
+        parser.error("--daemons or --exec options are mutually exclusive")
 elif len(args) > 0:
     command = args.pop(0)
-    if command not in KNOWN_COMMANDS:
+    if command not in COMMANDS:
         parser.error("unrecognized command: %s" % (command,))
-    if len(args) != 1 and command in DAEMON_COMMANDS:
-        parser.error("daemon name is required for command %s" % (command,))
+    if len(args) != COMMANDS[command]["args"]:
+        parser.error("wrong number of arguments for command %s" % (command,))
 
-if command != "daemon_supervisor" and options.control_socket is None:
-    options.control_socket = "/var/run/daemonshepherd.sock"
+if command != "daemon_supervisor" and options.socket is None:
+    options.socket = "/var/run/daemonshepherd/control"
 
 # }}}
 #-----------------------------------------------------------------------------
@@ -91,7 +207,17 @@ if command == "daemon_supervisor":
 
     # configure logging
     import seismometer.logging
-    seismometer.logging.configure_from_file(options.logging, default = "null")
+    if options.default_log is None and not options.background:
+        default_log = seismometer.logging.log_config_stderr()
+    elif options.default_log is None and options.background:
+        default_log = seismometer.logging.log_config_syslog("daemonshepherd")
+    elif options.default_log == "silent":
+        default_log = seismometer.logging.log_config_null()
+    elif options.default_log == "stderr":
+        default_log = seismometer.logging.log_config_stderr()
+    elif options.default_log == "syslog":
+        default_log = seismometer.logging.log_config_syslog("daemonshepherd")
+    seismometer.logging.configure_from_file(options.logging, default_log)
 
     # setup Python runtime to log all uncaught exceptions somewhere
     def exception_logger(exctype, value, tb):
@@ -102,6 +228,47 @@ if command == "daemon_supervisor":
                 if line == "": continue
                 logger.critical(line)
     sys.excepthook = exception_logger
+
+    if options.daemons is not None:
+        def load_config():
+            with open(options.daemons) as f:
+                config = yaml.safe_load(f)
+                defaults = {}
+                if options.default_cwd is not None:
+                    defaults["cwd"] = options.default_cwd
+                if options.default_env is not None:
+                    defaults["environment"] = options.default_env
+                if options.default_stdout is not None:
+                    defaults["stdout"] = options.default_stdout
+                if options.default_restart_strategy is not None:
+                    defaults["restart"] = options.default_restart_strategy
+                defaults.update(config.get("defaults", {}))
+                daemons = config.get("daemons", {})
+                for daemon in daemons.values():
+                    for key in defaults:
+                        if key not in daemon:
+                            daemon[key] = defaults[key]
+                return daemons
+    else:
+        def load_config():
+            defaults = {}
+            if options.default_cwd is not None:
+                defaults["cwd"] = options.default_cwd
+            if options.default_env is not None:
+                defaults["environment"] = options.default_env
+            if options.default_stdout is not None:
+                defaults["stdout"] = options.default_stdout
+            if options.default_restart_strategy is not None:
+                defaults["restart"] = options.default_restart_strategy
+            daemons = dict([
+                (name, {"start_command": command})
+                for (name, command) in options.commands.items()
+            ])
+            for daemon in daemons.values():
+                for key in defaults:
+                    if key not in daemon:
+                        daemon[key] = defaults[key]
+            return daemons
 
     # daemonize (if applicable) 
     if options.background:
@@ -114,8 +281,7 @@ if command == "daemon_supervisor":
 
     # create controller thread 
     try:
-        controller = daemonshepherd.Controller(options.daemons,
-                                               options.control_socket)
+        controller = daemonshepherd.Controller(load_config, options.socket)
     except Exception, e:
         print >>sys.stderr, str(e)
         sys.exit(1)
@@ -124,12 +290,8 @@ if command == "daemon_supervisor":
     if options.background:
         daemonshepherd.detach_succeeded()
 
-    # main loop 
-    try:
-        controller.loop()
-    except KeyboardInterrupt:
-        pass
-
+    # main loop
+    controller.loop() # NOTE: SIGINT handler is set by the controller
     controller.shutdown()
     sys.exit()
 
@@ -138,27 +300,59 @@ if command == "daemon_supervisor":
 else:
     conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     try:
-        conn.connect(options.control_socket)
+        conn.connect(options.socket)
     except socket.error, e:
         print >>sys.stderr, e
         sys.exit(1)
 
     supervisor = ControlSocketClient(conn)
 
-    if command in SOLE_COMMANDS:
-        supervisor.send({"command": command})
-    elif command in DAEMON_COMMANDS:
-        supervisor.send({"command": command, "daemon": args[0]})
-    reply = supervisor.read()
+    if COMMANDS[command]["args"] == 0:
+        supervisor.send({"command": COMMANDS[command]["cmd"]})
+    elif COMMANDS[command]["args"] == 1:
+        supervisor.send({
+            "command": COMMANDS[command]["cmd"],
+            "daemon": args[0],
+        })
+    elif command == "command":
+        supervisor.send({
+            "command": COMMANDS[command]["cmd"],
+            "daemon": args[0],
+            "admin_command": args[1],
+        })
+
+    reply = supervisor.read(blocking = True)
     supervisor.close()
 
-    if reply.get("status") != "ok":
+    if reply is EOF:
+        print >>sys.stderr, \
+              "Empty reply from daemonshepherd, probably a server bug."
+        sys.exit(1)
+
+    if reply.get("status") == "error" and "message" in reply:
+        print >>sys.stderr, "error: %s" % (reply["message"],)
+        sys.exit(1)
+    if reply.get("status") != "ok": # unrecognized errors
         print >>sys.stderr, json.dumps(reply)
         sys.exit(1)
 
-    if command == "ps":
-        for daemon in reply["result"]:
-            print json.dumps(daemon)
+    if COMMANDS[command]["output"] == "line-json":
+        for rec in reply["result"]:
+            print json.dumps(rec)
+    elif COMMANDS[command]["output"] == "line":
+        for rec in reply["result"]:
+            print rec
+    elif COMMANDS[command]["output"] == "command":
+        if "result" in reply:
+            result = reply["result"]
+            if result["output"] is not None and result["output"] != "":
+                print result["output"]
+            if "signal" in result:
+                print "## command died on signal %d" % (result["signal"],)
+                sys.exit(255)
+            else:
+                print "## command exited with code %d" % (result["exit"],)
+                sys.exit(result["exit"])
 
 #-----------------------------------------------------------------------------
 # vim:ft=python:foldmethod=marker

@@ -25,8 +25,10 @@ install: build doc
 	python setup.py install --prefix=/usr --exec-prefix=/usr $(if $(DESTDIR),--root=$(DESTDIR))
 	mkdir -p $(DESTDIR)/usr/share/doc/seismometer-toolbox/html
 	cp -R doc/html/*.html doc/html/*.js doc/html/*/ $(DESTDIR)/usr/share/doc/seismometer-toolbox/html
+	install -m 644 -D doc/man/seismometer-message.7 $(DESTDIR)/usr/share/man/man7/seismometer-message.7
 	install -m 644 -D doc/man/daemonshepherd.8 $(DESTDIR)/usr/share/man/man8/daemonshepherd.8
 	install -m 644 -D doc/man/dumb-probe.8     $(DESTDIR)/usr/share/man/man8/dumb-probe.8
+	install -m 644 -D doc/man/hailerter.8      $(DESTDIR)/usr/share/man/man8/hailerter.8
 	install -m 644 -D doc/man/messenger.8      $(DESTDIR)/usr/share/man/man8/messenger.8
 
 doc: html man

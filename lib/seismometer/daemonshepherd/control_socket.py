@@ -14,14 +14,16 @@ Unix sockets
 
 import socket
 import os
+import errno
 import json
-import _fd
+import filehandle
 
 #-----------------------------------------------------------------------------
 
 class ControlSocket:
     '''
-    Create unix stream listening socket, binding to :obj:`address`.
+    Unix stream listening socket, bound to :obj:`address`. Connections process
+    (encode and decode) line-based JSON messages.
     '''
 
     def __init__(self, address):
@@ -33,10 +35,10 @@ class ControlSocket:
         self.socket = None
         conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         conn.bind(self.path)
-        # only set self.socket it after bind(), so the file won't get removed
+        # only set self.socket after bind(), so the file won't get removed
         # when it's not ours (e.g. existed already)
         self.socket = conn
-        _fd.close_on_exec(self.socket)
+        filehandle.set_close_on_exec(self.socket)
         self.socket.listen(1)
 
     def __del__(self):
@@ -49,6 +51,7 @@ class ControlSocket:
         Accept new connection on this socket.
         '''
         (conn, addr) = self.socket.accept()
+        filehandle.set_close_on_exec(conn)
         return ControlSocketClient(conn)
 
     def fileno(self):
@@ -82,23 +85,45 @@ class ControlSocketClient:
         '''
         self.socket = socket
 
-    def read(self):
+    def read(self, blocking = False):
         '''
-        :rtype: dict, list or scalar
+        :rtype: dict
 
-        Read single line of JSON and decode it.
+        Read single line of JSON hash and decode it.
+
+        This method by default is non-blocking; if no more data is ready for
+        reading, the method returns immediately ``None``.
+
+        When connection was closed, this method returns
+        :obj:`seismometer.daemonshepherd.filehandle.EOF`.
         '''
-        line = self.socket.recv(4096)
+        if self.socket is None:
+            return filehandle.EOF
+
+        if not blocking:
+            options = socket.MSG_DONTWAIT
+        else:
+            options = 0
+
+        try:
+            line = self.socket.recv(4096, options)
+        except socket.error, e:
+            if e.errno == errno.EWOULDBLOCK or e.errno == errno.EAGAIN:
+                # nothing more to read at the moment
+                return None
+            else:
+                raise
+
         if line == '':
-            return None
+            return filehandle.EOF
         try:
             result = json.loads(line)
             if isinstance(result, dict):
                 return result
             else:
-                return None
+                return filehandle.EOF # TODO: report a protocol error
         except:
-            return None
+            return filehandle.EOF # TODO: report a protocol error
 
     def send(self, message):
         '''
