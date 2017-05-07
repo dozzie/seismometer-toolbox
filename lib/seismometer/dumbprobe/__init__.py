@@ -57,7 +57,6 @@ import heapq
 import time
 import logging
 import seismometer.poll
-import signal
 
 from checks import *
 from handles import *
@@ -135,73 +134,6 @@ class RunQueue:
 
 # }}}
 #-----------------------------------------------------------------------------
-# Alarm {{{
-
-class Alarm:
-    '''
-    :manpage:`alarm(2)`-based notifier.
-    '''
-
-    def __init__(self):
-        self.alarm_fired = False
-        self.alarm_set = False
-
-    def install_handler(self):
-        '''
-        Install :signal:`SIGALRM` handler of this object.
-        '''
-        signal.signal(signal.SIGALRM, self.handle_alarm)
-
-    def reset_alarm(self):
-        '''
-        Reset alarm's state, cancelling any schedule.
-        '''
-        self.alarm_fired = False
-        self.alarm_set = False
-        signal.alarm(0)
-
-    def set_alarm(self, when):
-        '''
-        :param when: timestamp to fire alarm on
-
-        Set an alarm to be fired. If :obj:`when` is in the past, the alarm is
-        considered to be fired already.
-        '''
-        when = int(when)
-        now = int(time.time())
-        if now < when:
-            self.alarm_fired = False
-            self.alarm_set = True
-            signal.alarm(when - now)
-        else:
-            self.alarm_fired = True
-            self.alarm_set = False
-
-    def handle_alarm(self, sig, stack_trace):
-        '''
-        :signal:`SIGALRM` handler.
-        '''
-        self.alarm_fired = True
-        self.alarm_set = False
-
-    def is_set(self):
-        '''
-        :rtype: bool
-
-        Check whether the alarm was set. Alarm that fired is unset.
-        '''
-        return self.alarm_set
-
-    def fired(self):
-        '''
-        :rtype: bool
-
-        Check whether the alarm has fired or not.
-        '''
-        return self.alarm_fired
-
-# }}}
-#-----------------------------------------------------------------------------
 
 class Checks:
     '''
@@ -212,8 +144,6 @@ class Checks:
         self.q = RunQueue()
         self.poll = seismometer.poll.Poll()
         self.start_handles = []
-        self.alarm = Alarm()
-        self.alarm.install_handler()
         self.check_ids = {}
         if checks is not None:
             for c in checks:
@@ -324,16 +254,14 @@ class Checks:
                 return None
             return result
 
-        # no handles to read, so poll() must have been interrupted with
-        # SIGALRM or the check was already due
+        # no handles to read, so the poll() timeout must have occurred
 
         if self.q.empty():
             return None
 
         (next_run, check) = self.q.peek()
         if int(next_run) > int(time.time()):
-            # this could be SIGALRM sent to the DumbProbe manually, or maybe
-            # some other scenario I haven't thought about
+            # not the time to fire a check
             return None
         self.q.get() # remove the check from the queue
 
@@ -361,21 +289,15 @@ class Checks:
         :return: list of :class:`BaseHandle` or ``None``
 
         Poll the watched handles for input and return a list of the ones ready
-        for reading. If the time for running next check from the schedule has
-        come, ``None`` is returned.
+        for reading. If nothing came in 200ms, ``None`` is returned.
         '''
         if not self.q.empty():
             (next_run, check) = self.q.peek()
             if int(next_run) <= int(time.time()):
-                self.alarm.reset_alarm()
                 return None
 
-            if not self.alarm.is_set():
-                self.alarm.set_alarm(next_run)
-
-        handles = self.poll.poll(timeout = None)
+        handles = self.poll.poll(timeout = 200)
         if len(handles) == 0:
-            # poll() was interrupted, most probably by SIGALRM
             return None
         return handles
 
