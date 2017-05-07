@@ -16,7 +16,7 @@ DESC="daemonshepherd"
 NAME=daemonshepherd
 DAEMON=/usr/bin/daemonshepherd
 PIDFILE=/var/run/$NAME.pid
-CONTROL_SOCKET=/var/run/$NAME.sock
+CONTROL_SOCKET=/var/run/$NAME/control
 SCRIPTNAME=/etc/init.d/$NAME
 
 DAEMONSHEPHERD_CONFIG=/etc/seismometer/daemonshepherd.yaml
@@ -55,6 +55,7 @@ do_start() {
     log_failure_msg "$NAME logging config file $DAEMONSHEPHERD_LOG_CONFIG doesn't exist"
     return 2
   fi
+  mkdir -p ${CONTROL_SOCKET%/*}
 
   start-stop-daemon --start --quiet > /dev/null \
     --pidfile $PIDFILE \
@@ -65,7 +66,7 @@ do_start() {
       --background \
       --daemons $DAEMONSHEPHERD_CONFIG \
       ${DAEMONSHEPHERD_LOG_CONFIG:+--logging $DAEMONSHEPHERD_LOG_CONFIG} \
-      --control-socket $CONTROL_SOCKET \
+      --socket $CONTROL_SOCKET \
       --pid-file $PIDFILE || return 2
 }
 

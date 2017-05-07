@@ -1,8 +1,11 @@
 /etc/seismometer/*.example
 /usr/bin/daemonshepherd
 /usr/bin/dumb-probe
+/usr/bin/hailerter
 /usr/bin/messenger
 /usr/lib/python2.*/site-packages/seismometer*
+/usr/share/man/man7/seismometer-message.7
 /usr/share/man/man8/daemonshepherd.8
 /usr/share/man/man8/dumb-probe.8
+/usr/share/man/man8/hailerter.8
 /usr/share/man/man8/messenger.8
