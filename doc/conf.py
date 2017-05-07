@@ -8,8 +8,8 @@ project = u'Seismometer Toolbox'
 
 #copyright = u'...'
 
-release = '0.4.0'
-version = '0.4'
+release = '0.5.0'
+version = '0.5'
 
 #-----------------------------------------------------------------------------
 
