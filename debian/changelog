@@ -1,3 +1,26 @@
+seismometer-toolbox (0.5.0-1) stable; urgency=low
+
+  * Updated documentation, including handy reference of Seismometer message
+    structure.
+  * Added a new helper module: priority queue.
+  * Added a new message processing tool: hailerter, state tracker.
+  * Breaking change in DumbProbe API: more universal ShellCheck replaced most
+    of the shell-based checks.
+  * Breaking changes to daemonshepherd's command line options and default path
+    for admin socket.
+  * daemonshepherd improvements:
+    - command line options for simplified logging configuration
+    - simplified mode for starting daemonshepherd (without daemons file)
+    - daemons' administrative commands and event hooks (before-start and
+      after-crash)
+    - option for sending signals to whole process groups
+    - support for supplementary groups in daemon definitions
+  * daemonshepherd bugfixes:
+    - losing children's output on stop/restart
+    - lingering processes when exec() failed
+
+ -- Stanislaw Klekot <dozzie@jarowit.net>  Sun, 07 May 2017 14:35:23 +0200
+
 seismometer-toolbox (0.4.0-1) stable; urgency=low
 
   * Added logging uncaught exceptions to all tools.
