@@ -246,24 +246,16 @@ class Checks:
         (closing or reopening), or when a check returned ``None`` or empty
         list of messages.
         '''
-        read_handles = self.poll_handles()
 
-        if read_handles is not None:
-            result = self.read_handles(read_handles)
+        if self.q.empty() or int(self.q.peek()[0]) > int(time.time()):
+            # not the time to fire a check, so let's poll handles
+            handles = self.poll.poll(timeout = 200)
+            result = self.read_handles(handles)
             if len(result) == 0:
                 return None
             return result
 
-        # no handles to read, so the poll() timeout must have occurred
-
-        if self.q.empty():
-            return None
-
-        (next_run, check) = self.q.peek()
-        if int(next_run) > int(time.time()):
-            # not the time to fire a check
-            return None
-        self.q.get() # remove the check from the queue
+        (next_run, check) = self.q.get() # remove the check from the queue
 
         if isinstance(check, BaseHandle):
             # this wasn't a check, but a handle that needs being reopened
@@ -283,23 +275,6 @@ class Checks:
             return result
         else: # dict or seismometer.message.Message
             return [result]
-
-    def poll_handles(self):
-        '''
-        :return: list of :class:`BaseHandle` or ``None``
-
-        Poll the watched handles for input and return a list of the ones ready
-        for reading. If nothing came in 200ms, ``None`` is returned.
-        '''
-        if not self.q.empty():
-            (next_run, check) = self.q.peek()
-            if int(next_run) <= int(time.time()):
-                return None
-
-        handles = self.poll.poll(timeout = 200)
-        if len(handles) == 0:
-            return None
-        return handles
 
     def read_handles(self, handles):
         '''
